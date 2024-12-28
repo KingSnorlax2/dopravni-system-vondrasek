@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Auto {
+  id          Int      @id @default(autoincrement())
+  spz         String   @unique
+  znacka      String
+  model       String
+  rokVyroby   Int
+  najezd      Int
+  stav        String
+  poznamka    String?
+  datumSTK    DateTime?
+  fotky       Fotka[]  @relation("AutoFotky", onDelete: Cascade)
+  poznatky    Note[]   @relation("AutoNotes", onDelete: Cascade)
+}
+
+model Fotka {
+  id        String   @id @default(cuid())
+  data      String   @db.Text
+  mimeType  String
+  autoId    Int?
+  auto      Auto?    @relation("AutoFotky", fields: [autoId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  text      String
+  auto      Auto     @relation("AutoNotes", fields: [autoId], references: [id], onDelete: Cascade)
+  autoId    Int
+  createdAt DateTime @default(now())
+}

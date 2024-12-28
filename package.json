@@ -1,0 +1,44 @@
+{
+  "name": "dopravni-system-vondrasek",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "@radix-ui/react-select": "^2.1.4",
+    "@tanstack/react-query": "^5.62.8",
+    "@tanstack/react-table": "^8.20.6",
+    "bcrypt": "^5.1.1",
+    "framer-motion": "^11.15.0",
+    "next": "latest",
+    "next-auth": "^4.24.11",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-hook-form": "^7.54.1",
+    "recharts": "^2.15.0",
+    "swr": "^2.2.5",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.2",
+    "nodemailer": "^6.9.9"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/bcrypt": "^5.0.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.1.2",
+    "eslint-config-prettier": "^9.1.0",
+    "postcss": "^8",
+    "prettier": "^3.4.2",
+    "prisma": "^6.1.0",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5",
+    "@types/nodemailer": "^6.4.14"
+  }
+}
