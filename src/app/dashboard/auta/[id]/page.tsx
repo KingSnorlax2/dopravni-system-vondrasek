@@ -1,7 +1,6 @@
-// Start of Selection
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AutoForm from '@/components/forms/AutoForm'
@@ -107,14 +106,16 @@ export default function DetailAuta() {
       })
 
       if (!response.ok) {
-        throw new Error('Chyba při aktualizaci auta')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Chyba při aktualizaci auta')
       }
 
       const updatedAuto = await response.json()
+      console.log('Aktualizované auto:', updatedAuto)
       setAuto(updatedAuto)
       setIsEditModalOpen(false)
-      router.refresh()
     } catch (error) {
+      console.error('Chyba při aktualizaci auta:', error)
       setSubmitError(error instanceof Error ? error.message : 'Nastala chyba při aktualizaci auta')
     } finally {
       setSubmitLoading(false)
@@ -129,6 +130,8 @@ export default function DetailAuta() {
     return <div className="text-center text-red-500 mt-10 text-xl">Auto nebylo nalezeno</div>
   }
 
+  console.log('Aktuální stav auto:', auto)
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {/* Tlačítka pro návrat a úpravu auta */}
@@ -138,7 +141,7 @@ export default function DetailAuta() {
         </Link>
         <button
           onClick={() => setIsEditModalOpen(true)}
-          className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition-colors text-center w-full sm:w-auto"
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors w-full sm:w-auto"
         >
           Upravit auto
         </button>

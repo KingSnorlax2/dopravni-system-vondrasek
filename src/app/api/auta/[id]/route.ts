@@ -137,7 +137,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     const errorMessage = error instanceof Error ? error.message : 'Neznámá chyba';
 
     return NextResponse.json(
-      { error: 'Chyba p��i mazání auta', details: errorMessage },
+      { error: 'Chyba při mazání auta', details: errorMessage },
       { status: 500 }
     );
   }
@@ -145,22 +145,19 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
-    const id = Number(params.id)
+    const id = Number(params.id);
     if (isNaN(id)) {
-      return NextResponse.json({ error: 'Neplatné ID auta' }, { status: 400 })
+      return NextResponse.json({ error: 'Neplatné ID auta' }, { status: 400 });
     }
 
-    const data = await request.json()
-    console.log('Přijatá data pro aktualizaci auta:', data) // Pro debugování
+    const data = await request.json();
+    console.log('Přijatá data pro aktualizaci auta:', data); // Debug
 
-    const requiredFields = ['spz', 'znacka', 'model', 'rokVyroby', 'najezd', 'stav']
+    const requiredFields = ['spz', 'znacka', 'model', 'rokVyroby', 'najezd', 'stav'];
     for (const field of requiredFields) {
       if (data[field] === undefined || data[field] === null || data[field] === '') {
-        console.log(`Chybí povinné pole: ${field}`) // Pro debugování
-        return NextResponse.json(
-          { error: `Chybí povinné údaje: ${field}` },
-          { status: 400 }
-        )
+        console.log(`Chybí povinné pole: ${field}`); // Debug
+        return NextResponse.json({ error: `Chybí povinné údaje: ${field}` }, { status: 400 });
       }
     }
 
@@ -173,25 +170,25 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       stav: String(data.stav),
       poznamka: data.poznamka || null,
       datumSTK: data.datumSTK ? new Date(data.datumSTK) : undefined
-    }
-
-    console.log('Data pro aktualizaci auta:', updateData) // Pro debugování
+    };
+    console.log('Data pro aktualizaci auta:', updateData); // Debug
 
     const updatedAuto = await prisma.auto.update({
       where: { id },
       data: updateData
-    })
+    });
+    console.log('Aktualizované auto:', updatedAuto); // Debug
 
-    return NextResponse.json({ success: true, data: updatedAuto }, { status: 200 })
+    return NextResponse.json({ success: true, data: updatedAuto }, { status: 200 });
   } catch (error: any) {
-    console.error('Chyba při aktualizaci auta:', error)
+    console.error('Chyba při aktualizaci auta:', error);
     return NextResponse.json(
       { 
         error: 'Chyba při aktualizaci auta',
         details: error.message || String(error)
       },
       { status: 500 }
-    )
+    );
   }
 }
 
