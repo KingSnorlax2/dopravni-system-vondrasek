@@ -178,7 +178,7 @@ const TransakcePage: React.FC = () => {
 
   const sortedTransakce = [...filteredTransakce].sort((a, b) => {
     if (!sortField) return 0;
-    
+
     const aValue = a[sortField];
     const bValue = b[sortField];
 
@@ -189,7 +189,7 @@ const TransakcePage: React.FC = () => {
     }
 
     if (sortField === 'castka') {
-      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      return sortDirection === 'asc' ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue);
     }
 
     if (typeof aValue === 'string' && typeof bValue === 'string') {
@@ -198,7 +198,7 @@ const TransakcePage: React.FC = () => {
         : bValue.localeCompare(aValue, 'cs');
     }
 
-    return 0;
+    return 0; // Default case if types do not match
   });
 
   const paginatedTransakce = sortedTransakce.slice(0, itemsPerPage);
