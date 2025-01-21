@@ -1108,6 +1108,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
                         <Link href={`/dashboard/auta/${auto.id}`} className="text-blue-600 hover:text-blue-900">
                           Detail
                         </Link>
+
                         <button onClick={() => setEditedAuto(auto)} className="text-blue-600 hover:text-blue-900">
                           Upravit
                         </button>

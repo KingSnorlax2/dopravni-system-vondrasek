@@ -17,8 +17,9 @@ model Auto {
   stav        String
   poznamka    String?
   datumSTK    DateTime?
-  fotky       Fotka[]  @relation("AutoFotky", onDelete: Cascade)
-  poznatky    Note[]   @relation("AutoNotes", onDelete: Cascade)
+  fotky       Fotka[]  @relation("AutoFotky")
+  poznatky    Note[]   @relation("AutoNotes")
+  transakce   Transakce[] @relation("AutoTransakce")
 }
 
 model Fotka {
@@ -35,4 +36,15 @@ model Note {
   auto      Auto     @relation("AutoNotes", fields: [autoId], references: [id], onDelete: Cascade)
   autoId    Int
   createdAt DateTime @default(now())
+}
+
+model Transakce {
+  id      Int      @id @default(autoincrement())
+  autoId  Int?
+  castka  Float
+  datum   DateTime
+  typ     String
+  popis   String
+  nazev   String?
+  auto    Auto?    @relation("AutoTransakce", fields: [autoId], references: [id])
 }
