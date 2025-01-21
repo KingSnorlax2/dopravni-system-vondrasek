@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+
 
 interface Transakce {
   id?: number;
@@ -31,6 +31,8 @@ const TransakcePage: React.FC = () => {
   const [selectedTransakce, setSelectedTransakce] = useState<number[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [itemsToDelete, setItemsToDelete] = useState<number[]>([]);
+  const [sortField, setSortField] = useState<'nazev' | 'castka' | 'datum' | 'typ' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     const fetchTransakce = async () => {
@@ -165,7 +167,41 @@ const TransakcePage: React.FC = () => {
     }
   };
 
-  const paginatedTransakce = filteredTransakce.slice(0, itemsPerPage);
+  const handleSort = (field: 'nazev' | 'castka' | 'datum' | 'typ') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedTransakce = [...filteredTransakce].sort((a, b) => {
+    if (!sortField) return 0;
+    
+    const aValue = a[sortField];
+    const bValue = b[sortField];
+
+    if (sortField === 'datum') {
+      const dateA = new Date(aValue).getTime();
+      const dateB = new Date(bValue).getTime();
+      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    }
+
+    if (sortField === 'castka') {
+      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    }
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortDirection === 'asc' 
+        ? aValue.localeCompare(bValue, 'cs') 
+        : bValue.localeCompare(aValue, 'cs');
+    }
+
+    return 0;
+  });
+
+  const paginatedTransakce = sortedTransakce.slice(0, itemsPerPage);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -588,7 +624,7 @@ const TransakcePage: React.FC = () => {
   const finančníStav = transakce.reduce((acc, t) => acc + t.castka, 0);
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-gray-100 min-h-screen">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-4 rounded shadow">
           <h3 className="text-lg font-bold">Celkem transakcí</h3>
@@ -622,13 +658,13 @@ const TransakcePage: React.FC = () => {
           placeholder="Vyhledat..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="border rounded p-2 w-64 text-black"
+          className="border rounded-lg p-2 w-64 text-black"
         />
         
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="border rounded p-2 text-black"
+          className="border rounded-lg p-2 text-black"
         >
           <option value="all">Všechny typy</option>
           <option value="příjem">Příjem</option>
@@ -682,13 +718,9 @@ const TransakcePage: React.FC = () => {
           <option value="50">50</option>
           <option value="100">100</option>
         </select>
-
-        <span className="flex items-center gap-2 text-black">
-          (celkem {filteredTransakce.length})
-        </span>
       </div>
 
-      <div className="w-full overflow-x-auto bg-gray-100 rounded-lg shadow mb-6">
+      <div className="w-full overflow-x-auto bg-white rounded-lg shadow mb-6">
         <div className="min-w-full">
           <div className="grid grid-cols-7 gap-4 p-4 text-sm font-medium text-black border-b bg-gray-200">
             <div className="flex items-center">
@@ -699,10 +731,42 @@ const TransakcePage: React.FC = () => {
                 onChange={handleSelectAll}
               />
             </div>
-            <div>NÁZEV</div>
-            <div>ČÁSTKA</div>
-            <div>DATUM</div>
-            <div>TYP</div>
+            <div 
+              className="cursor-pointer hover:text-blue-600 flex items-center gap-1"
+              onClick={() => handleSort('nazev')}
+            >
+              NÁZEV
+              {sortField === 'nazev' && (
+                <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+              )}
+            </div>
+            <div 
+              className="cursor-pointer hover:text-blue-600 flex items-center gap-1"
+              onClick={() => handleSort('castka')}
+            >
+              ČÁSTKA
+              {sortField === 'castka' && (
+                <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+              )}
+            </div>
+            <div 
+              className="cursor-pointer hover:text-blue-600 flex items-center gap-1"
+              onClick={() => handleSort('datum')}
+            >
+              DATUM
+              {sortField === 'datum' && (
+                <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+              )}
+            </div>
+            <div 
+              className="cursor-pointer hover:text-blue-600 flex items-center gap-1"
+              onClick={() => handleSort('typ')}
+            >
+              TYP
+              {sortField === 'typ' && (
+                <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+              )}
+            </div>
             <div>POPIS</div>
             <div>AKCE</div>
           </div>
@@ -711,7 +775,24 @@ const TransakcePage: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-4">
         {paginatedTransakce.map(transakce => (
-          <div key={transakce.id} className="grid grid-cols-7 gap-4 p-4 text-sm border-b hover:bg-gray-200 bg-gray-100 text-black">
+          <div 
+            key={transakce.id} 
+            className="grid grid-cols-7 gap-4 border-b hover:bg-opacity-100 font-medium text-base"
+            style={{
+              transition: 'background-color 0.2s',
+              backgroundColor: transakce.typ === 'příjem' ? 'rgb(240, 253, 244)' : 'rgb(254, 242, 242)',
+              color: 'rgb(17, 24, 39)',
+              height: '90px',
+              alignItems: 'center',
+              padding: '0 16px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = transakce.typ === 'příjem' ? 'rgb(220, 252, 231)' : 'rgb(254, 226, 226)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = transakce.typ === 'příjem' ? 'rgb(240, 253, 244)' : 'rgb(254, 242, 242)';
+            }}
+          >
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -720,14 +801,16 @@ const TransakcePage: React.FC = () => {
                 onChange={() => handleSelect(transakce.id!)}
               />
             </div>
-            <div className="font-medium">{transakce.nazev}</div>
-            <div className={`${transakce.castka >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div>{transakce.nazev}</div>
+            <div className={transakce.typ === 'příjem' ? 'text-green-700' : 'text-red-700'}>
               {transakce.castka} Kč
             </div>
             <div>{new Date(transakce.datum).toLocaleDateString('cs-CZ')}</div>
             <div>
               <span className={`inline-block px-2 py-1 text-xs font-bold rounded-full ${
-                transakce.typ === 'příjem' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                transakce.typ === 'příjem' 
+                  ? 'bg-green-200 text-green-800' 
+                  : 'bg-red-200 text-red-800'
               }`}>
                 {transakce.typ}
               </span>
@@ -736,15 +819,15 @@ const TransakcePage: React.FC = () => {
             <div className="flex space-x-2">
               <button 
                 onClick={() => openModal(transakce)} 
-                className="text-blue-600 hover:text-blue-800"
+                className="text-gray-700 hover:text-blue-600 text-base font-medium"
               >
-                <FaEdit />
+                Upravit
               </button>
               <button 
                 onClick={() => handleDelete(transakce.id!)} 
-                className="text-red-600 hover:text-red-800"
+                className="text-gray-700 hover:text-red-600 text-base font-medium"
               >
-                <FaTrash />
+                Smazat
               </button>
             </div>
           </div>
@@ -880,7 +963,7 @@ const TransakcePage: React.FC = () => {
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-600"
               >
                 Smazat
               </button>
