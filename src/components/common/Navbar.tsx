@@ -30,6 +30,12 @@ export default function Navbar() {
               >
                 Transakce
               </Link>
+              <Link 
+                href="/dashboard/grafy" 
+                className="text-gray-900 hover:text-gray-500 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Grafy
+              </Link>
             </div>
           </div>
         </div>

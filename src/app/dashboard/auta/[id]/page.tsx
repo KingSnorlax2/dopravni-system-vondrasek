@@ -31,6 +31,8 @@ interface Auto {
   poznamky: Poznatek[]
 }
 
+const MAX_POZNAMKA_LENGTH = 300;
+
 export default function DetailAuta() {
   const params = useParams()
   const router = useRouter()
@@ -50,6 +52,7 @@ export default function DetailAuta() {
   })
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [novaPoznamka, setNovaPoznamka] = useState('');
 
   useEffect(() => {
     if (!params.id) return
@@ -143,6 +146,13 @@ export default function DetailAuta() {
     } finally {
       setSubmitLoading(false)
     }
+  }
+
+  const handlePoznamkaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Implementace logiky pro přidání nové poznámky
+    console.log('Nová poznámka:', novaPoznamka);
+    setNovaPoznamka('');
   }
 
   if (loading) {
@@ -314,6 +324,49 @@ export default function DetailAuta() {
           </div>
         </div>
       )}
+
+      <div className="bg-white shadow-md rounded-lg p-6 mt-6">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-4">Poznámky</h2>
+        <div className="space-y-4">
+          {auto.poznamky?.map((poznamka) => (
+            <div key={poznamka.id} className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-gray-800">{poznamka.text}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {new Date(poznamka.createdAt).toLocaleDateString('cs-CZ')}
+              </p>
+            </div>
+          ))}
+        </div>
+        <form onSubmit={handlePoznamkaSubmit} className="mt-4 space-y-4">
+          <div>
+            <textarea
+              value={novaPoznamka}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.length <= MAX_POZNAMKA_LENGTH) {
+                  setNovaPoznamka(value);
+                }
+              }}
+              placeholder="Napište poznámku..."
+              maxLength={MAX_POZNAMKA_LENGTH}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              rows={4}
+            />
+            <p className={`text-sm mt-1 ${
+              novaPoznamka.length >= MAX_POZNAMKA_LENGTH ? 'text-red-500' : 'text-gray-500'
+            }`}>
+              {novaPoznamka.length}/{MAX_POZNAMKA_LENGTH} znaků
+            </p>
+          </div>
+          <button
+            type="submit"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            disabled={!novaPoznamka.trim()}
+          >
+            Přidat poznámku
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

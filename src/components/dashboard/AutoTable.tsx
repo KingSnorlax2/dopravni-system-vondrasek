@@ -21,6 +21,7 @@ interface Auto {
   datumSTK: string | null
   poznamka?: string
   pripnuto?: boolean
+  poznatky?: { id: string; text: string; createdAt: string }[]
 }
 
 function isSTKExpiring(datumSTK: string | null) {
@@ -90,6 +91,8 @@ const exportToCSV = (auta: Auto[]) => {
   document.body.removeChild(link)
 }
 
+const MAX_POZNAMKA_LENGTH = 300;
+
 function AutoTable({ auta, onRefresh }: AutoTableProps) {
   const [editedAuto, setEditedAuto] = useState<Auto | null>(null)
   const [deleteModalData, setDeleteModalData] = useState<{auto: Auto, isOpen: boolean} | null>(null)
@@ -109,6 +112,8 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [showBulkStateChangeModal, setShowBulkStateChangeModal] = useState(false)
   const [newBulkState, setNewBulkState] = useState('aktivní')
+  const [showPoznamky, setShowPoznamky] = useState(false)
+  const [novaPoznamka, setNovaPoznamka] = useState('')
 
   useEffect(() => {
     if (notification) {
@@ -713,7 +718,37 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
     });
   }, [filteredAndSortedAuta]);
 
-  
+  const handlePoznamkaSubmit = async (e: React.FormEvent, autoId: string) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`/api/auta/${autoId}/poznamka`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: novaPoznamka })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Chyba při přidávání poznámky');
+      }
+
+      setNovaPoznamka('');
+      onRefresh();
+      setNotification({
+        message: 'Poznámka byla úspěšně přidána',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Chyba:', error);
+      setNotification({
+        message: 'Chyba při přidávání poznámky',
+        type: 'error'
+      });
+    }
+  };
+
   return (
     <>
       {editedAuto && (
@@ -799,10 +834,21 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
             <h2 className="text-lg font-semibold mb-4 text-black">Poznámka k vozidlu</h2>
             <textarea
               value={editedNote.note}
-              onChange={(e) => setEditedNote({ ...editedNote, note: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.length <= MAX_POZNAMKA_LENGTH) {
+                  setEditedNote({ ...editedNote, note: value });
+                }
+              }}
+              maxLength={MAX_POZNAMKA_LENGTH}
               className="w-full h-32 px-3 py-2 border rounded mb-4 resize-none text-black"
               placeholder="Zadejte poznámku..."
             />
+            <p className={`text-sm mb-4 ${
+              (editedNote.note?.length || 0) >= MAX_POZNAMKA_LENGTH ? 'text-red-500' : 'text-gray-500'
+            }`}>
+              {editedNote.note?.length || 0}/{MAX_POZNAMKA_LENGTH} znaků
+            </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => {
@@ -1163,7 +1209,5 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
     </>
   )
 }
-
-
 
 export default AutoTable
