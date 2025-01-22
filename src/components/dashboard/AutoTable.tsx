@@ -754,7 +754,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-black"
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 "
               >
                 Smazat
               </button>
@@ -846,7 +846,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
               </button>
               <button
                 onClick={handleBulkStateChange}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-black"
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 "
               >
                 Potvrdit
               </button>
