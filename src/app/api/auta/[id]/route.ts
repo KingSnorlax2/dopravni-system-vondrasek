@@ -143,52 +143,44 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const id = Number(params.id);
-    if (isNaN(id)) {
-      return NextResponse.json({ error: 'Neplatné ID auta' }, { status: 400 });
-    }
+    const autoId = parseInt(params.id, 10)
+    const data = await request.json()
 
-    const data = await request.json();
-    console.log('Přijatá data pro aktualizaci auta:', data); // Debug
-
-    const requiredFields = ['spz', 'znacka', 'model', 'rokVyroby', 'najezd', 'stav'];
-    for (const field of requiredFields) {
-      if (data[field] === undefined || data[field] === null || data[field] === '') {
-        console.log(`Chybí povinné pole: ${field}`); // Debug
-        return NextResponse.json({ error: `Chybí povinné údaje: ${field}` }, { status: 400 });
-      }
-    }
-
-    const updateData = {
-      spz: String(data.spz),
-      znacka: String(data.znacka),
-      model: String(data.model),
-      rokVyroby: Number(data.rokVyroby),
-      najezd: Number(data.najezd),
-      stav: String(data.stav),
-      poznamka: data.poznamka || null,
-      datumSTK: data.datumSTK ? new Date(data.datumSTK) : undefined
-    };
-    console.log('Data pro aktualizaci auta:', updateData); // Debug
+    console.log('Přijatá data pro aktualizaci:', data) // Pro debug
 
     const updatedAuto = await prisma.auto.update({
-      where: { id },
-      data: updateData
-    });
-    console.log('Aktualizované auto:', updatedAuto); // Debug
-
-    return NextResponse.json({ success: true, data: updatedAuto }, { status: 200 });
-  } catch (error: any) {
-    console.error('Chyba při aktualizaci auta:', error);
-    return NextResponse.json(
-      { 
-        error: 'Chyba při aktualizaci auta',
-        details: error.message || String(error)
+      where: {
+        id: autoId
       },
+      data: {
+        spz: data.spz,
+        znacka: data.znacka,
+        model: data.model,
+        rokVyroby: parseInt(data.rokVyroby, 10),
+        najezd: parseInt(data.najezd, 10),
+        stav: data.stav,
+        datumSTK: data.datumSTK ? new Date(data.datumSTK) : null
+      },
+      include: {
+        fotky: true,
+        poznatky: true
+      }
+    })
+
+    console.log('Aktualizované auto:', updatedAuto) // Pro debug
+
+    return NextResponse.json(updatedAuto)
+  } catch (error) {
+    console.error('Chyba při aktualizaci auta:', error)
+    return NextResponse.json(
+      { error: 'Chyba při aktualizaci auta' },
       { status: 500 }
-    );
+    )
   }
 }
 

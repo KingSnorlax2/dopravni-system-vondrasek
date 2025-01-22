@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AutoForm from '@/components/forms/AutoForm'
+import { QRCodeGenerator } from '@/components/QRCodeGenerator'
 
 interface Foto {
   id: string
@@ -110,10 +111,32 @@ export default function DetailAuta() {
         throw new Error(errorData.error || 'Chyba při aktualizaci auta')
       }
 
-      const updatedAuto = await response.json()
-      console.log('Aktualizované auto:', updatedAuto)
-      setAuto(updatedAuto)
+      const updatedData = await response.json()
+      console.log('Aktualizovaná data:', updatedData) // Pro debug
+
+      // Aktualizace stavu auto s novými daty
+      setAuto(updatedData)
+
+      // Znovu načteme data auta pro jistotu
+      const refreshResponse = await fetch(`/api/auta/${params.id}`)
+      if (refreshResponse.ok) {
+        const refreshedData = await refreshResponse.json()
+        setAuto(refreshedData)
+        
+        // Aktualizace formData s novými hodnotami
+        setFormData({
+          spz: refreshedData.spz || '',
+          znacka: refreshedData.znacka || '',
+          model: refreshedData.model || '',
+          rokVyroby: refreshedData.rokVyroby ? refreshedData.rokVyroby.toString() : '',
+          najezd: refreshedData.najezd ? refreshedData.najezd.toString() : '',
+          stav: refreshedData.stav || 'aktivní',
+          datumSTK: refreshedData.datumSTK ? new Date(refreshedData.datumSTK).toISOString().split('T')[0] : ''
+        })
+      }
+
       setIsEditModalOpen(false)
+      setSubmitError(null)
     } catch (error) {
       console.error('Chyba při aktualizaci auta:', error)
       setSubmitError(error instanceof Error ? error.message : 'Nastala chyba při aktualizaci auta')
@@ -160,10 +183,9 @@ export default function DetailAuta() {
           </div>
         </div>
 
-        {/* Sekce pro budoucí historii úprav */}
-        <div className="bg-white shadow-md rounded-lg p-6 flex-1">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-800">Historie úprav</h2>
-          <p className="text-gray-600">Tato sekce bude brzy dostupná.</p>
+        {/* QR kód */}
+        <div className="md:w-1/3">
+          <QRCodeGenerator auto={auto} />
         </div>
       </div>
 
