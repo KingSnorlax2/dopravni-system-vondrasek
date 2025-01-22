@@ -1,4 +1,3 @@
-// Start of Selection
 'use client'
 
 import React, { useState } from 'react'
@@ -8,9 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import Image from 'next/image'
 
 const autoSchema = z.object({
-  spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků"),
-  znacka: z.string().min(2, "Značka musí mít alespoň 2 znaky"), 
-  model: z.string().min(1, "Model je povinný"),
+  spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
+  znacka: z.string().min(2, "Značka musí mít alespoň 2 znaky").max(20, "Značka může mít maximálně 20 znaků"),
+  model: z.string().min(1, "Model je povinný").max(20, "Model může mít maximálně 20 znaků"),
   rokVyroby: z.number()
     .min(1900, "Rok výroby musí být od roku 1900")
     .max(new Date().getFullYear(), "Rok výroby nemůže být v budoucnosti"),
@@ -28,6 +27,9 @@ interface AutoFormProps {
   editedAuto?: AutoFormData & { id: string }
 }
 
+const MAX_SPZ_LENGTH = 8;
+const MAX_ZNACKA_LENGTH = 20;
+const MAX_MODEL_LENGTH = 20;
 
 export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormProps) {
   const [uploading, setUploading] = useState(false)
@@ -38,7 +40,8 @@ export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormPro
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
+    watch
   } = useForm<AutoFormData>({
     resolver: zodResolver(autoSchema),
     defaultValues: editedAuto || {
@@ -159,8 +162,14 @@ export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormPro
             <input
               {...register("spz")}
               type="text"
+              maxLength={MAX_SPZ_LENGTH}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             />
+            <p className={`text-sm mt-1 ${
+              watch('spz')?.length >= MAX_SPZ_LENGTH ? 'text-red-500' : 'text-gray-500'
+            }`}>
+              {watch('spz')?.length || 0}/{MAX_SPZ_LENGTH} znaků
+            </p>
             {errors.spz && (
               <p className="mt-1 text-sm text-red-600">{errors.spz.message}</p>
             )}
@@ -171,8 +180,14 @@ export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormPro
             <input
               {...register("znacka")}
               type="text"
+              maxLength={MAX_ZNACKA_LENGTH}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             />
+            <p className={`text-sm mt-1 ${
+              watch('znacka')?.length >= MAX_ZNACKA_LENGTH ? 'text-red-500' : 'text-gray-500'
+            }`}>
+              {watch('znacka')?.length || 0}/{MAX_ZNACKA_LENGTH} znaků
+            </p>
             {errors.znacka && (
               <p className="mt-1 text-sm text-red-600">{errors.znacka.message}</p>
             )}
@@ -183,8 +198,14 @@ export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormPro
             <input
               {...register("model")}
               type="text"
+              maxLength={MAX_MODEL_LENGTH}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             />
+            <p className={`text-sm mt-1 ${
+              watch('model')?.length >= MAX_MODEL_LENGTH ? 'text-red-500' : 'text-gray-500'
+            }`}>
+              {watch('model')?.length || 0}/{MAX_MODEL_LENGTH} znaků
+            </p>
             {errors.model && (
               <p className="mt-1 text-sm text-red-600">{errors.model.message}</p>
             )}

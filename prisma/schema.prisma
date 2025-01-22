@@ -44,7 +44,7 @@ model Transakce {
   castka  Float
   datum   DateTime
   typ     String
-  popis   String
+  popis   String 
   nazev   String?
   auto    Auto?    @relation("AutoTransakce", fields: [autoId], references: [id])
 }

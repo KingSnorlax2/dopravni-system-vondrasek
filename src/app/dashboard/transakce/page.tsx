@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 
-
 interface Transakce {
   id?: number;
   autoId?: number;
@@ -14,10 +13,19 @@ interface Transakce {
   faktura?: File | string;
 }
 
+const MAX_NAZEV_LENGTH = 20;
+const MAX_POPIS_LENGTH = 300;
+
 const TransakcePage: React.FC = () => {
   const [transakce, setTransakce] = useState<Transakce[]>([]);
   const [filteredTransakce, setFilteredTransakce] = useState<Transakce[]>([]);
-  const [formData, setFormData] = useState<Transakce | null>(null);
+  const [formData, setFormData] = useState<Transakce>({
+    castka: 0,
+    datum: new Date().toISOString().split('T')[0],
+    typ: 'příjem',
+    popis: '',
+    nazev: ''
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -74,14 +82,22 @@ const TransakcePage: React.FC = () => {
     setFilteredTransakce(filtered);
   }, [searchTerm, filterType, minAmount, maxAmount, startDate, endDate, transakce]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    if (name === 'popis' && value.length > MAX_POPIS_LENGTH) {
+      return;
+    }
+    
+    if (name === 'nazev' && value.length > MAX_NAZEV_LENGTH) {
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData) return;
 
     const formDataToSend = new FormData();
     if (formData.id) {
@@ -114,7 +130,13 @@ const TransakcePage: React.FC = () => {
         }
         return [newTransakce.data, ...prev];
       });
-      setFormData(null);
+      setFormData({
+        castka: 0,
+        datum: new Date().toISOString().split('T')[0],
+        typ: 'příjem',
+        popis: '',
+        nazev: ''
+      });
       setIsModalOpen(false);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Nastala chyba při přidávání transakce');
@@ -122,13 +144,17 @@ const TransakcePage: React.FC = () => {
   };
 
   const openModal = (transakceToEdit?: Transakce) => {
-    setFormData(transakceToEdit || { 
-      castka: 0, 
-      datum: new Date().toISOString().split('T')[0], 
-      typ: 'příjem', 
-      popis: '', 
-      nazev: '' 
-    });
+    if (transakceToEdit) {
+      setFormData(transakceToEdit);
+    } else {
+      setFormData({
+        castka: 0,
+        datum: new Date().toISOString().split('T')[0],
+        typ: 'příjem',
+        popis: '',
+        nazev: ''
+      });
+    }
     setIsModalOpen(true);
   };
 
@@ -609,6 +635,42 @@ const TransakcePage: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formDataToSend = new FormData();
+    formDataToSend.append('invoice', file);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      if (!response.ok) {
+        throw new Error('Chyba při nahrávání souboru');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Zde můžete zpracovat extrahovaná data
+        console.log('Extrahovaná data:', result.data);
+        // Například nastavit hodnoty do formuláře
+        setFormData(prev => ({
+          ...prev,
+          nazev: result.data.invoiceNumber || '',
+          castka: result.data.total || 0,
+          datum: result.data.date || new Date().toISOString().split('T')[0],
+          popis: `Faktura od ${result.data.vendor || 'neznámého dodavatele'}`
+        }));
+      }
+    } catch (error) {
+      console.error('Chyba při zpracování faktury:', error);
+      // Zde můžete zobrazit chybovou hlášku uživateli
+    }
+  };
+
   if (loading) {
     return <div className="text-center text-lg">Načítání...</div>;
   }
@@ -889,9 +951,15 @@ const TransakcePage: React.FC = () => {
                   value={formData?.nazev || ''}
                   onChange={handleChange}
                   placeholder="Název transakce"
+                  maxLength={MAX_NAZEV_LENGTH}
                   required
                   className="border border-gray-300 p-2 rounded w-full"
                 />
+                <p className={`text-sm mt-1 ${
+                  (formData?.nazev?.length || 0) >= MAX_NAZEV_LENGTH ? 'text-red-500' : 'text-gray-500'
+                }`}>
+                  {formData?.nazev?.length || 0}/{MAX_NAZEV_LENGTH} znaků
+                </p>
               </div>
               <div className="mb-4">
                 <input
@@ -915,15 +983,20 @@ const TransakcePage: React.FC = () => {
                 />
               </div>
               <div className="mb-4">
-                <input
-                  type="text"
+                <textarea
                   name="popis"
                   value={formData?.popis || ''}
-                  onChange={handleChange}
-                  placeholder="Popis transakce"
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange(e as any)}
+                  placeholder="Popis transakce" 
+                  maxLength={MAX_POPIS_LENGTH}
                   required
                   className="border border-gray-300 p-2 rounded w-full"
                 />
+                <p className={`text-sm mt-1 ${
+                  (formData?.popis?.length || 0) >= MAX_POPIS_LENGTH ? 'text-red-500' : 'text-gray-500'
+                }`}>
+                  {formData?.popis?.length || 0}/{MAX_POPIS_LENGTH} znaků
+                </p>
               </div>
               <div className="mb-4">
                 <input
