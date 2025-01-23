@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
@@ -14,6 +15,15 @@ const autoSchema = z.object({
   datumSTK: z.string().nullable().optional(),
   poznamka: z.string().nullable().optional(),
   fotky: z.array(z.object({ id: z.string() })).optional()
+=======
+import { NextResponse } from 'next/server'
+import prisma from '@/lib/prisma'
+import { z } from 'zod'
+
+const autoSchema = z.object({
+  // ostatní validace...
+  stav: z.enum(["aktivní", "servis", "vyřazeno"]),
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
 });
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
@@ -21,7 +31,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   if (isNaN(autoId)) {
     return NextResponse.json(
+<<<<<<< HEAD
       { error: 'Neplatné ID vozidla' },
+=======
+      { error: 'Neplatné ID auta' },
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       { status: 400 }
     );
   }
@@ -29,6 +43,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const auto = await prisma.auto.findUnique({
       where: {
+<<<<<<< HEAD
         id: autoId,
         aktivni: true
       },
@@ -42,21 +57,38 @@ export async function GET(request: Request, { params }: { params: { id: string }
             tankovani: true
           }
         }
+=======
+        id: autoId
+      },
+      include: {
+        fotky: true,
+        poznatky: true
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       }
     });
 
     if (!auto) {
       return NextResponse.json(
+<<<<<<< HEAD
         { error: 'Vozidlo nebylo nalezeno' },
+=======
+        { error: 'Auto nebylo nalezeno' },
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
         { status: 404 }
       );
     }
 
     return NextResponse.json(auto);
   } catch (error) {
+<<<<<<< HEAD
     console.error('Chyba při načítání vozidla:', error);
     return NextResponse.json(
       { error: 'Chyba při načítání vozidla z databáze' },
+=======
+    console.error('Chyba při načítání auta:', error);
+    return NextResponse.json(
+      { error: `Chyba při načítání auta: ${error instanceof Error ? error.message : 'Neznámá chyba'}` },
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       { status: 500 }
     );
   }
@@ -67,13 +99,18 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   if (isNaN(autoId)) {
     return NextResponse.json(
+<<<<<<< HEAD
       { error: 'Neplatné ID vozidla' },
+=======
+      { error: 'Neplatné ID auta' },
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       { status: 400 }
     );
   }
 
   try {
     const data = await request.json();
+<<<<<<< HEAD
     console.log('Přijatá data pro aktualizaci:', data);
 
     // Validace dat pomocí Zod
@@ -95,6 +132,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         id: autoId,
         aktivni: true
       }
+=======
+
+    // Kontrola existence auta
+    const existingAuto = await prisma.auto.findUnique({
+      where: { id: autoId }
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
     });
 
     if (!existingAuto) {
@@ -104,6 +147,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       );
     }
 
+<<<<<<< HEAD
     // Kontrola duplicitní SPZ pokud se mění
     if (validatedData.spz && validatedData.spz !== existingAuto.spz) {
       const duplicateSpz = await prisma.auto.findFirst({
@@ -153,6 +197,42 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     console.error('Chyba při aktualizaci vozidla:', error);
     return NextResponse.json(
       { error: 'Chyba při aktualizaci vozidla v databázi' },
+=======
+    // Příprava dat pro aktualizaci
+    const updateData: any = {};
+
+    // Validace a přidání polí s kontrolou typu
+    if (data.spz !== undefined) updateData.spz = String(data.spz);
+    if (data.znacka !== undefined) updateData.znacka = String(data.znacka);
+    if (data.model !== undefined) updateData.model = String(data.model);
+    if (data.rokVyroby !== undefined) updateData.rokVyroby = Number(data.rokVyroby);
+    if (data.najezd !== undefined) updateData.najezd = Number(data.najezd);
+    if (data.stav !== undefined) updateData.stav = String(data.stav);
+    if (data.datumSTK !== undefined) {
+      updateData.datumSTK = data.datumSTK ? new Date(data.datumSTK) : null;
+    }
+    if (data.poznamka !== undefined) updateData.poznamka = data.poznamka;
+    if (data.pripnuto !== undefined) updateData.pripnuto = Boolean(data.pripnuto);
+
+    // Kontrola, zda máme co aktualizovat
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'Žádná data k aktualizaci' },
+        { status: 400 }
+      );
+    }
+
+    const updatedAuto = await prisma.auto.update({
+      where: { id: autoId },
+      data: updateData
+    });
+
+    return NextResponse.json({ success: true, data: updatedAuto });
+  } catch (error) {
+    console.error('Chyba při aktualizaci vozidla:', error);
+    return NextResponse.json(
+      { error: `Chyba při aktualizaci vozidla: ${error instanceof Error ? error.message : 'Neznámá chyba'}` },
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       { status: 500 }
     );
   }
@@ -163,12 +243,17 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
   if (isNaN(autoId)) {
     return NextResponse.json(
+<<<<<<< HEAD
       { error: 'Neplatné ID vozidla' },
+=======
+      { error: 'Neplatné ID auta' },
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       { status: 400 }
     );
   }
 
   try {
+<<<<<<< HEAD
     const existingAuto = await prisma.auto.findUnique({
       where: { 
         id: autoId,
@@ -193,6 +278,26 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     console.error('Chyba při mazání vozidla:', error);
     return NextResponse.json(
       { error: 'Chyba při mazání vozidla z databáze' },
+=======
+    // Nejprve smazání poznámek spojených s autem
+    await prisma.note.deleteMany({
+      where: { autoId }
+    });
+
+    // Poté smazání auta
+    const deletedAuto = await prisma.auto.delete({
+      where: { id: autoId }
+    });
+
+    return NextResponse.json({ success: true, data: deletedAuto });
+  } catch (error) {
+    console.error('Chyba při mazání auta:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Neznámá chyba';
+
+    return NextResponse.json(
+      { error: 'Chyba při mazání auta', details: errorMessage },
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       { status: 500 }
     );
   }
@@ -238,3 +343,7 @@ export async function PUT(
     )
   }
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f

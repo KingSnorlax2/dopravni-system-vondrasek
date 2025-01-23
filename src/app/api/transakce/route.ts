@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server';
+<<<<<<< HEAD
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const transakceSchema = z.object({
+=======
+import prisma from '@/lib/prisma';
+import { z } from 'zod';
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+const autoSchema = z.object({
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
   id: z.number().optional(),
   nazev: z.string().min(1, 'Název je povinný'),
   castka: z.number().refine(value => value !== 0, {
@@ -11,9 +24,15 @@ const transakceSchema = z.object({
   datum: z.string().refine(date => !isNaN(Date.parse(date)), {
     message: 'Neplatný formát data',
   }),
+<<<<<<< HEAD
   typ: z.string().min(1, 'Typ transakce je povinný'),
   popis: z.string().min(1, 'Popis je povinný'),
   autoId: z.number().nullable().optional()
+=======
+  typ: z.enum(['příjem', 'výdaj']),
+  popis: z.string().min(1, 'Popis je povinný'),
+  faktura: z.string().optional(),
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
 });
 
 export async function GET() {
@@ -22,6 +41,7 @@ export async function GET() {
       orderBy: {
         datum: 'desc',
       },
+<<<<<<< HEAD
       include: {
         auto: {
           select: {
@@ -31,6 +51,8 @@ export async function GET() {
           }
         }
       }
+=======
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
     });
     return NextResponse.json(transakce);
   } catch (error) {
@@ -44,6 +66,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+<<<<<<< HEAD
     const data = await request.json();
     const validationResult = transakceSchema.safeParse(data);
     
@@ -70,6 +93,18 @@ export async function POST(request: Request) {
       }
     });
 
+=======
+    const data = await request.formData();
+    const transakce = await prisma.transakce.create({
+      data: {
+        nazev: data.get('nazev') as string,
+        castka: parseFloat(data.get('castka') as string),
+        datum: new Date(data.get('datum') as string),
+        typ: data.get('typ') as string,
+        popis: data.get('popis') as string,
+      },
+    });
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
     return NextResponse.json({ success: true, data: transakce });
   } catch (error) {
     console.error('Chyba při vytváření transakce:', error);
@@ -82,6 +117,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+<<<<<<< HEAD
     const data = await request.json();
     const validationResult = transakceSchema.safeParse(data);
     
@@ -110,6 +146,21 @@ export async function PUT(request: Request) {
       }
     });
 
+=======
+    const data = await request.formData();
+    const id = parseInt(data.get('id') as string);
+    
+    const transakce = await prisma.transakce.update({
+      where: { id },
+      data: {
+        nazev: data.get('nazev') as string,
+        castka: parseFloat(data.get('castka') as string),
+        datum: new Date(data.get('datum') as string),
+        typ: data.get('typ') as string,
+        popis: data.get('popis') as string,
+      },
+    });
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
     return NextResponse.json({ success: true, data: transakce });
   } catch (error) {
     console.error('Chyba při aktualizaci transakce:', error);

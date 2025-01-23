@@ -22,7 +22,10 @@
     "next": "latest",
     "next-auth": "^4.24.11",
     "nodemailer": "^6.9.16",
+<<<<<<< HEAD
     "package.json": "^2.0.1",
+=======
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
     "qrcode.react": "^4.2.0",
     "react": "latest",
     "react-dom": "latest",
@@ -49,4 +52,8 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f

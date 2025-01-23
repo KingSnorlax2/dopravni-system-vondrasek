@@ -62,6 +62,7 @@ export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormPro
     try {
       const submitData = {
         ...data,
+<<<<<<< HEAD
         rokVyroby: Number(data.rokVyroby),
         najezd: Number(data.najezd),
         datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
@@ -76,6 +77,19 @@ export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormPro
         : '/api/auta';
 
       const response = await fetch(url, {
+=======
+        fotky,
+        rokVyroby: Number(data.rokVyroby),
+        najezd: Number(data.najezd),
+        datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null
+      }
+
+      console.log('Odesílaná data:', submitData) // Přidáno pro debugování
+
+      const response = await fetch(editedAuto 
+        ? `/api/auta/${editedAuto.id}`
+        : '/api/auta', {
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
         method: editedAuto ? 'PATCH' : 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,6 +97,7 @@ export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormPro
         body: JSON.stringify(submitData),
       })
 
+<<<<<<< HEAD
       const contentType = response.headers.get("content-type");
       const result = contentType && contentType.includes("application/json") 
         ? await response.json()
@@ -105,6 +120,31 @@ export default function AutoForm({ onClose, onSuccess, editedAuto }: AutoFormPro
       setError(error.message || 'Nastala chyba při vytváření/úpravě vozidla');
     } finally {
       setLoading(false);
+=======
+      const responseText = await response.text()
+      console.log('Server response text:', responseText)
+      console.log('Odpověď serveru:', responseText)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (e) {
+        throw new Error('Neplatná odpověď ze serveru')
+      }
+
+      console.log('Parsed response:', result)
+      onSuccess()
+      onClose()
+    } catch (error: any) {
+      console.error('Chyba při ukládání:', error)
+      setError(error.message || 'Nastala chyba při vytváření auta')
+    } finally {
+      setLoading(false)
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
     }
   }
 

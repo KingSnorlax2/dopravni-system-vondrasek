@@ -20,10 +20,13 @@ model Auto {
   fotky       Fotka[]  @relation("AutoFotky")
   poznatky    Note[]   @relation("AutoNotes")
   transakce   Transakce[] @relation("AutoTransakce")
+<<<<<<< HEAD
   gpsZaznamy  GPSZaznam[] @relation("AutoGPS")
   udrzby      Udrzba[] @relation("AutoUdrzba")
   tankovani   Tankovani[] @relation("AutoTankovani")
   aktivni     Boolean @default(true)
+=======
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
 }
 
 model Fotka {
@@ -44,12 +47,16 @@ model Note {
 
 model Transakce {
   id      Int      @id @default(autoincrement())
+<<<<<<< HEAD
   nazev   String
+=======
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
   autoId  Int?
   castka  Float
   datum   DateTime
   typ     String
   popis   String 
+<<<<<<< HEAD
   auto    Auto?    @relation("AutoTransakce", fields: [autoId], references: [id])
 }
 
@@ -92,4 +99,8 @@ model Tankovani {
   mistoTankovani String?
   plnaNadrz     Boolean  @default(true)
   poznamka      String?
+=======
+  nazev   String?
+  auto    Auto?    @relation("AutoTransakce", fields: [autoId], references: [id])
+>>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
 }
