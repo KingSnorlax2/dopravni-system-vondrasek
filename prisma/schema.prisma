@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Auto {
+  id          Int      @id @default(autoincrement())
+  spz         String   @unique
+  znacka      String
+  model       String
+  rokVyroby   Int
+  najezd      Int
+  stav        String
+  poznamka    String?
+  datumSTK    DateTime?
+  fotky       Fotka[]  @relation("AutoFotky")
+  poznatky    Note[]   @relation("AutoNotes")
+  transakce   Transakce[] @relation("AutoTransakce")
+  gpsZaznamy  GPSZaznam[] @relation("AutoGPS")
+  udrzby      Udrzba[] @relation("AutoUdrzba")
+  tankovani   Tankovani[] @relation("AutoTankovani")
+  aktivni     Boolean @default(true)
+}
+
+model Fotka {
+  id        String   @id @default(cuid())
+  data      String   @db.Text
+  mimeType  String
+  autoId    Int?
+  auto      Auto?    @relation("AutoFotky", fields: [autoId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  text      String
+  auto      Auto     @relation("AutoNotes", fields: [autoId], references: [id], onDelete: Cascade)
+  autoId    Int
+  createdAt DateTime @default(now())
+}
+
+model Transakce {
+  id      Int      @id @default(autoincrement())
+  nazev   String
+  autoId  Int?
+  castka  Float
+  datum   DateTime
+  typ     String
+  popis   String 
+  auto    Auto?    @relation("AutoTransakce", fields: [autoId], references: [id])
+}
+
+model GPSZaznam {
+  id        Int      @id @default(autoincrement())
+  autoId    Int
+  auto      Auto     @relation("AutoGPS", fields: [autoId], references: [id], onDelete: Cascade)
+  latitude  Float
+  longitude Float
+  rychlost  Float?
+  cas       DateTime @default(now())
+  stav      String?  // např. "jízda", "parkování", "volnoběh"
+}
+
+model Udrzba {
+  id              Int      @id @default(autoincrement())
+  autoId          Int
+  auto            Auto     @relation("AutoUdrzba", fields: [autoId], references: [id], onDelete: Cascade)
+  typ             String   // např. "servis", "STK", "výměna oleje"
+  popis           String
+  datumProvedeni  DateTime
+  datumPristi     DateTime?
+  najezdKm        Int
+  nakladyCelkem   Float
+  provedeno       Boolean  @default(false)
+  dokumenty       String?  // URL nebo cesta k dokumentům
+  poznamka        String?
+}
+
+model Tankovani {
+  id            Int      @id @default(autoincrement())
+  autoId        Int
+  auto          Auto     @relation("AutoTankovani", fields: [autoId], references: [id], onDelete: Cascade)
+  datum         DateTime
+  mnozstviLitru Float
+  cenaZaLitr    Float
+  celkovaCena   Float
+  typPaliva     String
+  najezdKm      Int
+  mistoTankovani String?
+  plnaNadrz     Boolean  @default(true)
+  poznamka      String?
+}
