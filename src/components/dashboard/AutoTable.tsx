@@ -642,7 +642,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     setSelectedToArchive(selectedAuta)
                   }
                 }}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                className="text-gray-700 hover:text-gray-900 font-medium"
               >
                 Archivovat
               </button>
