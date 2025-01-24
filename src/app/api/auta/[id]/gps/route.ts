@@ -1,11 +1,19 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+
+type RouteContext = {
+  params: { 
+    id: string 
+  }
+}
+
+export const runtime = 'nodejs';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: RouteContext
 ) {
-  const autoId = parseInt(params.id, 10);
+  const autoId = parseInt(context.params.id, 10);
 
   if (isNaN(autoId)) {
     return NextResponse.json(
@@ -36,10 +44,10 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: RouteContext
 ) {
-  const autoId = parseInt(params.id, 10);
+  const autoId = parseInt(context.params.id, 10);
 
   if (isNaN(autoId)) {
     return NextResponse.json(
@@ -60,11 +68,11 @@ export async function POST(
       }
     });
 
-    return NextResponse.json(gpsZaznam);
+    return NextResponse.json(gpsZaznam, { status: 201 });
   } catch (error) {
-    console.error('GPS Create Error:', error);
+    console.error('GPS Záznam Error:', error);
     return NextResponse.json(
-      { error: 'Chyba při ukládání GPS záznamu' },
+      { error: 'Chyba při vytváření GPS záznamu' },
       { status: 500 }
     );
   }

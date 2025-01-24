@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
-export async function DELETE(request: Request) {
+export const runtime = 'nodejs';
+
+export async function DELETE(request: NextRequest) {
   try {
     const { ids } = await request.json();
 
@@ -42,21 +44,13 @@ export async function DELETE(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
     const { ids, stav } = await request.json();
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
         { error: 'Nebyla vybrána žádná auta' },
-        { status: 400 }
-      );
-    }
-
-    const validStavy = ['aktivní', 'servis', 'vyřazeno'];
-    if (!stav || typeof stav !== 'string' || !validStavy.includes(stav)) {
-      return NextResponse.json(
-        { error: `Neplatný stav. Platné hodnoty jsou: ${validStavy.join(', ')}` },
         { status: 400 }
       );
     }
@@ -76,7 +70,9 @@ export async function PATCH(request: Request) {
           in: numericIds
         }
       },
-      data: { stav }
+      data: {
+        stav: stav
+      }
     });
 
     return NextResponse.json({
@@ -84,9 +80,9 @@ export async function PATCH(request: Request) {
       count: updatedAuta.count
     });
   } catch (error) {
-    console.error('Chyba při hromadné změně stavu:', error);
+    console.error('Chyba při hromadné aktualizaci:', error);
     return NextResponse.json(
-      { error: 'Chyba při hromadné změně stavu' },
+      { error: 'Chyba při hromadné aktualizaci' },
       { status: 500 }
     );
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import type { Transakce } from '@/types/transakce';
 
 const transakceSchema = z.object({
   id: z.number().optional(),
@@ -22,6 +23,15 @@ export async function GET() {
     const transakce = await prisma.transakce.findMany({
       orderBy: {
         datum: 'desc'
+      },
+      include: {
+        auto: {
+          select: {
+            spz: true,
+            znacka: true,
+            model: true
+          }
+        }
       }
     });
     return NextResponse.json(transakce);
@@ -53,6 +63,15 @@ export async function POST(request: Request) {
         typ: data.typ,
         popis: data.popis,
         faktura: data.faktura
+      },
+      include: {
+        auto: {
+          select: {
+            spz: true,
+            znacka: true,
+            model: true
+          }
+        }
       }
     });
 
@@ -86,6 +105,15 @@ export async function PUT(request: Request) {
         typ: data.typ,
         popis: data.popis,
         faktura: data.faktura
+      },
+      include: {
+        auto: {
+          select: {
+            spz: true,
+            znacka: true,
+            model: true
+          }
+        }
       }
     });
 

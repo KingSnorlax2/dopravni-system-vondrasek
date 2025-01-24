@@ -1,0 +1,9 @@
+module.exports = {
+  extends: [
+    'next/core-web-vitals'
+  ],
+  rules: {
+    'react-hooks/exhaustive-deps': 'off',
+    '@typescript-eslint/no-explicit-any': 'off'
+  }
+}

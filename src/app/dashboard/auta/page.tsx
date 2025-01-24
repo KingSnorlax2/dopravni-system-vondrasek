@@ -1,9 +1,6 @@
 'use client'
-<<<<<<< HEAD
-import React, { useState, useEffect } from 'react'
-=======
+
 import { useState, useEffect } from 'react'
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
 import AutoTable from '@/components/dashboard/AutoTable'
 import AutoForm from '@/components/forms/AutoForm'
 
@@ -19,11 +16,7 @@ function isSTKExpiring(datumSTK: string | null) {
 export default function AutoPage() {
   const [showForm, setShowForm] = useState(false)
   const [refresh, setRefresh] = useState(0)
-<<<<<<< HEAD
   const [auta, setAuta] = useState<any[]>([])
-=======
-  const [auta, setAuta] = useState<any[]>([]) // Inicializujte jako prázdné pole
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
   const [error, setError] = useState<string | null>(null)
 
   const handleSuccess = () => {
@@ -31,10 +24,6 @@ export default function AutoPage() {
     setShowForm(false)
   }
 
-<<<<<<< HEAD
-=======
-  
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
   useEffect(() => {
     const fetchAuta = async () => {
       try {

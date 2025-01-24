@@ -1,60 +1,21 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-
-<<<<<<< HEAD
-interface Auto {
-  spz: string;
-  znacka: string;
-  model: string;
-}
-
-interface Transakce {
-  id?: number;
-  nazev: string;
-  autoId?: number;
-  auto?: Auto;
-=======
-interface Transakce {
-  id?: number;
-  autoId?: number;
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
-  castka: number;
-  datum: string;
-  typ: string;
-  popis: string;
-<<<<<<< HEAD
-}
+import type { Transakce } from '@/types/transakce';
 
 const MAX_POPIS_LENGTH = 300;
 const MAX_NAZEV_LENGTH = 50;
-=======
-  nazev: string;
-  faktura?: File | string;
-}
-
-const MAX_NAZEV_LENGTH = 20;
-const MAX_POPIS_LENGTH = 300;
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
 
 const TransakcePage: React.FC = () => {
   const [transakce, setTransakce] = useState<Transakce[]>([]);
   const [filteredTransakce, setFilteredTransakce] = useState<Transakce[]>([]);
   const [formData, setFormData] = useState<Transakce>({
-<<<<<<< HEAD
     nazev: '',
     castka: 0,
     datum: new Date().toISOString().split('T')[0],
-    typ: '',
+    typ: 'výdaj',
     popis: '',
-    autoId: undefined
-=======
-    castka: 0,
-    datum: new Date().toISOString().split('T')[0],
-    typ: 'příjem',
-    popis: '',
-    nazev: ''
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
+    autoId: null
   });
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,11 +30,7 @@ const TransakcePage: React.FC = () => {
   const [selectedTransakce, setSelectedTransakce] = useState<number[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [itemsToDelete, setItemsToDelete] = useState<number[]>([]);
-<<<<<<< HEAD
   const [sortField, setSortField] = useState<'autoId' | 'castka' | 'datum' | 'typ' | 'nazev' | null>(null);
-=======
-  const [sortField, setSortField] = useState<'nazev' | 'castka' | 'datum' | 'typ' | null>(null);
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
@@ -99,13 +56,8 @@ const TransakcePage: React.FC = () => {
 
   useEffect(() => {
     const filtered = transakce.filter(transakce => {
-<<<<<<< HEAD
       const matchesSearch = (transakce.nazev?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            transakce.popis.toLowerCase().includes(searchTerm.toLowerCase()));
-=======
-      const matchesSearch = transakce.nazev.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          transakce.popis.toLowerCase().includes(searchTerm.toLowerCase());
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       const matchesType = filterType === 'all' || transakce.typ === filterType;
       
       const amount = transakce.castka;
@@ -127,11 +79,7 @@ const TransakcePage: React.FC = () => {
     if (name === 'popis' && value.length > MAX_POPIS_LENGTH) {
       return;
     }
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
     if (name === 'nazev' && value.length > MAX_NAZEV_LENGTH) {
       return;
     }
@@ -142,7 +90,6 @@ const TransakcePage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-<<<<<<< HEAD
     try {
       const submitData = {
         ...formData,
@@ -161,25 +108,6 @@ const TransakcePage: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(submitData)
-=======
-    const formDataToSend = new FormData();
-    if (formData.id) {
-      formDataToSend.append('id', formData.id.toString());
-    }
-    formDataToSend.append('nazev', formData.nazev || '');
-    formDataToSend.append('castka', formData.castka.toString());
-    formDataToSend.append('datum', new Date(formData.datum).toISOString());
-    formDataToSend.append('typ', formData.castka >= 0 ? 'příjem' : 'výdaj');
-    formDataToSend.append('popis', formData.popis || '');
-    if (formData.faktura instanceof File) {
-      formDataToSend.append('faktura', formData.faktura);
-    }
-
-    try {
-      const response = await fetch('/api/transakce', {
-        method: formData.id ? 'PUT' : 'POST',
-        body: formDataToSend,
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       });
 
       if (!response.ok) {
@@ -194,30 +122,17 @@ const TransakcePage: React.FC = () => {
         }
         return [newTransakce.data, ...prev];
       });
-<<<<<<< HEAD
-
       setFormData({
         nazev: '',
         castka: 0,
         datum: new Date().toISOString().split('T')[0],
-        typ: '',
+        typ: 'výdaj',
         popis: '',
-        autoId: undefined
+        autoId: null
       });
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error:', error);
-=======
-      setFormData({
-        castka: 0,
-        datum: new Date().toISOString().split('T')[0],
-        typ: 'příjem',
-        popis: '',
-        nazev: ''
-      });
-      setIsModalOpen(false);
-    } catch (error) {
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       setError(error instanceof Error ? error.message : 'Nastala chyba při přidávání transakce');
     }
   };
@@ -227,20 +142,12 @@ const TransakcePage: React.FC = () => {
       setFormData(transakceToEdit);
     } else {
       setFormData({
-<<<<<<< HEAD
         nazev: '',
         castka: 0,
         datum: new Date().toISOString().split('T')[0],
-        typ: '',
+        typ: 'výdaj',
         popis: '',
-        autoId: undefined
-=======
-        castka: 0,
-        datum: new Date().toISOString().split('T')[0],
-        typ: 'příjem',
-        popis: '',
-        nazev: ''
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
+        autoId: null
       });
     }
     setIsModalOpen(true);
@@ -281,11 +188,7 @@ const TransakcePage: React.FC = () => {
     }
   };
 
-<<<<<<< HEAD
   const handleSort = (field: 'autoId' | 'castka' | 'datum' | 'typ' | 'nazev') => {
-=======
-  const handleSort = (field: 'nazev' | 'castka' | 'datum' | 'typ') => {
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -301,8 +204,8 @@ const TransakcePage: React.FC = () => {
     const bValue = b[sortField];
 
     if (sortField === 'datum') {
-      const dateA = new Date(aValue).getTime();
-      const dateB = new Date(bValue).getTime();
+      const dateA = aValue ? new Date(aValue).getTime() : 0;
+      const dateB = bValue ? new Date(bValue).getTime() : 0;
       return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
     }
 
@@ -751,11 +654,7 @@ const TransakcePage: React.FC = () => {
         // Například nastavit hodnoty do formuláře
         setFormData(prev => ({
           ...prev,
-<<<<<<< HEAD
           nazev: result.data.name || '',
-=======
-          nazev: result.data.invoiceNumber || '',
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
           castka: result.data.total || 0,
           datum: result.data.date || new Date().toISOString().split('T')[0],
           popis: `Faktura od ${result.data.vendor || 'neznámého dodavatele'}`
@@ -884,15 +783,9 @@ const TransakcePage: React.FC = () => {
             <div className="flex items-center">
               <input
                 type="checkbox"
-<<<<<<< HEAD
                 checked={selectedTransakce.length === filteredTransakce.length}
                 onChange={handleSelectAll}
                 className="w-4 h-4"
-=======
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                checked={selectedTransakce.length === Math.min(filteredTransakce.length, itemsPerPage) && filteredTransakce.length > 0}
-                onChange={handleSelectAll}
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
               />
             </div>
             <div 
@@ -934,8 +827,6 @@ const TransakcePage: React.FC = () => {
             <div>POPIS</div>
             <div>AKCE</div>
           </div>
-<<<<<<< HEAD
-
           {paginatedTransakce.map(transakce => (
             <div 
               key={transakce.id} 
@@ -983,72 +874,6 @@ const TransakcePage: React.FC = () => {
         </div>
       </div>
 
-=======
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        {paginatedTransakce.map(transakce => (
-          <div 
-            key={transakce.id} 
-            className="grid grid-cols-7 gap-4 border-b hover:bg-opacity-100 font-medium text-base"
-            style={{
-              transition: 'background-color 0.2s',
-              backgroundColor: transakce.typ === 'příjem' ? 'rgb(240, 253, 244)' : 'rgb(254, 242, 242)',
-              color: 'rgb(17, 24, 39)',
-              height: '90px',
-              alignItems: 'center',
-              padding: '0 16px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = transakce.typ === 'příjem' ? 'rgb(220, 252, 231)' : 'rgb(254, 226, 226)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = transakce.typ === 'příjem' ? 'rgb(240, 253, 244)' : 'rgb(254, 242, 242)';
-            }}
-          >
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                checked={selectedTransakce.includes(transakce.id!)}
-                onChange={() => handleSelect(transakce.id!)}
-              />
-            </div>
-            <div>{transakce.nazev}</div>
-            <div className={transakce.typ === 'příjem' ? 'text-green-700' : 'text-red-700'}>
-              {transakce.castka} Kč
-            </div>
-            <div>{new Date(transakce.datum).toLocaleDateString('cs-CZ')}</div>
-            <div>
-              <span className={`inline-block px-2 py-1 text-xs font-bold rounded-full ${
-                transakce.typ === 'příjem' 
-                  ? 'bg-green-200 text-green-800' 
-                  : 'bg-red-200 text-red-800'
-              }`}>
-                {transakce.typ}
-              </span>
-            </div>
-            <div className="truncate">{transakce.popis}</div>
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => openModal(transakce)} 
-                className="text-gray-700 hover:text-blue-600 text-base font-medium"
-              >
-                Upravit
-              </button>
-              <button 
-                onClick={() => handleDelete(transakce.id!)} 
-                className="text-gray-700 hover:text-red-600 text-base font-medium"
-              >
-                Smazat
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
       {selectedTransakce.length > 0 && (
         <div className="fixed bottom-[25px] left-1/2 transform -translate-x-1/2 bg-white shadow-xl rounded-lg border border-gray-200" style={{ width: '647px', height: '64px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}>
           <div className="flex items-center justify-center h-full px-6 gap-6">
@@ -1093,13 +918,8 @@ const TransakcePage: React.FC = () => {
       )}
 
       {isModalOpen && (
-<<<<<<< HEAD
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-=======
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded p-6 w-96 shadow-lg">
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
             <h2 className="text-xl font-bold mb-4">{formData?.id ? 'Upravit transakci' : 'Přidat transakci'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
@@ -1141,7 +961,6 @@ const TransakcePage: React.FC = () => {
                 />
               </div>
               <div className="mb-4">
-<<<<<<< HEAD
                 <select
                   name="typ"
                   value={formData?.typ || ''}
@@ -1155,8 +974,6 @@ const TransakcePage: React.FC = () => {
                 </select>
               </div>
               <div className="mb-4">
-=======
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
                 <textarea
                   name="popis"
                   value={formData?.popis || ''}
@@ -1172,22 +989,6 @@ const TransakcePage: React.FC = () => {
                   {formData?.popis?.length || 0}/{MAX_POPIS_LENGTH} znaků
                 </p>
               </div>
-<<<<<<< HEAD
-=======
-              <div className="mb-4">
-                <input
-                  type="file"
-                  name="faktura"
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      const file = e.target.files[0];
-                      setFormData(prev => ({ ...prev, faktura: file }));
-                    }
-                  }}
-                  className="border border-gray-300 p-2 rounded w-full"
-                />
-              </div>
->>>>>>> 7e02d48523526290cb22bf0affaeb4e0806d8d6f
               <div className="flex justify-between">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="bg-gray-300 text-black p-2 rounded">Zavřít</button>
                 <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition">{formData?.id ? 'Uložit' : 'Přidat transakci'}</button>

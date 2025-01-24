@@ -10,7 +10,7 @@ import BulkStateChangeModal from '../modals/BulkStateChangeModal'
 import { useForm } from 'react-hook-form';
 
 interface Auto {
-  id: string
+  id: number
   spz: string
   znacka: string
   model: string
@@ -99,10 +99,14 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStav, setFilterStav] = useState<string>('vse')
   const [filterSTK, setFilterSTK] = useState<string>('vse')
+  const [dateFrom, setDateFrom] = useState<string>('')
+  const [dateTo, setDateTo] = useState<string>('')
+  const [amountFrom, setAmountFrom] = useState<string>('')
+  const [amountTo, setAmountTo] = useState<string>('')
   const [sortField, setSortField] = useState<SortField>('spz')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedAutos, setSelectedAutos] = useState<string[]>([])
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
   const [showStateChangeModal, setShowStateChangeModal] = useState(false)
   const [showSTKChangeModal, setShowSTKChangeModal] = useState(false)
@@ -114,6 +118,8 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
   const [newBulkState, setNewBulkState] = useState('aktivní')
   const [showPoznamky, setShowPoznamky] = useState(false)
   const [novaPoznamka, setNovaPoznamka] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [newDate, setNewDate] = useState<string>('');
 
   useEffect(() => {
     if (notification) {
@@ -127,14 +133,35 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
 
   const handleDelete = async (auto: Auto) => {
     try {
+      console.log('Deleting auto:', auto.id, typeof auto.id);
+      
       const response = await fetch(`/api/auta/${auto.id}`, {
         method: 'DELETE'
-      })
-      if (!response.ok) throw new Error('Chyba při mazání')
-      onRefresh()
-      setDeleteModalData(null)
+      });
+      
+      const data = await response.json();
+      console.log('Delete response:', data);
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Chyba při vyřazení vozidla');
+      }
+      
+      setNotification({ 
+        type: 'success', 
+        message: data.message || 'Vozidlo bylo úspěšně vyřazeno' 
+      });
+      setDeleteModalData(null);
+      
+      // Force a refresh of the data
+      setTimeout(() => {
+        onRefresh();
+      }, 500);
     } catch (error) {
-      console.error('Chyba:', error)
+      console.error('Chyba při mazání:', error);
+      setNotification({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Chyba při vyřazení vozidla'
+      });
     }
   }
 
@@ -172,7 +199,35 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
           return true
         })()
 
-        return matchesSearch && matchesStav && matchesSTK
+        const matchesDateRange = (() => {
+          if (!dateFrom && !dateTo) return true
+          if (dateFrom && dateTo) {
+            return auto.datumSTK && new Date(auto.datumSTK) >= new Date(dateFrom) && new Date(auto.datumSTK) <= new Date(dateTo)
+          }
+          if (dateFrom) {
+            return auto.datumSTK && new Date(auto.datumSTK) >= new Date(dateFrom)
+          }
+          if (dateTo) {
+            return auto.datumSTK && new Date(auto.datumSTK) <= new Date(dateTo)
+          }
+          return true
+        })()
+
+        const matchesAmountRange = (() => {
+          if (!amountFrom && !amountTo) return true
+          if (amountFrom && amountTo) {
+            return auto.najezd >= Number(amountFrom) && auto.najezd <= Number(amountTo)
+          }
+          if (amountFrom) {
+            return auto.najezd >= Number(amountFrom)
+          }
+          if (amountTo) {
+            return auto.najezd <= Number(amountTo)
+          }
+          return true
+        })()
+
+        return matchesSearch && matchesStav && matchesSTK && matchesDateRange && matchesAmountRange
       })
       .sort((a, b) => {
         let comparison = 0
@@ -199,7 +254,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
 
         return sortOrder === 'asc' ? comparison : -comparison
       })
-  }, [auta, searchTerm, filterStav, filterSTK, sortField, sortOrder])
+  }, [auta, searchTerm, filterStav, filterSTK, dateFrom, dateTo, amountFrom, amountTo, sortField, sortOrder])
 
   const paginatedAuta = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -211,39 +266,71 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
     return Math.ceil(filteredAndSortedAuta.length / itemsPerPage);
   }, [filteredAndSortedAuta.length, itemsPerPage]);
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedAutos(paginatedAuta.map(auto => auto.id))
-    } else {
-      setSelectedAutos([])
-    }
-  }
-
-  const handleSelectAuto = (autoId: string, checked: boolean) => {
+  const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedAutos([...selectedAutos, autoId])
+      const allIds = paginatedAuta.map(auto => auto.id.toString());
+      setSelectedRows(new Set(allIds));
     } else {
-      setSelectedAutos(selectedAutos.filter(id => id !== autoId))
+      setSelectedRows(new Set());
     }
-  }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const isAllSelected = paginatedAuta.length > 0 && paginatedAuta.every(auto => selectedRows.has(auto.id.toString()));
 
   const handleBulkDelete = async () => {
     try {
-      for (const autoId of selectedAutos) {
-        await fetch(`/api/auta/${autoId}`, { method: 'DELETE' });
-      }
+      console.log('Bulk deleting autos:', Array.from(selectedRows));
+      
+      const results = await Promise.all(
+        Array.from(selectedRows).map(async (autoId) => {
+          const response = await fetch(`/api/auta/${autoId}`, { 
+            method: 'DELETE' 
+          });
+          
+          const data = await response.json();
+          console.log('Bulk delete response for', autoId, ':', data);
+          
+          if (!response.ok) {
+            throw new Error(data.error || 'Chyba při vyřazení vozidla');
+          }
+          
+          return data;
+        })
+      );
+
       setShowBulkDeleteModal(false);
-      setSelectedAutos([]);
-      onRefresh();
-      setNotification({ type: 'success', message: 'Vozidla byla úspěšně smazána' });
+      setSelectedRows(new Set());
+      setNotification({ 
+        type: 'success', 
+        message: 'Vozidla byla úspěšně vyřazena' 
+      });
+      
+      // Force a refresh of the data
+      setTimeout(() => {
+        onRefresh();
+      }, 500);
     } catch (error) {
-      setNotification({ type: 'error', message: 'Chyba při mazání vozidel' });
+      console.error('Chyba při hromadném mazání:', error);
+      setNotification({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Chyba při vyřazení vozidel'
+      });
     }
   };
 
   const handleBulkStateChange = async () => {
     try {
-      for (const autoId of selectedAutos) {
+      for (const autoId of Array.from(selectedRows)) {
         await fetch(`/api/auta/${autoId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -251,7 +338,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
         });
       }
       setShowBulkStateChangeModal(false);
-      setSelectedAutos([]);
+      setSelectedRows(new Set());
       onRefresh();
       setNotification({ type: 'success', message: 'Stav vozidel byl úspěšně změněn' });
     } catch (error) {
@@ -259,7 +346,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
     }
   };
 
-  const handleBulkSTKChange = async (newDate: string) => {
+  const handleBulkSTKChange = async () => {
     try {
       const response = await fetch('/api/auta/bulk-update', {
         method: 'PATCH',
@@ -267,417 +354,94 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ids: selectedAutos,
-          datumSTK: newDate
-        })
-      })
+          ids: Array.from(selectedRows),
+          datumSTK: newDate ? new Date(newDate).toISOString() : null,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error('Chyba při hromadné změně STK')
+        throw new Error('Chyba při aktualizaci STK');
       }
 
       setNotification({
         message: 'Datum STK bylo úspěšně změněno',
         type: 'success'
-      })
-      setSelectedAutos([])
-      setShowSTKChangeModal(false)
-      onRefresh()
+      });
+      setSelectedRows(new Set());
+      setShowSTKChangeModal(false);
+      onRefresh();
     } catch (error) {
-      console.error('Chyba:', error)
+      console.error('Chyba:', error);
       setNotification({
         message: 'Chyba při změně data STK',
         type: 'error'
       });
     }
-  }
+  };
 
   const handleBulkExport = () => {
-    const selectedVehicles = auta.filter(auto => selectedAutos.includes(auto.id));
+    const selectedVehicles = auta.filter(auto => Array.from(selectedRows).includes(auto.id.toString()));
     exportToCSV(selectedVehicles);
   };
 
-  const handleBulkPrint = () => {
-    const selectedVehicles = auta.filter(auto => selectedAutos.includes(auto.id));
-    const currentDate = new Date().toLocaleString('cs-CZ', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    
-    const printContent = `
+  const handlePrint = () => {
+    const selectedVehicles = auta.filter(auto => selectedRows.has(auto.id.toString()));
+    const printContent = selectedVehicles.map(auto => ({
+      SPZ: auto.spz,
+      Značka: auto.znacka,
+      Model: auto.model,
+      "Rok výroby": auto.rokVyroby,
+      "Nájezd": `${formatNumber(auto.najezd)} km`,
+      Stav: auto.stav,
+      Poznámka: auto.poznamka || '-'
+    }));
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Seznam vozidel</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-            
-            body { 
-              font-family: 'Inter', Arial, sans-serif;
-              margin: 0;
-              color: #333;
-              line-height: 1.5;
-              background: #f3f4f6;
-            }
-
-            .container {
-              max-width: 1000px;
-              margin: 40px auto;
-              background: white;
-              box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-              border-radius: 12px;
-              overflow: hidden;
-            }
-            
-            .format-selector {
-              padding: 24px;
-              background: #fff;
-              border-bottom: 1px solid #e5e7eb;
-            }
-            
-            .format-selector h2 {
-              margin: 0 0 16px;
-              color: #111827;
-              font-size: 18px;
-              font-weight: 600;
-            }
-            
-            .format-buttons {
-              display: flex;
-              gap: 12px;
-            }
-            
-            .format-button {
-              padding: 8px 16px;
-              border: 1px solid #e5e7eb;
-              border-radius: 6px;
-              background: white;
-              color: #374151;
-              cursor: pointer;
-              font-size: 14px;
-              transition: all 0.2s;
-            }
-            
-            .format-button.active {
-              background: #eff6ff;
-              border-color: #3b82f6;
-              color: #1d4ed8;
-            }
-            
-            .format-button:hover {
-              border-color: #3b82f6;
-            }
-
-            .print-button {
-              position: fixed;
-              bottom: 40px;
-              right: 40px;
-              padding: 12px 24px;
-              background: #3b82f6;
-              color: white;
-              border: none;
-              border-radius: 8px;
-              font-size: 16px;
-              font-weight: 500;
-              cursor: pointer;
-              transition: all 0.2s;
-              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-            }
-            
-            .print-button:hover {
-              background: #2563eb;
-              transform: translateY(-1px);
-            }
-
-            .document {
-              padding: 40px;
-              background: white;
-            }
-
-            /* Formální dokument - kompaktnější verze */
-            .formal-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              margin-bottom: 20px;
-              padding-bottom: 15px;
-              border-bottom: 1px solid #e5e7eb;
-            }
-            
-            .company-info {
-              flex: 1;
-            }
-            
-            .company-info h1 {
-              margin: 0 0 4px;
-              color: #111827;
-              font-size: 18px;
-              font-weight: 600;
-            }
-            
-            .company-details {
-              color: #6b7280;
-              font-size: 11px;
-              line-height: 1.3;
-            }
-            
-            .company-details p {
-              margin: 0;
-            }
-            
-            .document-info {
-              text-align: right;
-              color: #6b7280;
-              font-size: 11px;
-              line-height: 1.3;
-            }
-            
-            .document-info p {
-              margin: 0;
-            }
-
-            .document-title {
-              text-align: center;
-              margin: 15px 0 5px;
-              color: #111827;
-              font-size: 16px;
-              font-weight: 600;
-            }
-
-            .document-subtitle {
-              text-align: center;
-              color: #6b7280;
-              font-size: 12px;
-              margin-bottom: 15px;
-            }
-
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 10px 0;
-            }
-
-            th, td {
-              padding: 6px 8px;
-              text-align: left;
-              border: 1px solid #e5e7eb;
-              font-size: 11px;
-              line-height: 1.2;
-            }
-
-            th {
-              background: #f9fafb;
-              font-weight: 500;
-              color: #374151;
-              white-space: nowrap;
-            }
-
-            td {
-              color: #4b5563;
-            }
-
-            tr:nth-child(even) td {
-              background: #f9fafb;
-            }
-
-            .footer {
-              margin-top: 15px;
-              padding-top: 10px;
-              border-top: 1px solid #e5e7eb;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              color: #6b7280;
-              font-size: 9px;
-              line-height: 1.2;
-            }
-
-            .footer p {
-              margin: 0;
-            }
-
+            body { font-family: Arial, sans-serif; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f8f9fa; }
+            .header { margin-bottom: 20px; }
             @media print {
-              body { 
-                background: white;
-                margin: 15mm;
-              }
-              .container { 
-                box-shadow: none; 
-                margin: 0;
-                max-width: none;
-              }
-              .format-selector, .print-button { 
-                display: none; 
-              }
-              .document {
-                padding: 0;
-              }
-              @page { 
-                margin: 15mm;
-                size: A4;
-              }
+              .no-print { display: none; }
             }
           </style>
         </head>
         <body>
-          <div class="container">
-            <div class="format-selector">
-              <h2>Vyberte formát zobrazení</h2>
-              <div class="format-buttons">
-                <button class="format-button" onclick="showFormat('simple')">Jednoduchý seznam</button>
-                <button class="format-button" onclick="showFormat('formal')">Formální dokument</button>
-              </div>
-            </div>
-
-            <div class="document" id="simple-list" style="display: none;">
-              <h2 class="document-title">Seznam vozidel (${selectedVehicles.length})</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>SPZ</th>
-                    <th>Značka/Model</th>
-                    <th>Rok</th>
-                    <th>Tachometr</th>
-                    <th>Stav</th>
-                    <th>STK</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${selectedVehicles.map(auto => `
-                    <tr>
-                      <td>${auto.spz}</td>
-                      <td>${auto.znacka} ${auto.model}</td>
-                      <td>${auto.rokVyroby}</td>
-                      <td>${auto.najezd.toLocaleString()} km</td>
-                      <td>${auto.stav}</td>
-                      <td>${auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-              <div class="footer">
-                <div>
-                  <p>Vytvořeno: ${currentDate}</p>
-                </div>
-                <div>1/1</div>
-              </div>
-            </div>
-
-            <div class="document" id="formal-document" style="display: none;">
-              <div class="formal-header">
-                <div class="company-info">
-                  <h1>Dopravní Systém</h1>
-                  <div class="company-details">
-                    <p>Dopravní Společnost s.r.o. | IČO: 12345678</p>
-                    <p>Ulice 123, 123 45 Město | Tel: +420 123 456 789</p>
-                  </div>
-                </div>
-                <div class="document-info">
-                  <p>Datum: ${currentDate}</p>
-                  <p>Č.j.: ${Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
-                </div>
-              </div>
-
-              <h2 class="document-title">Evidence vozového parku</h2>
-              <p class="document-subtitle">Seznam vozidel (${selectedVehicles.length})</p>
-
-              <table>
-                <thead>
-                  <tr>
-                    <th>SPZ</th>
-                    <th>Značka/Model</th>
-                    <th>Rok</th>
-                    <th>Tachometr</th>
-                    <th>Stav</th>
-                    <th>STK</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${selectedVehicles.map(auto => `
-                    <tr>
-                      <td>${auto.spz}</td>
-                      <td>${auto.znacka} ${auto.model}</td>
-                      <td>${auto.rokVyroby}</td>
-                      <td>${auto.najezd.toLocaleString()} km</td>
-                      <td>${auto.stav}</td>
-                      <td>${auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-
-              <div class="footer">
-                <div>
-                  <p>Dokument vygenerován: ${currentDate} | Tento dokument je pouze informativní</p>
-                </div>
-                <div>1/1</div>
-              </div>
-            </div>
+          <div class="header">
+            <h1>Seznam vozidel</h1>
+            <p>Datum tisku: ${new Date().toLocaleString('cs-CZ')}</p>
           </div>
-
-          <button class="print-button" onclick="window.print()">
-            Vytisknout dokument
-          </button>
-
-          <script>
-            function showFormat(format) {
-              document.querySelectorAll('.format-button').forEach(btn => {
-                btn.classList.remove('active');
-              });
-              event.currentTarget.classList.add('active');
-              
-              document.getElementById('simple-list').style.display = 'none';
-              document.getElementById('formal-document').style.display = 'none';
-              
-              if (format === 'simple') {
-                document.getElementById('simple-list').style.display = 'block';
-              } else {
-                document.getElementById('formal-document').style.display = 'block';
-              }
-            }
-            
-            // Zobrazit první formát při načtení
-            document.querySelector('.format-button').click();
-          </script>
+          <table>
+            <thead>
+              <tr>
+                ${Object.keys(printContent[0]).map(key => `<th>${key}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${printContent.map(vehicle => `
+                <tr>
+                  ${Object.values(vehicle).map(value => `<td>${value}</td>`).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <button class="no-print" onclick="window.print()">Vytisknout</button>
         </body>
       </html>
     `;
-    
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.focus();
-    }
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
-
-  const getRowBackgroundColor = (stav: string): string => {
-    switch (stav) {
-      case 'aktivní':
-        return 'bg-green-50 hover:bg-green-100'
-      case 'servis':
-        return 'bg-orange-50 hover:bg-orange-100'
-      case 'vyřazeno':
-        return 'bg-red-50 hover:bg-red-100'
-      default:
-        return 'bg-white hover:bg-gray-50'
-    }
-  }
-
-  const getStatusIcon = (stav: string): string => {
-    switch (stav) {
-      case 'aktivní':
-        return '🚗'
-      case 'servis':
-        return '🔧'
-      case 'vyřazeno':
-        return '⛔'
-      default:
-        return '❓'
-    }
-  }
 
   const handleSaveNote = async () => {
     if (!editedNote) return;
@@ -718,7 +482,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
     });
   }, [filteredAndSortedAuta]);
 
-  const handlePoznamkaSubmit = async (e: React.FormEvent, autoId: string) => {
+  const handlePoznamkaSubmit = async (e: React.FormEvent, autoId: number) => {
     e.preventDefault();
     try {
       const response = await fetch(`/api/auta/${autoId}/poznamka`, {
@@ -750,118 +514,275 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
   };
 
   return (
-    <>
-      {editedAuto && (
-        <AutoForm
-          editedAuto={{
-            ...editedAuto,
-            datumSTK: editedAuto.datumSTK || undefined
-          }}
-          onClose={() => setEditedAuto(null)}
-          onSuccess={() => {
-            setEditedAuto(null)
-            onRefresh()
-          }}
-        />
-      )}
-      
-      {deleteModalData && (
-        <DeleteModal
-          isOpen={deleteModalData.isOpen}
-          onClose={() => setDeleteModalData(null)}
-          onConfirm={() => handleDelete(deleteModalData.auto)}
-          title="Smazat auto"
-          message={`Opravdu chcete smazat auto ${deleteModalData.auto.znacka} ${deleteModalData.auto.model} (${deleteModalData.auto.spz})?`}
-        />
-      )}
-      
-      {showBulkDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold mb-4 text-black">Smazat vybraná vozidla</h3>
-            <p className="mb-4 text-black">Opravdu chcete smazat {selectedAutos.length} vybraných vozidel?</p>
-            <div className="flex justify-end gap-2 text-black">
+    <div className="w-full h-full p-2">
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+        {notification && (
+          <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg ${
+            notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          } text-white z-50`}>
+            {notification.message}
+          </div>
+        )}
+
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <input
+              type="text"
+              placeholder="Vyhledat..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border rounded-lg px-4 py-3 w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
+            />
+            <select
+              value={filterStav}
+              onChange={(e) => setFilterStav(e.target.value)}
+              className="border rounded-lg px-4 py-3 w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
+            >
+              <option value="vse">Všechny stavy</option>
+              <option value="aktivní">Aktivní</option>
+              <option value="servis">V servisu</option>
+              <option value="vyřazeno">Vyřazené</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 text-lg whitespace-nowrap">Datum:</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="border rounded-lg px-4 py-3 w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
+              />
+              <span className="text-gray-600">-</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="border rounded-lg px-4 py-3 w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 text-lg whitespace-nowrap">Částka:</span>
+              <input
+                type="number"
+                placeholder="Od"
+                value={amountFrom}
+                onChange={(e) => setAmountFrom(e.target.value)}
+                className="border rounded-lg px-4 py-3 w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
+              />
+              <span className="text-gray-600">-</span>
+              <input
+                type="number"
+                placeholder="Do"
+                value={amountTo}
+                onChange={(e) => setAmountTo(e.target.value)}
+                className="border rounded-lg px-4 py-3 w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
+              />
+              <span className="text-gray-600 ml-1">Kč</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-200 border-b border-gray-200 px-4 py-2 shadow-sm sticky top-0 z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-600">Vybráno položek: {selectedRows.size}</span>
+            </div>
+            <div className="flex items-center space-x-4">
               <button
-                onClick={() => setShowBulkDeleteModal(false)}
-                className="px-4 py-2 border rounded hover:bg-gray-100 text-black"
+                onClick={() => setShowSTKChangeModal(true)}
+                className="text-gray-700 hover:text-gray-900 font-medium"
               >
-                Zrušit
+                Změnit STK
               </button>
               <button
-                onClick={handleBulkDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 "
+                onClick={() => setShowStateChangeModal(true)}
+                className="text-gray-700 hover:text-gray-900 font-medium"
               >
-                Smazat
+                Změnit stav
+              </button>
+              <button
+                onClick={handleBulkExport}
+                className="text-gray-700 hover:text-gray-900 font-medium"
+              >
+                Exportovat
+              </button>
+              <button
+                onClick={handlePrint}
+                className="text-gray-700 hover:text-gray-900 font-medium"
+              >
+                Vytisknout
+              </button>
+              <button
+                onClick={() => setShowBulkDeleteModal(true)}
+                className="text-red-600 hover:text-red-800 font-medium"
+              >
+                Archivovat
               </button>
             </div>
           </div>
         </div>
-      )}
-      
-      {showStateChangeModal && (
-        <BulkStateChangeModal
-          isOpen={showStateChangeModal}
-          onClose={() => setShowStateChangeModal(false)}
-          onConfirm={handleBulkStateChange}
-          count={selectedAutos.length}
-        />
-      )}
+
+        <div className="overflow-auto max-h-[calc(100vh-16rem)]">
+          <table className="w-full table-fixed divide-y divide-gray-200">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr>
+                <th className="w-[3%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                </th>
+                <th className="w-[12%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('spz')}>
+                  SPZ {sortField === 'spz' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="w-[17%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('znacka')}>
+                  Značka {sortField === 'znacka' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="w-[17%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('model')}>
+                  Model {sortField === 'model' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="w-[8%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('rokVyroby')}>
+                  Rok {sortField === 'rokVyroby' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="w-[10%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('najezd')}>
+                  Nájezd {sortField === 'najezd' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="w-[8%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                  Stav
+                </th>
+                <th className="w-[15%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                  Poznámka
+                </th>
+                <th className="w-[10%] px-3 py-4 text-right text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                  Akce
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {paginatedAuta.map((auto) => (
+                <tr key={auto.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(auto.id.toString())}
+                      onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
+                      className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                  </td>
+                  <td className="px-3 py-4 text-base font-medium text-gray-900 truncate">
+                    {auto.spz}
+                  </td>
+                  <td className="px-3 py-4 text-base text-gray-900 truncate">
+                    {auto.znacka}
+                  </td>
+                  <td className="px-3 py-4 text-base text-gray-900 truncate">
+                    {auto.model}
+                  </td>
+                  <td className="px-3 py-4 text-base text-gray-900">
+                    {auto.rokVyroby}
+                  </td>
+                  <td className="px-3 py-4 text-base text-gray-900">
+                    {formatNumber(auto.najezd)} km
+                  </td>
+                  <td className="px-3 py-4">
+                    <span className={`inline-block px-3 py-1.5 text-sm font-semibold rounded-full ${
+                      auto.stav === 'aktivní'
+                        ? 'bg-green-100 text-green-800'
+                        : auto.stav === 'servis'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {auto.stav}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4 text-base text-gray-600 truncate">
+                    {auto.poznamka || '-'}
+                  </td>
+                  <td className="px-3 py-4 text-right text-base space-x-3">
+                    <button
+                      onClick={() => setDeleteModalData({ auto, isOpen: true })}
+                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Upravit
+                    </button>
+                    <button
+                      onClick={() => setDeleteModalData({ auto, isOpen: true })}
+                      className="text-red-600 hover:text-red-800 font-medium"
+                    >
+                      Archivovat
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="px-4 py-4 bg-gray-50 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-700">
+                Zobrazeno {paginatedAuta.length} z {filteredAndSortedAuta.length} vozidel
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value))
+                  setCurrentPage(1)
+                }}
+                className="border rounded px-2 py-1"
+              >
+                <option value={10}>10 / stránka</option>
+                <option value={25}>25 / stránka</option>
+                <option value={50}>50 / stránka</option>
+                <option value={100}>100 / stránka</option>
+              </select>
+            </div>
+            <div className="flex items-center space-x-2">
+              {Array.from({ length: Math.ceil(filteredAndSortedAuta.length / itemsPerPage) }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => handlePageChange(i + 1)}
+                  className={`px-3 py-1 rounded ${
+                    currentPage === i + 1
+                      ? 'bg-purple-600 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {showSTKChangeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-            <h2 className="text-lg font-semibold mb-4">Změnit datum STK</h2>
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4">Změnit datum STK</h2>
+            <p className="mb-4">Vyberte nové datum STK pro {selectedRows.size} vozidel:</p>
             <input
               type="date"
-              className="w-full px-3 py-2 border rounded mb-4"
-              onChange={(e) => handleBulkSTKChange(e.target.value)}
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+              className="w-full border rounded-lg px-4 py-2 mb-6"
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowSTKChangeModal(false)}
-                className="px-4 py-2 border rounded hover:bg-gray-100"
-              >
-                Zrušit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showNoteModal && editedNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <h2 className="text-lg font-semibold mb-4 text-black">Poznámka k vozidlu</h2>
-            <textarea
-              value={editedNote.note}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value.length <= MAX_POZNAMKA_LENGTH) {
-                  setEditedNote({ ...editedNote, note: value });
-                }
-              }}
-              maxLength={MAX_POZNAMKA_LENGTH}
-              className="w-full h-32 px-3 py-2 border rounded mb-4 resize-none text-black"
-              placeholder="Zadejte poznámku..."
-            />
-            <p className={`text-sm mb-4 ${
-              (editedNote.note?.length || 0) >= MAX_POZNAMKA_LENGTH ? 'text-red-500' : 'text-gray-500'
-            }`}>
-              {editedNote.note?.length || 0}/{MAX_POZNAMKA_LENGTH} znaků
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowNoteModal(false);
-                  setEditedNote(null);
-                }}
-                className="px-4 py-2 border rounded hover:bg-gray-100"
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 Zrušit
               </button>
               <button
-                onClick={handleSaveNote}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                onClick={handleBulkSTKChange}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
               >
                 Uložit
               </button>
@@ -870,343 +791,112 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
         </div>
       )}
 
-      {showBulkStateChangeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold mb-4 text-black">Změnit stav vozidel</h3>
-            <select
-              value={newBulkState}
-              onChange={(e) => setNewBulkState(e.target.value)}
-              className="w-full px-3 py-2 border rounded mb-4 text-black"
-            >
-              <option value="aktivní">Aktivní</option>
-              <option value="servis">Servis</option>
-              <option value="vyřazeno">Vyřazeno</option>
-            </select>
-            <div className="flex justify-end gap-2">
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Přidat nové vozidlo</h2>
+                <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-700">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <AutoForm 
+                {...({
+                  onClose: () => setShowForm(false),
+                  onSubmit: async (formData: any) => {
+                    try {
+                      const response = await fetch('/api/auta', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                      });
+
+                      if (!response.ok) {
+                        throw new Error('Chyba při ukládání vozidla');
+                      }
+
+                      setShowForm(false);
+                      setNotification({
+                        type: 'success',
+                        message: 'Vozidlo bylo úspěšně přidáno'
+                      });
+                      onRefresh();
+                    } catch (error) {
+                      setNotification({
+                        type: 'error',
+                        message: error instanceof Error ? error.message : 'Neznámá chyba'
+                      });
+                    }
+                  }
+                } as any)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Modal */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-0">
+          <div className="bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4 text-white">Potvrdit archivaci</h2>
+            <p className="mb-6 text-white">Opravdu chcete archivovat vybraná vozidla? ({selectedRows.size} položek)</p>
+            <div className="flex justify-end space-x-4">
               <button
-                onClick={() => setShowBulkStateChangeModal(false)}
-                className="px-4 py-2 border rounded hover:bg-gray-100 text-black"
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="px-4 py-2 text-gray-300 hover:text-gray-500"
               >
                 Zrušit
               </button>
               <button
-                onClick={handleBulkStateChange}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 "
+                onClick={handleBulkDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
-                Potvrdit
+                Archivovat
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="overflow-hidden">
-        <div className="align-middle inline-block min-w-full">
-          <div className="w-full">
-            <div className="mb-4 flex justify-between items-center">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Vyhledat..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="px-3 py-2 border rounded-md w-64 text-black"
-                />
-                <select
-                  value={filterStav}
-                  onChange={(e) => setFilterStav(e.target.value)}
-                  className="px-3 py-2 border rounded-md text-black"
-                >
-                  <option value="vse">Všechny stavy</option>
-                  <option value="aktivní">Aktivní</option>
-                  <option value="servis">Servis</option>
-                  <option value="vyřazeno">Vyřazeno</option>
-                </select>
-                <select
-                  value={filterSTK}
-                  onChange={(e) => setFilterSTK(e.target.value)}
-                  className="px-3 py-2 border rounded-md text-black"
-                >
-                  <option value="vse">Všechny STK</option>
-                  <option value="prosle">Prošlé STK</option>
-                  <option value="blizici">Blížící se STK</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-black">Zobrazit:</span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-2 border rounded-md text-black"
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <span className="text-sm text-black">
-                  (celkem {sortedAndFilteredAuta.length})
-                </span>
-              </div>
-
-              {selectedAutos.length > 0 && (
-                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-lg rounded-lg border border-gray-200 p-3 z-50">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center text-gray-600 border-r pr-4">
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      <span className="font-medium">Vybráno: {selectedAutos.length}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowBulkStateChangeModal(true)}
-                        className="flex items-center px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                      >
-                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Změnit stav
-                      </button>
-                      
-                      <button
-                        onClick={handleBulkPrint}
-                        className="flex items-center px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
-                      >
-                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                        </svg>
-                        Tisk
-                      </button>
-                      
-                      <button
-                        onClick={handleBulkExport}
-                        className="flex items-center px-3 py-2 text-green-600 hover:bg-green-50 rounded-md transition-colors"
-                      >
-                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Export CSV
-                      </button>
-                      
-                      <button
-                        onClick={() => setShowBulkDeleteModal(true)}
-                        className="flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                      >
-                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Smazat
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+      {/* Bulk State Change Modal */}
+      {showStateChangeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-10">
+          <div className="bg-gray-200 rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4">Změnit stav vozidel</h2>
+            <p className="mb-4">Vyberte nový stav pro {selectedRows.size} vozidel:</p>
+            <select
+              value={newBulkState}
+              onChange={(e) => setNewBulkState(e.target.value)}
+              className="w-full border rounded-lg px-4 py-2 mb-6 bg-white"
+            >
+              <option value="aktivní">Aktivní</option>
+              <option value="servis">V servisu</option>
+              <option value="vyřazeno">Vyřazené</option>
+            </select>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowStateChangeModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Zrušit
+              </button>
+              <button
+                onClick={handleBulkStateChange}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                Uložit
+              </button>
             </div>
-
-            <table className="min-w-full table-fixed divide-y divide-gray-200 text-black">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="w-12 px-3 py-3 text-center text-xs font-medium text-black uppercase tracking-wider">
-                    <input type="checkbox" onChange={handleSelectAll} className="h-4 w-4" />
-                  </th>
-                  <th scope="col" className="w-20 px-3 py-3 text-center text-xs font-medium text-black uppercase tracking-wider cursor-pointer">
-                    Foto
-                  </th>
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('spz')} 
-                    className="w-28 px-3 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer"
-                  >
-                    SPZ {sortField === 'spz' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('znacka')} 
-                    className="px-3 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer"
-                  >
-                    Značka {sortField === 'znacka' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('model')} 
-                    className="px-3 py-3 text-left text-xs font-medium text-black uppercase tracking-wider cursor-pointer"
-                  >
-                    Model {sortField === 'model' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('rokVyroby')} 
-                    className="px-3 py-3 text-right text-xs font-medium text-black uppercase tracking-wider cursor-pointer"
-                  >
-                    Rok výroby {sortField === 'rokVyroby' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('najezd')} 
-                    className="px-3 py-3 text-right text-xs font-medium text-black uppercase tracking-wider cursor-pointer"
-                  >
-                    Nájezd {sortField === 'najezd' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('stav')} 
-                    className="px-3 py-3 text-center text-xs font-medium text-black uppercase tracking-wider cursor-pointer"
-                  >
-                    Stav {sortField === 'stav' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('datumSTK')} 
-                    className="px-3 py-3 text-center text-xs font-medium text-black uppercase tracking-wider cursor-pointer"
-                  >
-                    STK {sortField === 'datumSTK' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th scope="col" className="w-32 px-3 py-3 text-center text-xs font-medium text-black uppercase tracking-wider">
-                    Akce
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedAuta.map((auto) => (
-                  <tr 
-                    key={auto.id} 
-                    className={`${getRowBackgroundColor(auto.stav)} transition-colors duration-150`}
-                  >
-                    <td className="px-3 py-4 text-center">
-                      <input 
-                        type="checkbox"
-                        checked={selectedAutos.includes(auto.id)}
-                        onChange={(e) => handleSelectAuto(auto.id, e.target.checked)}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className="px-3 py-4 text-center">
-                      {auto.fotky && auto.fotky.length > 0 ? (
-                        <div className="w-16 h-16 relative group">
-                          <Image
-                            src={`/api/fotky/${auto.fotky[0].id}`}
-                            alt={`${auto.znacka} ${auto.model}`}
-                            fill
-                            sizes="(max-width: 64px) 100vw, 64px"
-                            className="rounded-md object-cover"
-                          />
-                          <div className="hidden group-hover:block absolute -right-40 top-0 z-50">
-                            <Image
-                              src={`/api/fotky/${auto.fotky[0].id}`}
-                              alt={`${auto.znacka} ${auto.model}`}
-                              width={200}
-                              height={150}
-                              className="rounded-lg shadow-lg"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-4 text-left">
-                      <span>{auto.spz}</span>
-                    </td>
-                    <td className="px-3 py-4 text-left text-black">
-                      {auto.znacka}
-                    </td>
-                    <td className="px-3 py-4 text-left text-black">
-                      {auto.model}
-                    </td>
-                    <td className="px-3 py-4 text-right text-black">
-                      {auto.rokVyroby}
-                    </td>
-                    <td className="px-3 py-4 text-right text-black">
-                      {formatNumber(auto.najezd)}
-                    </td>
-                    <td className="px-3 py-4 text-center text-black">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(auto.stav)} flex items-center justify-center gap-1`}>
-                        {getStatusIcon(auto.stav)} {auto.stav}
-                      </span>
-                    </td>
-                    <td className="px-3 py-4 text-center text-black">
-                      {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}
-                    </td>
-                    <td className="px-3 py-4 text-center text-black">
-                      <div className="flex items-center justify-center space-x-2">
-                        <button
-                          onClick={() => {
-                            setEditedNote({ id: auto.id, note: auto.poznamka || '' });
-                            setShowNoteModal(true);
-                          }}
-                          className="p-1 rounded text-blue-600 hover:text-blue-700"
-                          title={auto.poznamka ? 'Upravit poznámku' : 'Přidat poznámku'}
-                        >
-                          {auto.poznamka ? '📝' : '✏️'}
-                        </button>
-                        <Link href={`/dashboard/auta/${auto.id}`} className="text-blue-600 hover:text-blue-900">
-                          Detail
-                        </Link>
-
-                        <button onClick={() => setEditedAuto(auto)} className="text-blue-600 hover:text-blue-900">
-                          Upravit
-                        </button>
-                        <button onClick={() => setDeleteModalData({ auto, isOpen: true })} className="text-red-600 hover:text-red-900">
-                          Smazat
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </div>
-
-        <div className="mt-4 flex justify-center">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50 text-black"
-            >
-              ««
-            </button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50 text-black"
-            >
-              «
-            </button>
-            <span className="px-3 py-1 border rounded bg-gray-50 text-black">
-              Strana {currentPage} z {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50 text-black"
-            >
-              »
-            </button>
-            <button
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50 text-black"
-            >
-              »»
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+      )}
+    </div>
   )
 }
 
