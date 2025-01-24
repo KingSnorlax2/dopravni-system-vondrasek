@@ -8,30 +8,7 @@ import DeleteModal from '../modals/DeleteModal'
 import BulkDeleteModal from '../modals/BulkDeleteModal'
 import BulkStateChangeModal from '../modals/BulkStateChangeModal'
 import { useForm } from 'react-hook-form';
-
-interface Auto {
-  id: number
-  spz: string
-  znacka: string
-  model: string
-  rokVyroby: number
-  najezd: number
-  stav: "aktivní" | "servis" | "vyřazeno"
-  fotky?: { id: string }[]
-  datumSTK: string | null
-  poznamka?: string
-  pripnuto?: boolean
-  poznatky?: { id: string; text: string; createdAt: string }[]
-}
-
-function isSTKExpiring(datumSTK: string | null) {
-  if (!datumSTK) return false
-  const stk = new Date(datumSTK)
-  const today = new Date()
-  const monthBeforeExpiration = new Date(stk)
-  monthBeforeExpiration.setMonth(monthBeforeExpiration.getMonth() - 1)
-  return today >= monthBeforeExpiration && today <= stk
-}
+import { Auto } from '@/types/auto';
 
 interface AutoTableProps {
   auta: Auto[]
@@ -93,7 +70,16 @@ const exportToCSV = (auta: Auto[]) => {
 
 const MAX_POZNAMKA_LENGTH = 300;
 
-function AutoTable({ auta, onRefresh }: AutoTableProps) {
+function isSTKExpiring(datumSTK: string | null) {
+  if (!datumSTK) return false
+  const stk = new Date(datumSTK)
+  const today = new Date()
+  const monthBeforeExpiration = new Date(stk)
+  monthBeforeExpiration.setMonth(monthBeforeExpiration.getMonth() - 1)
+  return today >= monthBeforeExpiration && today <= stk
+}
+
+const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [editedAuto, setEditedAuto] = useState<Auto | null>(null)
   const [deleteModalData, setDeleteModalData] = useState<{auto: Auto, isOpen: boolean} | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -120,6 +106,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
   const [novaPoznamka, setNovaPoznamka] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [newDate, setNewDate] = useState<string>('');
+  const [selectedToArchive, setSelectedToArchive] = useState<Auto[]>([]);
 
   useEffect(() => {
     if (notification) {
@@ -513,6 +500,37 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
     }
   };
 
+  const handleArchive = async () => {
+    try {
+      const response = await fetch('/api/auta', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-archive-request': 'true'
+        },
+        body: JSON.stringify({ ids: selectedToArchive.map(auto => auto.id) })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Chyba při archivaci vozidel');
+      }
+
+      setSelectedToArchive([]);
+      setSelectedRows(new Set());
+      onRefresh();
+      setNotification({ 
+        type: 'success', 
+        message: 'Vozidla byla úspěšně archivována' 
+      });
+    } catch (error) {
+      setNotification({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Chyba při archivaci vozidel'
+      });
+    }
+  }
+
   return (
     <div className="w-full h-full p-2">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -616,8 +634,15 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
                 Vytisknout
               </button>
               <button
-                onClick={() => setShowBulkDeleteModal(true)}
-                className="text-red-600 hover:text-red-800 font-medium"
+                onClick={() => {
+                  const selectedAutoIds = Array.from(selectedRows)
+                  const selectedAuta = auta.filter(auto => selectedAutoIds.includes(auto.id.toString()))
+                  
+                  if (selectedAuta.length > 0) {
+                    setSelectedToArchive(selectedAuta)
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
               >
                 Archivovat
               </button>
@@ -714,7 +739,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
                       onClick={() => setDeleteModalData({ auto, isOpen: true })}
                       className="text-red-600 hover:text-red-800 font-medium"
                     >
-                      Archivovat
+                      Vyřadit
                     </button>
                   </td>
                 </tr>
@@ -844,8 +869,8 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
       {showBulkDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-0">
           <div className="bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4 text-white">Potvrdit archivaci</h2>
-            <p className="mb-6 text-white">Opravdu chcete archivovat vybraná vozidla? ({selectedRows.size} položek)</p>
+            <h2 className="text-2xl font-bold mb-4 text-white">Potvrdit vyřazení</h2>
+            <p className="mb-6 text-white">Opravdu chcete vyřadit vybraná vozidla? ({selectedRows.size} položek)</p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowBulkDeleteModal(false)}
@@ -857,7 +882,7 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
                 onClick={handleBulkDelete}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
-                Archivovat
+                Vyřadit
               </button>
             </div>
           </div>
@@ -892,6 +917,45 @@ function AutoTable({ auta, onRefresh }: AutoTableProps) {
               >
                 Uložit
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedToArchive.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto">
+          <div className="relative w-full max-w-xl max-h-full">
+            <div className="relative bg-white rounded-lg shadow">
+              <div className="flex items-start justify-between p-4 border-b rounded-t">
+                <h1 className="text-2xl font-bold">Potvrdit archivaci</h1>
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedToArchive([])}
+                  className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <p>Opravdu chcete archivovat vybraná vozidla? ({selectedToArchive.length} položek)</p>
+
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setSelectedToArchive([])}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                  >
+                    Zrušit
+                  </button>
+                  <button
+                    onClick={handleArchive}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    Archivovat
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
