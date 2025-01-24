@@ -129,10 +129,12 @@ export default function AutoPage() {
       </div>
 
       {showForm && (
-        <AutoForm 
-          onCloseAction={() => setShowForm(false)}
-          onSuccessAction={handleSuccess}
-        />
+        <div className="fixed top-0 left-0 w-full h-full bg-gray-500 bg-opacity-75 flex justify-center items-center z-50">
+          <AutoForm 
+            onCloseAction={() => setShowForm(false)}
+            onSuccessAction={handleSuccess}
+          />
+        </div>
       )}
     </div>
   )
