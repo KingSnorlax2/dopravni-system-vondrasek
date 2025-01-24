@@ -30,21 +30,34 @@ export default function PridejAutoPage() {
   }
 
   return (
-    <div className="container mx-auto px-4">
-      <h1 className="text-2xl font-bold mb-6">Přidat nové vozidlo</h1>
-      
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto">
+      <div className="relative w-full max-w-xl max-h-full">
+        <div className="relative bg-white rounded-lg shadow-xl">
+          <div className="flex items-start justify-between p-4 border-b rounded-t">
+            <h1 className="text-2xl font-bold">Přidat nové vozidlo</h1>
+            <button 
+              type="button" 
+              onClick={() => router.push('/dashboard/auta')}
+              className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ml-auto inline-flex justify-center items-center"
+            >
+              ✕
+            </button>
+          </div>
 
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <AutoForm 
-          onSubmit={(data) => handleSubmit(data)} 
-          onCloseAction={() => router.push('/dashboard/auta')} 
-          onSuccessAction={() => router.push('/dashboard/auta')}
-        />
+          <div className="p-6 space-y-6">
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+
+            <AutoForm 
+              onSubmit={(data) => handleSubmit(data)} 
+              onCloseAction={() => router.push('/dashboard/auta')} 
+              onSuccessAction={() => router.push('/dashboard/auta')}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )

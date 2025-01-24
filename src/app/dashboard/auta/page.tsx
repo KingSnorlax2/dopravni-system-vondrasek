@@ -130,8 +130,8 @@ export default function AutoPage() {
 
       {showForm && (
         <AutoForm 
-          onClose={() => setShowForm(false)}
-          onSuccess={handleSuccess}
+          onCloseAction={() => setShowForm(false)}
+          onSuccessAction={handleSuccess}
         />
       )}
     </div>
