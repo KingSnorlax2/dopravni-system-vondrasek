@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface QRCodeGeneratorProps {
@@ -10,19 +11,25 @@ interface QRCodeGeneratorProps {
 }
 
 export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ auto }) => {
-  const baseUrl = window.location.origin;
-  const autoUrl = `${baseUrl}/dashboard/auta/${auto.id}`;
+  const [autoUrl, setAutoUrl] = useState<string>('');
+
+  useEffect(() => {
+    const baseUrl = window.location.origin;
+    setAutoUrl(`${baseUrl}/dashboard/auta/${auto.id}`);
+  }, [auto.id]);
 
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
       <h2 className="text-2xl font-semibold text-gray-800 mb-4">QR kód vozidla</h2>
       <div className="flex flex-col items-center">
-        <QRCodeSVG
-          value={autoUrl}
-          size={200}
-          level="H"
-          includeMargin={true}
-        />
+        {autoUrl && (
+          <QRCodeSVG
+            value={autoUrl}
+            size={200}
+            level="H"
+            includeMargin={true}
+          />
+        )}
         <p className="mt-4 text-sm text-gray-600">
           Naskenujte pro přístup k detailu vozidla
         </p>

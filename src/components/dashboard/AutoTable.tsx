@@ -9,6 +9,7 @@ import BulkDeleteModal from '../modals/BulkDeleteModal'
 import BulkStateChangeModal from '../modals/BulkStateChangeModal'
 import { useForm } from 'react-hook-form';
 import { Auto } from '@/types/auto';
+import { useRouter } from 'next/navigation'
 
 interface AutoTableProps {
   auta: Auto[]
@@ -80,6 +81,7 @@ function isSTKExpiring(datumSTK: string | null) {
 }
 
 const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
+  const router = useRouter()
   const [editedAuto, setEditedAuto] = useState<Auto | null>(null)
   const [deleteModalData, setDeleteModalData] = useState<{auto: Auto, isOpen: boolean} | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -531,6 +533,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
   }
 
+  const handleCarDetail = (autoId: number) => {
+    router.push(`/dashboard/auta/${autoId}`)
+  }
+
   return (
     <div className="w-full h-full p-2">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -686,6 +692,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                 <th className="w-[10%] px-3 py-4 text-right text-sm font-semibold text-gray-600 uppercase tracking-wider">
                   Akce
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Detail
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -740,6 +749,14 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       className="text-red-600 hover:text-red-800 font-medium"
                     >
                       Vyřadit
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <button 
+                      onClick={() => handleCarDetail(auto.id)}
+                      className="text-blue-600 hover:text-blue-900 hover:underline"
+                    >
+                      Detail
                     </button>
                   </td>
                 </tr>
