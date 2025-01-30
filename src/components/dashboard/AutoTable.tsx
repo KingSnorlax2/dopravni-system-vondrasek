@@ -1,13 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
 import AutoForm from '../forms/AutoForm'
-import DeleteModal from '../modals/DeleteModal'
-import BulkDeleteModal from '../modals/BulkDeleteModal'
-import BulkStateChangeModal from '../modals/BulkStateChangeModal'
-import { useForm } from 'react-hook-form';
 import { Auto } from '@/types/auto';
 import { useRouter } from 'next/navigation'
 
@@ -537,6 +531,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     router.push(`/dashboard/auta/${autoId}`)
   }
 
+  function handleEditCar(id: number): void {
+    throw new Error('Function not implemented.');
+  }
+
   return (
     <div className="w-full h-full p-2">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -660,71 +658,53 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           <table className="w-full table-fixed divide-y divide-gray-200">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="w-[3%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="w-[3%] px-2 py-3 text-left">
                   <input
                     type="checkbox"
                     checked={isAllSelected}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                   />
                 </th>
-                <th className="w-[12%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('spz')}>
+                <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('spz')}>
                   SPZ {sortField === 'spz' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-[17%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('znacka')}>
-                  Značka {sortField === 'znacka' && (sortOrder === 'asc' ? '↑' : '↓')}
+                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('znacka')}>
+                  Typ vozidla {sortField === 'znacka' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-[17%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('model')}>
-                  Model {sortField === 'model' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[8%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('rokVyroby')}>
-                  Rok {sortField === 'rokVyroby' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[10%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('najezd')}>
-                  Nájezd {sortField === 'najezd' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[8%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stav
                 </th>
-                <th className="w-[15%] px-3 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Datum STK
+                </th>
+                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Poznámka
                 </th>
-                <th className="w-[10%] px-3 py-4 text-right text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="w-[22%] px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Akce
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Detail
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedAuta.map((auto) => (
                 <tr key={auto.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-4">
+                  <td className="px-2 py-3 w-[3%]">
                     <input
                       type="checkbox"
                       checked={selectedRows.has(auto.id.toString())}
                       onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
-                      className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                     />
                   </td>
-                  <td className="px-3 py-4 text-base font-medium text-gray-900 truncate">
+                  <td className="px-3 py-3 text-base font-medium text-gray-900 truncate w-[10%]">
                     {auto.spz}
                   </td>
-                  <td className="px-3 py-4 text-base text-gray-900 truncate">
-                    {auto.znacka}
+                  <td className="px-3 py-3 text-base text-gray-900 truncate w-[15%]">
+                    {auto.znacka} {auto.model}
                   </td>
-                  <td className="px-3 py-4 text-base text-gray-900 truncate">
-                    {auto.model}
-                  </td>
-                  <td className="px-3 py-4 text-base text-gray-900">
-                    {auto.rokVyroby}
-                  </td>
-                  <td className="px-3 py-4 text-base text-gray-900">
-                    {formatNumber(auto.najezd)} km
-                  </td>
-                  <td className="px-3 py-4">
-                    <span className={`inline-block px-3 py-1.5 text-sm font-semibold rounded-full ${
+                  <td className="px-3 py-3 w-[10%]">
+                    <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
                       auto.stav === 'aktivní'
                         ? 'bg-green-100 text-green-800'
                         : auto.stav === 'servis'
@@ -734,27 +714,32 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       {auto.stav}
                     </span>
                   </td>
-                  <td className="px-3 py-4 text-base text-gray-600 truncate">
-                    {auto.poznamka || '-'}
+                  <td className="px-3 py-3 text-base text-gray-500 w-[15%]">
+                    <span className={isSTKExpiring(auto.datumSTK) ? 'text-red-600 font-bold' : ''}>
+                      {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : 'N/A'}
+                    </span>
                   </td>
-                  <td className="px-3 py-4 text-right text-base space-x-3">
+                  <td className="px-3 py-3 text-base text-gray-600 truncate w-[15%]">
+                    {auto.poznamka && auto.poznamka.length > MAX_POZNAMKA_LENGTH 
+                      ? `${auto.poznamka.substring(0, MAX_POZNAMKA_LENGTH)}...` 
+                      : auto.poznamka || '-'}
+                  </td>
+                  <td className="px-3 py-3 text-right text-base space-x-2 w-[22%]">
                     <button
-                      onClick={() => setDeleteModalData({ auto, isOpen: true })}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                      onClick={() => handleEditCar(auto.id)}
+                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
                     >
                       Upravit
                     </button>
                     <button
                       onClick={() => setDeleteModalData({ auto, isOpen: true })}
-                      className="text-red-600 hover:text-red-800 font-medium"
+                      className="text-red-600 hover:text-red-800 font-medium text-sm"
                     >
                       Vyřadit
                     </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <button 
                       onClick={() => handleCarDetail(auto.id)}
-                      className="text-blue-600 hover:text-blue-900 hover:underline"
+                      className="text-green-600 hover:text-green-900 hover:underline font-medium text-sm"
                     >
                       Detail
                     </button>
