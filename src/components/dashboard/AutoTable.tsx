@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import AutoForm from '../forms/AutoForm'
+import AutoForm from '../forms/AutoForm';
 import { Auto } from '@/types/auto';
 import { useRouter } from 'next/navigation'
 
@@ -65,18 +65,17 @@ const exportToCSV = (auta: Auto[]) => {
 
 const MAX_POZNAMKA_LENGTH = 300;
 
-function isSTKExpiring(datumSTK: string | null) {
+function isSTKExpiring(datumSTK: string | undefined) {
   if (!datumSTK) return false
   const stk = new Date(datumSTK)
   const today = new Date()
-  const monthBeforeExpiration = new Date(stk)
-  monthBeforeExpiration.setMonth(monthBeforeExpiration.getMonth() - 1)
-  return today >= monthBeforeExpiration && today <= stk
+  const oneMonthFromNow = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  return stk <= oneMonthFromNow
 }
 
 const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const router = useRouter()
-  const [editedAuto, setEditedAuto] = useState<Auto | null>(null)
+  const [editedAuto, setEditedAuto] = useState<Auto | null | undefined>(null)
   const [deleteModalData, setDeleteModalData] = useState<{auto: Auto, isOpen: boolean} | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStav, setFilterStav] = useState<string>('vse')
@@ -103,6 +102,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [showForm, setShowForm] = useState(false)
   const [newDate, setNewDate] = useState<string>('');
   const [selectedToArchive, setSelectedToArchive] = useState<Auto[]>([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     if (notification) {
@@ -531,21 +531,155 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     router.push(`/dashboard/auta/${autoId}`)
   }
 
-  function handleEditCar(id: number): void {
-    throw new Error('Function not implemented.');
-  }
+  const handleUpdateSTK = async () => {
+    if (!editedAuto) return;
+
+    try {
+      const response = await fetch(`/api/auta/${editedAuto.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          spz: editedAuto.spz,
+          znacka: editedAuto.znacka,
+          model: editedAuto.model,
+          rokVyroby: editedAuto.rokVyroby,
+          najezd: editedAuto.najezd,
+          stav: editedAuto.stav,
+          datumSTK: editedAuto.datumSTK,
+          poznamka: editedAuto.poznamka
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update vehicle');
+      }
+
+      onRefresh();
+      handleCloseEditModal();
+    } catch (error) {
+      console.error('Error updating vehicle:', error);
+      alert('Nepodařilo se aktualizovat vozidlo. Zkuste to prosím znovu.');
+    }
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditedAuto(null);
+  };
+
+  const handleEditCar = (auto: Auto) => {
+    setEditedAuto(auto);
+    setIsEditModalOpen(true);
+  };
 
   return (
     <div className="w-full h-full p-2">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        {notification && (
-          <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg ${
-            notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-          } text-white z-50`}>
-            {notification.message}
+        {/* Existing table code */}
+        
+        {/* STK Edit Modal */}
+        {isEditModalOpen && editedAuto && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+              <h2 className="text-xl font-bold mb-4">Upravit vozidlo</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">SPZ</label>
+                  <input 
+                    type="text" 
+                    value={editedAuto.spz}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, spz: e.target.value} : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Značka</label>
+                  <input 
+                    type="text" 
+                    value={editedAuto.znacka}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, znacka: e.target.value} : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Model</label>
+                  <input 
+                    type="text" 
+                    value={editedAuto.model}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, model: e.target.value} : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Rok výroby</label>
+                  <input 
+                    type="number" 
+                    value={editedAuto.rokVyroby}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, rokVyroby: Number(e.target.value)} : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Najezdy (km)</label>
+                  <input 
+                    type="number" 
+                    value={editedAuto.najezd}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, najezd: Number(e.target.value)} : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Stav</label>
+                  <select 
+                    value={editedAuto.stav}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, stav: e.target.value as "aktivní" | "servis" | "vyřazeno"} : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  >
+                    <option value="aktivní">Aktivní</option>
+                    <option value="servis">Servis</option>
+                    <option value="vyřazeno">Vyřazeno</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Datum STK</label>
+                  <input 
+                    type="date" 
+                    value={editedAuto.datumSTK || ''}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, datumSTK: e.target.value || undefined} : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Poznámka</label>
+                  <textarea 
+                    value={editedAuto.poznamka || ''}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, poznamka: e.target.value || undefined} : null)}
+                    rows={4}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    placeholder="Zde můžete napsat poznámky k vozidlu..."
+                  />
+                </div>
+                <div className="flex justify-between space-x-4">
+                  <button 
+                    onClick={handleCloseEditModal}
+                    className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors"
+                  >
+                    Zrušit
+                  </button>
+                  <button 
+                    onClick={handleUpdateSTK}
+                    className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors"
+                  >
+                    Aktualizovat
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
-
+        
         <div className="p-4">
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <input
@@ -610,7 +744,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         <div className="bg-gray-200 border-b border-gray-200 px-4 py-2 shadow-sm sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="text-gray-600">Vybráno položek: {selectedRows.size}</span>
+              <span className="text-sm text-gray-700">
+                Vybráno položek: {selectedRows.size}
+              </span>
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -726,7 +862,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   </td>
                   <td className="px-3 py-3 text-right text-base space-x-2 w-[22%]">
                     <button
-                      onClick={() => handleEditCar(auto.id)}
+                      onClick={() => handleEditCar(auto)}
                       className="text-blue-600 hover:text-blue-800 font-medium text-sm"
                     >
                       Upravit

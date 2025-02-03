@@ -7,7 +7,7 @@ export interface Auto {
   najezd: number
   stav: "aktivní" | "servis" | "vyřazeno"
   fotky?: { id: string }[]
-  datumSTK: string | null
+  datumSTK: string | undefined
   poznamka?: string
   pripnuto?: boolean
   poznatky?: { id: string; text: string; createdAt: string }[]
