@@ -586,27 +586,45 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               <h2 className="text-xl font-bold mb-4">Upravit vozidlo</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">SPZ</label>
+                  <div className="flex justify-between">
+                    <label className="block text-sm font-medium text-gray-700">SPZ</label>
+                    <span className="text-xs text-gray-500">
+                      {editedAuto.spz.length}/8 znaků
+                    </span>
+                  </div>
                   <input 
                     type="text" 
+                    maxLength={8}
                     value={editedAuto.spz}
                     onChange={(e) => setEditedAuto(prev => prev ? {...prev, spz: e.target.value} : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Značka</label>
+                  <div className="flex justify-between">
+                    <label className="block text-sm font-medium text-gray-700">Značka</label>
+                    <span className="text-xs text-gray-500">
+                      {editedAuto.znacka.length}/50 znaků
+                    </span>
+                  </div>
                   <input 
                     type="text" 
+                    maxLength={50}
                     value={editedAuto.znacka}
                     onChange={(e) => setEditedAuto(prev => prev ? {...prev, znacka: e.target.value} : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Model</label>
+                  <div className="flex justify-between">
+                    <label className="block text-sm font-medium text-gray-700">Model</label>
+                    <span className="text-xs text-gray-500">
+                      {editedAuto.model.length}/50 znaků
+                    </span>
+                  </div>
                   <input 
                     type="text" 
+                    maxLength={50}
                     value={editedAuto.model}
                     onChange={(e) => setEditedAuto(prev => prev ? {...prev, model: e.target.value} : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
@@ -652,10 +670,16 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Poznámka</label>
+                  <div className="flex justify-between">
+                    <label className="block text-sm font-medium text-gray-700">Poznámka</label>
+                    <span className="text-xs text-gray-500">
+                      {(editedAuto.poznamka || '').length}/300 znaků
+                    </span>
+                  </div>
                   <textarea 
                     value={editedAuto.poznamka || ''}
                     onChange={(e) => setEditedAuto(prev => prev ? {...prev, poznamka: e.target.value || undefined} : null)}
+                    maxLength={300}
                     rows={4}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="Zde můžete napsat poznámky k vozidlu..."
