@@ -272,38 +272,36 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   const handleBulkDelete = async () => {
     try {
-      console.log('Bulk deleting autos:', Array.from(selectedRows));
-      
-      const results = await Promise.all(
-        Array.from(selectedRows).map(async (autoId) => {
-          const response = await fetch(`/api/auta/${autoId}`, { 
-            method: 'DELETE' 
-          });
-          
-          const data = await response.json();
-          console.log('Bulk delete response for', autoId, ':', data);
-          
-          if (!response.ok) {
-            throw new Error(data.error || 'Chyba při vyřazení vozidla');
-          }
-          
-          return data;
+      const deleteIds = Array.from(selectedRows);
+      console.log('Attempting to delete cars:', deleteIds);
+
+      const response = await fetch('/api/auta/bulk-update', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          ids: deleteIds 
         })
-      );
+      });
+
+      const data = await response.json();
+      console.log('Delete response:', data);
+      
+      if (!response.ok) {
+        console.error('Delete error response:', data);
+        throw new Error(data.error || 'Chyba při vyřazení vozidel');
+      }
 
       setShowBulkDeleteModal(false);
       setSelectedRows(new Set());
+      onRefresh();
       setNotification({ 
         type: 'success', 
-        message: 'Vozidla byla úspěšně vyřazena' 
+        message: `${data.count} vozidel bylo úspěšně vyřazeno` 
       });
-      
-      // Force a refresh of the data
-      setTimeout(() => {
-        onRefresh();
-      }, 500);
     } catch (error) {
-      console.error('Chyba při hromadném mazání:', error);
+      console.error('Chyba při hromadném vyřazení:', error);
       setNotification({ 
         type: 'error', 
         message: error instanceof Error ? error.message : 'Chyba při vyřazení vozidel'
@@ -313,51 +311,66 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   const handleBulkStateChange = async () => {
     try {
-      for (const autoId of Array.from(selectedRows)) {
-        await fetch(`/api/auta/${autoId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stav: newBulkState })
-        });
+      const response = await fetch('/api/auta/bulk-update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: Array.from(selectedRows),
+          stav: newBulkState,
+          datumSTK: 'N/A'  // Set STK date to 'N/A' when changing status
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Bulk state change error:', errorText);
+        throw new Error(errorText || 'Chyba při změně stavu vozidel');
       }
+
       setShowBulkStateChangeModal(false);
       setSelectedRows(new Set());
       onRefresh();
       setNotification({ type: 'success', message: 'Stav vozidel byl úspěšně změněn' });
     } catch (error) {
-      setNotification({ type: 'error', message: 'Chyba při změně stavu vozidel' });
+      console.error('Bulk state change error:', error);
+      setNotification({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Chyba při změně stavu vozidel' 
+      });
     }
   };
 
   const handleBulkSTKChange = async () => {
     try {
       const response = await fetch('/api/auta/bulk-update', {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ids: Array.from(selectedRows),
-          datumSTK: newDate ? new Date(newDate).toISOString() : null,
+          datumSTK: newDate ? new Date(newDate).toISOString() : 'N/A',
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Chyba při aktualizaci STK');
+        const errorText = await response.text();
+        console.error('Bulk STK update error:', errorText);
+        throw new Error(errorText || 'Chyba při aktualizaci STK');
       }
 
+      setShowSTKChangeModal(false);
+      setSelectedRows(new Set());
+      onRefresh();
       setNotification({
         message: 'Datum STK bylo úspěšně změněno',
         type: 'success'
       });
-      setSelectedRows(new Set());
-      setShowSTKChangeModal(false);
-      onRefresh();
     } catch (error) {
-      console.error('Chyba:', error);
-      setNotification({
-        message: 'Chyba při změně data STK',
-        type: 'error'
+      console.error('Chyba při hromadné aktualizaci STK:', error);
+      setNotification({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Chyba při aktualizaci STK'
       });
     }
   };
@@ -498,11 +511,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   const handleArchive = async () => {
     try {
-      const response = await fetch('/api/auta', {
+      const response = await fetch('/api/auta/bulk-archivovat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-archive-request': 'true'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ ids: selectedToArchive.map(auto => auto.id) })
       });
@@ -767,7 +779,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
         <div className="bg-gray-200 border-b border-gray-200 px-4 py-2 shadow-sm sticky top-0 z-10">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
                 Vybráno položek: {selectedRows.size}
               </span>
