@@ -82,8 +82,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [filterSTK, setFilterSTK] = useState<string>('vse')
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
-  const [amountFrom, setAmountFrom] = useState<string>('')
-  const [amountTo, setAmountTo] = useState<string>('')
+  const [mileageFrom, setMileageFrom] = useState<string>('')
+  const [mileageTo, setMileageTo] = useState<string>('')
   const [sortField, setSortField] = useState<SortField>('spz')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [currentPage, setCurrentPage] = useState(1)
@@ -196,21 +196,21 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           return true
         })()
 
-        const matchesAmountRange = (() => {
-          if (!amountFrom && !amountTo) return true
-          if (amountFrom && amountTo) {
-            return auto.najezd >= Number(amountFrom) && auto.najezd <= Number(amountTo)
+        const matchesMileageRange = (() => {
+          if (!mileageFrom && !mileageTo) return true
+          if (mileageFrom && mileageTo) {
+            return auto.najezd >= Number(mileageFrom) && auto.najezd <= Number(mileageTo)
           }
-          if (amountFrom) {
-            return auto.najezd >= Number(amountFrom)
+          if (mileageFrom) {
+            return auto.najezd >= Number(mileageFrom)
           }
-          if (amountTo) {
-            return auto.najezd <= Number(amountTo)
+          if (mileageTo) {
+            return auto.najezd <= Number(mileageTo)
           }
           return true
         })()
 
-        return matchesSearch && matchesStav && matchesSTK && matchesDateRange && matchesAmountRange
+        return matchesSearch && matchesStav && matchesSTK && matchesDateRange && matchesMileageRange
       })
       .sort((a, b) => {
         let comparison = 0
@@ -238,7 +238,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
         return sortOrder === 'asc' ? comparison : -comparison
       })
-  }, [auta, searchTerm, filterStav, filterSTK, dateFrom, dateTo, amountFrom, amountTo, sortField, sortOrder])
+  }, [auta, searchTerm, filterStav, filterSTK, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder])
 
   const paginatedAuta = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -792,23 +792,23 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-gray-600 text-lg whitespace-nowrap">Částka:</span>
+              <span className="text-gray-600 text-lg whitespace-nowrap">Nájezd (km):</span>
               <input
                 type="number"
                 placeholder="Od"
-                value={amountFrom}
-                onChange={(e) => setAmountFrom(e.target.value)}
+                value={mileageFrom}
+                onChange={(e) => setMileageFrom(e.target.value)}
                 className="border rounded-lg px-4 py-3 w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
               />
               <span className="text-gray-600">-</span>
               <input
                 type="number"
                 placeholder="Do"
-                value={amountTo}
-                onChange={(e) => setAmountTo(e.target.value)}
+                value={mileageTo}
+                onChange={(e) => setMileageTo(e.target.value)}
                 className="border rounded-lg px-4 py-3 w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
               />
-              <span className="text-gray-600 ml-1">Kč</span>
+              <span className="text-gray-600 ml-1">km</span>
             </div>
           </div>
         </div>
