@@ -742,7 +742,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   </button>
                   <button 
                     onClick={handleUpdateSTK}
-                    className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors"
+                    className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors w-full"
                   >
                     Aktualizovat
                   </button>
@@ -1029,13 +1029,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowSTKChangeModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 w-full"
               >
                 Zrušit
               </button>
               <button
                 onClick={handleBulkSTKChange}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full"
               >
                 Uložit
               </button>
@@ -1102,13 +1102,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowBulkDeleteModal(false)}
-                className="px-4 py-2 text-gray-300 hover:text-gray-500"
+                className="px-4 py-2 text-gray-300 hover:text-gray-500 w-full"
               >
                 Zrušit
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 w-full"
               >
                 Vyřadit
               </button>
@@ -1135,13 +1135,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowStateChangeModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 w-full"
               >
                 Zrušit
               </button>
               <button
                 onClick={handleBulkStateChange}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full"
               >
                 Uložit
               </button>
@@ -1172,13 +1172,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                 <div className="flex justify-end space-x-4">
                   <button
                     onClick={() => setSelectedToArchive([])}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 w-full"
                   >
                     Zrušit
                   </button>
                   <button
                     onClick={handleArchive}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 w-full "
                   >
                     Archivovat
                   </button>
@@ -1193,7 +1193,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           <div className="relative w-full max-w-md max-h-full">
             <div className="relative bg-white rounded-lg shadow">
               <div className="flex items-start justify-between p-4 border-b rounded-t">
-                <h1 className="text-2xl font-bold">Potvrdit vyřazení</h1>
+                <h1 className="text-2xl font-bold w-full text-center">Potvrdit vyřazení</h1>
                 <button 
                   type="button" 
                   onClick={() => setDeleteModalData({ auto: null, isOpen: false })}
@@ -1210,13 +1210,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                 <div className="flex justify-end space-x-4">
                   <button
                     onClick={() => setDeleteModalData({ auto: null, isOpen: false })}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 w-full"
                   >
                     Zrušit
                   </button>
                   <button
                     onClick={handleSingleCarDelete}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 w-full"
                   >
                     Vyřadit
                   </button>
