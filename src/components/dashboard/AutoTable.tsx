@@ -27,7 +27,7 @@ const getStatusColor = (stav: string): string => {
   }
 }
 
-type SortField = 'spz' | 'znacka' | 'model' | 'rokVyroby' | 'najezd' | 'stav' | 'datumSTK'
+type SortField = 'spz' | 'znacka' | 'model' | 'rokVyroby' | 'najezd' | 'stav' | 'datumSTK' | 'poznamka'
 type SortOrder = 'asc' | 'desc'
 
 const ITEMS_PER_PAGE = 10
@@ -220,6 +220,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           case 'znacka':
           case 'model':
           case 'stav':
+          case 'poznamka':
             comparison = (a[sortField] || '').localeCompare(b[sortField] || '')
             break
           case 'rokVyroby':
@@ -877,16 +878,25 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   SPZ {sortField === 'spz' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('znacka')}>
-                  Typ vozidla {sortField === 'znacka' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  Značka {sortField === 'znacka' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('model')}>
+                  Model {sortField === 'model' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('rokVyroby')}>
+                  Rok výroby {sortField === 'rokVyroby' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('najezd')}>
+                  Nájezd (km) {sortField === 'najezd' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stav
                 </th>
-                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Datum STK
+                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('datumSTK')}>
+                  Datum STK {sortField === 'datumSTK' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Poznámka
+                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('poznamka')}>
+                  Poznámka {sortField === 'poznamka' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="w-[22%] px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Akce
@@ -908,7 +918,16 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     {auto.spz}
                   </td>
                   <td className="px-3 py-3 text-base text-gray-900 truncate w-[15%]">
-                    {auto.znacka} {auto.model}
+                    {auto.znacka}
+                  </td>
+                  <td className="px-3 py-3 text-base text-gray-900 truncate w-[15%]">
+                    {auto.model}
+                  </td>
+                  <td className="px-3 py-3 text-base text-gray-900 truncate w-[10%]">
+                    {auto.rokVyroby}
+                  </td>
+                  <td className="px-3 py-3 text-base text-gray-900 truncate w-[10%]">
+                    {formatNumber(auto.najezd)}
                   </td>
                   <td className="px-3 py-3 w-[10%]">
                     <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
