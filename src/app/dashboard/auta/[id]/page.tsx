@@ -53,6 +53,8 @@ export default function DetailAuta() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [novaPoznamka, setNovaPoznamka] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!params.id) return
@@ -155,6 +157,87 @@ export default function DetailAuta() {
     setNovaPoznamka('');
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type and size
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        setUploadError('Podporované formáty jsou JPEG, PNG a GIF');
+        return;
+      }
+
+      if (file.size > maxSize) {
+        setUploadError('Maximální velikost souboru je 5 MB');
+        return;
+      }
+
+      setSelectedFile(file);
+      setUploadError(null);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!selectedFile || !auto) return;
+
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(selectedFile);
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        
+        const response = await fetch(`/api/auta/${auto.id}/upload-foto`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: base64Data.split(',')[1], // Remove data URL prefix
+            mimeType: selectedFile.type
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Nepodařilo se nahrát fotografii');
+        }
+
+        // Refresh the auto data to show the new photo
+        const updatedAuto = await (await fetch(`/api/auta/${auto.id}`)).json();
+        setAuto(updatedAuto);
+        setSelectedFile(null);
+      };
+    } catch (error) {
+      console.error('Chyba při nahrávání fotografie:', error);
+      setUploadError(error instanceof Error ? error.message : 'Chyba při nahrávání fotografie');
+    }
+  };
+
+  const handleDeleteFoto = async (fotoId: string) => {
+    if (!auto) return;
+
+    try {
+      const response = await fetch(`/api/auta/${auto.id}/upload-foto?fotoId=${fotoId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Nepodařilo se smazat fotografii');
+      }
+
+      // Refresh the auto data to remove the deleted photo
+      const updatedAuto = await (await fetch(`/api/auta/${auto.id}`)).json();
+      setAuto(updatedAuto);
+    } catch (error) {
+      console.error('Chyba při mazání fotografie:', error);
+      setUploadError(error instanceof Error ? error.message : 'Chyba při mazání fotografie');
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-screen text-xl">Načítání...</div>
   }
@@ -202,7 +285,40 @@ export default function DetailAuta() {
       {/* Sekce pro fotogalerii */}
       <div className="bg-white shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-semibold mb-4 text-gray-800">Fotogalerie</h2>
-        <p className="text-gray-600">Tato sekce bude brzy dostupná.</p>
+        <div className="space-y-4">
+          {auto.fotky?.map((foto) => (
+            <div key={foto.id} className="flex justify-between items-center">
+              <img src={`data:${foto.mimeType};base64,${foto.data}`} alt="Fotografie auta" className="w-48 h-48 object-cover rounded-lg" />
+              <button
+                onClick={() => handleDeleteFoto(foto.id)}
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
+              >
+                Smazat
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4">
+          <input
+            type="file"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+          {uploadError && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-2">
+              <p>{uploadError}</p>
+            </div>
+          )}
+          <button
+            onClick={handleFileUpload}
+            disabled={!selectedFile}
+            className={`bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors mt-2 ${
+              !selectedFile ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            Nahrát fotografii
+          </button>
+        </div>
       </div>
 
       {/* Modální okno pro úpravu auta */}

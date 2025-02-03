@@ -118,25 +118,56 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
     setUploading(true)
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        const formData = new FormData()
-        formData.append('file', file)
-        if (editedAuto?.id) {
-          formData.append('autoId', editedAuto.id)
+        // Validate file type and size
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+
+        if (!allowedTypes.includes(file.type)) {
+          throw new Error('Podporované formáty jsou JPEG, PNG a GIF');
         }
 
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData
-        })
-
-        const data = await response.json()
-
-        if (!data.success) {
-          throw new Error(data.error || 'Nahrávání selhalo')
+        if (file.size > maxSize) {
+          throw new Error('Maximální velikost souboru je 5 MB');
         }
 
-        return data.id ? { id: data.id } : null
-      })
+        // Convert file to base64
+        const reader = new FileReader();
+        return new Promise<{ id: string } | null>((resolve, reject) => {
+          reader.onloadend = async () => {
+            const base64Data = reader.result as string;
+            
+            try {
+              const response = await fetch(
+                editedAuto 
+                  ? `/api/auta/${editedAuto.id}/upload-foto`
+                  : '/api/auta/0/upload-foto', 
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    data: base64Data.split(',')[1], // Remove data URL prefix
+                    mimeType: file.type
+                  })
+                }
+              );
+
+              if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Nepodařilo se nahrát fotografii');
+              }
+
+              const uploadedFoto = await response.json();
+              resolve({ id: uploadedFoto.id });
+            } catch (error) {
+              reject(error);
+            }
+          };
+          reader.onerror = () => reject(new Error('Chyba při čtení souboru'));
+          reader.readAsDataURL(file);
+        });
+      });
 
       const results = await Promise.all(uploadPromises)
       const validResults = results.filter((result): result is { id: string } => result !== null)
@@ -144,14 +175,33 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
       setFotky(prev => [...prev, ...validResults])
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Chyba při nahrávání souboru: ' + (error as Error).message)
+      alert('Chyba při nahrávání souboru: ' + (error instanceof Error ? error.message : 'Neznámá chyba'))
     } finally {
       setUploading(false)
     }
   }
 
-  const handleDeleteFotka = (index: number) => {
-    setFotky(prev => prev.filter((_, i) => i !== index))
+  const handleDeleteFotka = async (index: number) => {
+    const fotoToDelete = fotky[index];
+    
+    try {
+      if (editedAuto) {
+        const response = await fetch(`/api/auta/${editedAuto.id}/upload-foto?fotoId=${fotoToDelete.id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Nepodařilo se smazat fotografii');
+        }
+      }
+
+      // Remove from local state
+      setFotky(prev => prev.filter((_, i) => i !== index))
+    } catch (error) {
+      console.error('Chyba při mazání fotografie:', error)
+      alert('Chyba při mazání fotografie: ' + (error instanceof Error ? error.message : 'Neznámá chyba'))
+    }
   }
 
   return (
@@ -295,19 +345,18 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
               {fotky.map((fotka, index) => (
                 <div key={fotka.id} className="relative w-24 h-24">
                   <Image
-                    src={`/api/fotky/${fotka.id}`}
+                    src={`/api/auta/${editedAuto?.id || '0'}/upload-foto?fotoId=${fotka.id}`}
                     alt="Náhled"
                     fill
                     sizes="(max-width: 96px) 100vw, 96px"
-                    className="rounded-md object-cover"
+                    className="object-cover rounded-md"
                   />
                   <button
                     type="button"
                     onClick={() => handleDeleteFotka(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center z-10 hover:bg-red-600"
-                    aria-label="Smazat fotku"
+                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 text-xs"
                   >
-                    ×
+                    X
                   </button>
                 </div>
               ))}
