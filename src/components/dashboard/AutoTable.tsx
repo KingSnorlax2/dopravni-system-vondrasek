@@ -981,18 +981,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               >
                 Archivovat
               </button>
-              <button
-                onClick={() => setShowPictureUploadModal(true)}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Nahrát fotografii
-              </button>
-              <button
-                onClick={() => setShowPicturesModal(true)}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Zobrazit fotografie
-              </button>
             </div>
           </div>
         </div>
@@ -1103,18 +1091,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       className="text-green-600 hover:text-green-900 hover:underline font-medium text-sm"
                     >
                       Detail
-                    </button>
-                    <button 
-                      onClick={() => openPictureUploadModal(auto)}
-                      className="text-green-600 hover:text-green-900 hover:underline font-medium text-sm"
-                    >
-                      Nahrát fotografii
-                    </button>
-                    <button 
-                      onClick={() => openPicturesModal(auto)}
-                      className="text-green-600 hover:text-green-900 hover:underline font-medium text-sm"
-                    >
-                      Zobrazit fotografie
                     </button>
                   </td>
                 </tr>
@@ -1370,80 +1346,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {showPictureUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">Nahrát fotografii</h2>
-            <p className="mb-4">Vyberte fotografii pro vozidlo {selectedAuto?.spz}:</p>
-            <input 
-              type="file" 
-              onChange={handleFileChange}
-              className="w-full border rounded-lg px-4 py-2 mb-6"
-            />
-            {selectedFile && (
-              <div className="mb-4">
-                <p className="text-gray-600">Vybraný soubor:</p>
-                <p className="text-gray-600">{selectedFile.name}</p>
-              </div>
-            )}
-            {uploadError && (
-              <div className="mb-4">
-                <p className="text-red-600">{uploadError}</p>
-              </div>
-            )}
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowPictureUploadModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 w-full"
-              >
-                Zrušit
-              </button>
-              <button
-                onClick={handlePictureUpload}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full"
-              >
-                Nahrát
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showPicturesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-4">Fotografie vozidla</h2>
-            {currentPictures.length === 0 ? (
-              <p className="text-gray-600">Žádné fotografie nebyly nalezeny</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-4">
-                {currentPictures.map((foto) => (
-                  <div key={foto.id} className="relative group">
-                    <img 
-                      src={`/api/auta/${selectedAuto?.id}/upload-foto?fotoId=${foto.id}`} 
-                      alt="Fotografie vozidla" 
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                    <button 
-                      onClick={() => handleDeletePicture(foto.id)}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      Smazat
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={() => setShowPicturesModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Zavřít
-              </button>
             </div>
           </div>
         </div>

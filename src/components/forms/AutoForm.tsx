@@ -28,18 +28,22 @@ interface AutoFormProps {
   onSubmit?: (formData: AutoFormData) => Promise<void>
 }
 
+type FileItem = 
+  | { id: string; file?: never }  // for uploaded files with server-side ID
+  | { id?: string; file: File };  // for local files before upload
+
 const MAX_SPZ_LENGTH = 8;
 const MAX_ZNACKA_LENGTH = 20;
 const MAX_MODEL_LENGTH = 20;
 
 export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, onSubmit }: AutoFormProps) {
   const [uploading, setUploading] = useState(false)
-  const [fotky, setFotky] = useState<{ id: string }[]>(editedAuto?.fotky || [])
+  const [fotky, setFotky] = useState<FileItem[]>(editedAuto?.fotky || [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [showPicturesModal, setShowPicturesModal] = useState(false)
-  const [currentPictures, setCurrentPictures] = useState<{ id: string }[]>([])
+  const [currentPictures, setCurrentPictures] = useState<FileItem[]>([])
   const [selectedAuto, setSelectedAuto] = useState<AutoFormData & { id: string } | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
@@ -116,82 +120,68 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    setSelectedFile(file || null);
-    if (file) {
-      handleFileUpload(e);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement> | Event) => {
+    const target = e.target as HTMLInputElement;
+    const files = target.files;
+    
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      const validFiles = newFiles.filter(file => 
+        ['image/jpeg', 'image/png', 'image/gif'].includes(file.type)
+      );
+
+      if (validFiles.length > 0) {
+        const updatedFotky = [...fotky, ...validFiles.map(file => ({ file }))];
+        setFotky(updatedFotky);
+      } else {
+        alert('Prosím, vyberte pouze obrázky (JPEG, PNG, GIF)');
+      }
     }
   }
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files?.length) return
-
-    setUploading(true)
-    setUploadError(null)
+  const handleUpload = async () => {
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        // Validate file type and size
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-        const maxSize = 5 * 1024 * 1024; // 5MB
+      setUploading(true);
+      setUploadError(null);
 
-        if (!allowedTypes.includes(file.type)) {
-          throw new Error('Podporované formáty jsou JPEG, PNG a GIF');
-        }
-
-        if (file.size > maxSize) {
-          throw new Error('Maximální velikost souboru je 5 MB');
-        }
-
-        // Convert file to base64
-        const reader = new FileReader();
-        return new Promise<{ id: string } | null>((resolve, reject) => {
-          reader.onloadend = async () => {
-            const base64Data = reader.result as string;
+      // Only upload files that haven't been uploaded yet
+      const uploadPromises = fotky
+        .filter((item): item is { file: File } => 'file' in item)
+        .map(async (item) => {
+          try {
+            const formData = new FormData();
+            formData.append('file', item.file);
             
-            try {
-              const response = await fetch(
-                editedAuto 
-                  ? `/api/auta/${editedAuto.id}/upload-foto`
-                  : '/api/auta/0/upload-foto', 
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    data: base64Data.split(',')[1], // Remove data URL prefix
-                    mimeType: file.type
-                  })
-                }
-              );
+            const response = await fetch('/api/upload', {
+              method: 'POST',
+              body: formData
+            });
 
-              if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Nepodařilo se nahrát fotografii');
-              }
-
-              const uploadedFoto = await response.json();
-              resolve({ id: uploadedFoto.id });
-            } catch (error) {
-              reject(error);
+            if (!response.ok) {
+              throw new Error('Upload failed');
             }
-          };
-          reader.onerror = () => reject(new Error('Chyba při čtení souboru'));
-          reader.readAsDataURL(file);
-        });
-      });
 
-      const results = await Promise.all(uploadPromises)
-      const validResults = results.filter((result): result is { id: string } => result !== null)
+            const result = await response.json();
+            return { id: result.id };
+          } catch (error) {
+            console.error('File upload error:', error);
+            return null;
+          }
+        });
+
+      const results = await Promise.all(uploadPromises);
+      const validResults = results.filter((result): result is { id: string } => result !== null);
       
-      setFotky(prev => [...prev, ...validResults])
+      setFotky(prev => [
+        ...prev.filter(item => 'id' in item),  // keep existing server-side files
+        ...validResults  // add new uploaded file IDs
+      ]);
+
+      setUploading(false);
     } catch (error) {
-      console.error('Upload error:', error)
-      setUploadError(error instanceof Error ? error.message : 'Chyba při nahrávání souboru')
-    } finally {
-      setUploading(false)
+      console.error('Upload error:', error);
+      setUploadError(error instanceof Error ? error.message : 'Chyba při nahrávání souboru');
+      setUploading(false);
     }
   }
 
@@ -370,14 +360,22 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
 
             <div className="mt-4 grid grid-cols-3 gap-4">
               {fotky.map((fotka, index) => (
-                <div key={fotka.id} className="relative w-24 h-24">
-                  <Image
-                    src={`/api/auta/${editedAuto?.id || '0'}/upload-foto?fotoId=${fotka.id}`}
-                    alt="Náhled"
-                    fill
-                    sizes="(max-width: 96px) 100vw, 96px"
-                    className="object-cover rounded-md"
-                  />
+                <div key={index} className="relative w-24 h-24">
+                  {fotka.file ? (
+                    <img 
+                      src={URL.createObjectURL(fotka.file)} 
+                      alt={`Fotografie ${index + 1}`} 
+                      className="w-full h-full object-cover rounded"
+                    />
+                  ) : (
+                    <Image
+                      src={`/api/auta/${editedAuto?.id || '0'}/upload-foto?fotoId=${fotka.id}`}
+                      alt={`Fotografie ${index + 1}`}
+                      fill
+                      sizes="(max-width: 96px) 100vw, 96px"
+                      className="object-cover rounded-md"
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={() => handleDeleteFotka(index)}
@@ -388,6 +386,29 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="flex space-x-2 mt-4">
+            <button 
+              type="button"
+              onClick={handleUpload}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
+            >
+              Nahrát fotografii
+            </button>
+            {fotky.length > 0 && (
+              <button 
+                type="button"
+                onClick={() => {
+                  setSelectedAuto(editedAuto || null);
+                  setCurrentPictures(fotky);
+                  setShowPicturesModal(true);
+                }}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center"
+              >
+                Zobrazit fotografie
+              </button>
+            )}
           </div>
 
           {error && (
@@ -413,8 +434,47 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
             </button>
           </div>
         </form>
+
+        {showPicturesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded-lg max-w-4xl w-full">
+              <h2 className="text-xl font-bold mb-4">
+                Fotografie vozidla {selectedAuto?.spz || 'Nové vozidlo'}
+              </h2>
+              <div className="grid grid-cols-3 gap-4">
+                {currentPictures.map((foto, index) => (
+                  <div key={index} className="relative">
+                    {foto.file ? (
+                      <img 
+                        src={URL.createObjectURL(foto.file)} 
+                        alt={`Fotografie ${index + 1}`} 
+                        className="w-full h-48 object-cover rounded"
+                      />
+                    ) : (
+                      <img 
+                        src={`/api/auta/foto/${foto.id}`} 
+                        alt={`Fotografie ${index + 1}`} 
+                        className="w-full h-48 object-cover rounded"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end space-x-2 mt-4">
+                <button 
+                  onClick={() => {
+                    setShowPicturesModal(false);
+                    setCurrentPictures([]);
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                >
+                  Zavřít
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
 }
-
