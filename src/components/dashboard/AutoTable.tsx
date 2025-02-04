@@ -104,6 +104,14 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [selectedToArchive, setSelectedToArchive] = useState<Auto[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  const [showPictureUploadModal, setShowPictureUploadModal] = useState(false)
+  const [selectedAuto, setSelectedAuto] = useState<Auto | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  const [showPicturesModal, setShowPicturesModal] = useState(false)
+  const [currentPictures, setCurrentPictures] = useState<{ id: string }[]>([])
+
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => {
@@ -622,6 +630,121 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
   };
 
+  const handlePictureUpload = async () => {
+    if (!selectedAuto || !selectedFile) return;
+
+    try {
+      // Validate file type and size
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      const maxSize = 10 * 1024 * 1024; // 10MB
+
+      if (!allowedTypes.includes(selectedFile.type)) {
+        setUploadError('Podporované formáty jsou JPEG, PNG a GIF');
+        return;
+      }
+
+      if (selectedFile.size > maxSize) {
+        setUploadError('Maximální velikost souboru je 10 MB');
+        return;
+      }
+
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(selectedFile);
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        
+        const response = await fetch(`/api/auta/${selectedAuto.id}/upload-foto`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: base64Data.split(',')[1], // Remove data URL prefix
+            mimeType: selectedFile.type
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Nepodařilo se nahrát fotografii');
+        }
+
+        // Refresh the list
+        onRefresh();
+
+        // Reset state
+        setShowPictureUploadModal(false);
+        setSelectedFile(null);
+        setUploadError(null);
+        setNotification({
+          type: 'success',
+          message: 'Fotografie byla úspěšně nahrána'
+        });
+      };
+    } catch (error) {
+      console.error('Chyba při nahrávání fotografie:', error);
+      setUploadError(error instanceof Error ? error.message : 'Chyba při nahrávání fotografie');
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadError(null);
+    }
+  }
+
+  const openPictureUploadModal = (auto: Auto) => {
+    setSelectedAuto(auto);
+    setShowPictureUploadModal(true);
+  }
+
+  const openPicturesModal = async (auto: Auto) => {
+    try {
+      // Fetch pictures for the auto
+      const response = await fetch(`/api/auta/${auto.id}`)
+      const autoDetails = await response.json()
+      
+      setCurrentPictures(autoDetails.fotky || [])
+      setShowPicturesModal(true)
+    } catch (error) {
+      console.error('Chyba při načítání fotografií:', error)
+      setNotification({
+        type: 'error',
+        message: 'Nepodařilo se načíst fotografie'
+      })
+    }
+  }
+
+  const handleDeletePicture = async (fotoId: string) => {
+    try {
+      const response = await fetch(`/api/auta/${selectedAuto?.id}/upload-foto?fotoId=${fotoId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Nepodařilo se smazat fotografii');
+      }
+
+      // Remove the picture from the list
+      setCurrentPictures(prev => prev.filter(foto => foto.id !== fotoId));
+      
+      setNotification({
+        type: 'success',
+        message: 'Fotografie byla úspěšně smazána'
+      });
+    } catch (error) {
+      console.error('Chyba při mazání fotografie:', error);
+      setNotification({
+        type: 'error',
+        message: 'Nepodařilo se smazat fotografii'
+      });
+    }
+  }
+
   return (
     <div className="w-full h-full p-2">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -858,6 +981,18 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               >
                 Archivovat
               </button>
+              <button
+                onClick={() => setShowPictureUploadModal(true)}
+                className="text-gray-700 hover:text-gray-900 font-medium"
+              >
+                Nahrát fotografii
+              </button>
+              <button
+                onClick={() => setShowPicturesModal(true)}
+                className="text-gray-700 hover:text-gray-900 font-medium"
+              >
+                Zobrazit fotografie
+              </button>
             </div>
           </div>
         </div>
@@ -969,6 +1104,18 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     >
                       Detail
                     </button>
+                    <button 
+                      onClick={() => openPictureUploadModal(auto)}
+                      className="text-green-600 hover:text-green-900 hover:underline font-medium text-sm"
+                    >
+                      Nahrát fotografii
+                    </button>
+                    <button 
+                      onClick={() => openPicturesModal(auto)}
+                      className="text-green-600 hover:text-green-900 hover:underline font-medium text-sm"
+                    >
+                      Zobrazit fotografie
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -990,6 +1137,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                 }}
                 className="border rounded px-2 py-1"
               >
+                <option value={5}>5 / stránka</option>
                 <option value={10}>10 / stránka</option>
                 <option value={25}>25 / stránka</option>
                 <option value={50}>50 / stránka</option>
@@ -1222,6 +1370,80 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPictureUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4">Nahrát fotografii</h2>
+            <p className="mb-4">Vyberte fotografii pro vozidlo {selectedAuto?.spz}:</p>
+            <input 
+              type="file" 
+              onChange={handleFileChange}
+              className="w-full border rounded-lg px-4 py-2 mb-6"
+            />
+            {selectedFile && (
+              <div className="mb-4">
+                <p className="text-gray-600">Vybraný soubor:</p>
+                <p className="text-gray-600">{selectedFile.name}</p>
+              </div>
+            )}
+            {uploadError && (
+              <div className="mb-4">
+                <p className="text-red-600">{uploadError}</p>
+              </div>
+            )}
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowPictureUploadModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 w-full"
+              >
+                Zrušit
+              </button>
+              <button
+                onClick={handlePictureUpload}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full"
+              >
+                Nahrát
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPicturesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-4">Fotografie vozidla</h2>
+            {currentPictures.length === 0 ? (
+              <p className="text-gray-600">Žádné fotografie nebyly nalezeny</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-4">
+                {currentPictures.map((foto) => (
+                  <div key={foto.id} className="relative group">
+                    <img 
+                      src={`/api/auta/${selectedAuto?.id}/upload-foto?fotoId=${foto.id}`} 
+                      alt="Fotografie vozidla" 
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    <button 
+                      onClick={() => handleDeletePicture(foto.id)}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      Smazat
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowPicturesModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Zavřít
+              </button>
             </div>
           </div>
         </div>

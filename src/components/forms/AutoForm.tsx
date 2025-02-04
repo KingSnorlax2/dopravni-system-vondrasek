@@ -37,6 +37,11 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
   const [fotky, setFotky] = useState<{ id: string }[]>(editedAuto?.fotky || [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [showPicturesModal, setShowPicturesModal] = useState(false)
+  const [currentPictures, setCurrentPictures] = useState<{ id: string }[]>([])
+  const [selectedAuto, setSelectedAuto] = useState<AutoFormData & { id: string } | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const {
     register,
@@ -111,11 +116,20 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
     }
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setSelectedFile(file || null);
+    if (file) {
+      handleFileUpload(e);
+    }
+  }
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (!files?.length) return
 
     setUploading(true)
+    setUploadError(null)
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
         // Validate file type and size
@@ -175,7 +189,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
       setFotky(prev => [...prev, ...validResults])
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Chyba při nahrávání souboru: ' + (error instanceof Error ? error.message : 'Neznámá chyba'))
+      setUploadError(error instanceof Error ? error.message : 'Chyba při nahrávání souboru')
     } finally {
       setUploading(false)
     }
@@ -200,7 +214,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
       setFotky(prev => prev.filter((_, i) => i !== index))
     } catch (error) {
       console.error('Chyba při mazání fotografie:', error)
-      alert('Chyba při mazání fotografie: ' + (error instanceof Error ? error.message : 'Neznámá chyba'))
+      setUploadError(error instanceof Error ? error.message : 'Chyba při mazání fotografie')
     }
   }
 
@@ -208,7 +222,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
       <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
         <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
-          {editedAuto ? 'Upravit auto' : 'Přidat nové auto'}
+          Přidat nové auto
         </h3>
         
         <form onSubmit={handleSubmit(handleSubmitForm)} className="space-y-4">
@@ -218,6 +232,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
               {...register("spz")}
               type="text"
               maxLength={MAX_SPZ_LENGTH}
+              placeholder="Zadejte SPZ"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             />
             <p className={`text-sm mt-1 ${
@@ -236,6 +251,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
               {...register("znacka")}
               type="text"
               maxLength={MAX_ZNACKA_LENGTH}
+              placeholder="Zadejte značku"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             />
             <p className={`text-sm mt-1 ${
@@ -254,6 +270,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
               {...register("model")}
               type="text"
               maxLength={MAX_MODEL_LENGTH}
+              placeholder="Zadejte model"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             />
             <p className={`text-sm mt-1 ${
@@ -273,6 +290,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
               type="number"
               min={1900}
               max={new Date().getFullYear()}
+              defaultValue={new Date().getFullYear()}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             />
             {errors.rokVyroby && (
@@ -286,6 +304,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
               {...register("najezd", { valueAsNumber: true })}
               type="number"
               min={0}
+              defaultValue={0}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             />
             {errors.najezd && (
@@ -297,6 +316,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
             <label htmlFor="stav" className="block text-sm font-medium text-black">Stav</label>
             <select
               {...register("stav")}
+              defaultValue="aktivní"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
             >
               <option value="aktivní">Aktivní</option>
@@ -309,12 +329,12 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-black">Datum STK</label>
+            <label htmlFor="datumSTK" className="block text-sm font-medium text-black">Datum STK</label>
             <input
               type="date"
               {...register('datumSTK')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-black"
-              defaultValue={editedAuto?.datumSTK ? new Date(editedAuto.datumSTK).toISOString().split('T')[0] : ''}
+              placeholder="dd.mm.rrrr"
             />
             {errors.datumSTK && (
               <p className="mt-1 text-sm text-red-600">{errors.datumSTK.message}</p>
@@ -326,9 +346,8 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
             <div className="mt-1 flex items-center">
               <input
                 type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileUpload}
+                accept="image/jpeg,image/png,image/gif"
+                onChange={handleFileChange}
                 disabled={uploading}
                 className="sr-only"
                 id="file-upload"
@@ -340,6 +359,14 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
                 {uploading ? 'Nahrávání...' : 'Nahrát fotky'}
               </label>
             </div>
+
+            <p className="text-sm text-gray-500 mt-1">
+              {selectedFile ? `Soubor: ${selectedFile.name}` : 'Soubor nevybrán'}
+            </p>
+
+            {uploadError && (
+              <p className="mt-2 text-sm text-red-600">{uploadError}</p>
+            )}
 
             <div className="mt-4 grid grid-cols-3 gap-4">
               {fotky.map((fotka, index) => (
@@ -363,6 +390,12 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
             </div>
           </div>
 
+          {error && (
+            <div className="mt-4 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"
@@ -376,7 +409,7 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
               disabled={uploading || isSubmitting}
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400"
             >
-              {isSubmitting ? 'Ukládání...' : editedAuto ? 'Uložit změny' : 'Přidat'}
+              Přidat
             </button>
           </div>
         </form>
@@ -384,3 +417,4 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
     </div>
   )
 }
+
