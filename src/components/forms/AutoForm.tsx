@@ -16,7 +16,8 @@ const autoSchema = z.object({
   najezd: z.number().min(0, "Nájezd nemůže být záporný"),
   stav: z.enum(["aktivní", "servis", "vyřazeno"]),
   fotky: z.array(z.object({ id: z.string() })).optional(),
-  datumSTK: z.string().optional()
+  datumSTK: z.string().optional(),
+  poznamka: z.string().optional()
 })
 
 type AutoFormData = z.infer<typeof autoSchema>
