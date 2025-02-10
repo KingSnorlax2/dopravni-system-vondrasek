@@ -391,7 +391,14 @@ export default function AutoForm({ onCloseAction, onSuccessAction, editedAuto, o
           <div className="flex space-x-2 mt-4">
             <button 
               type="button"
-              onClick={handleUpload}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/jpeg,image/png,image/gif';
+                input.multiple = true;
+                input.onchange = handleFileChange;
+                input.click();
+              }}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
             >
               Nahrát fotografii
