@@ -1,32 +1,54 @@
 import NextAuth from 'next-auth';
 import { DefaultSession, Session } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
+import CredentialsProvider from "next-auth/providers/credentials"
 
 declare module 'next-auth' {
   interface Session {
     user: {
       id: string;
+      role?: string;
     } & DefaultSession['user']
   }
 }
 
 export const authConfig = {
   providers: [
-    // Add authentication providers here
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize() {
+        // For testing, always return admin user
+        return {
+          id: "1",
+          name: "Admin",
+          email: "admin@example.com",
+          role: "ADMIN"
+        }
+      }
+    })
   ],
   callbacks: {
-    async session({ session, token }: { session: Session; token: JWT }) {
-      if (token.sub) {
-        session.user.id = token.sub;
+    async jwt({ token, user }: { token: JWT, user: any }) {
+      if (user) {
+        token.role = user.role
       }
-      return session;
+      return token
     },
-    async jwt({ token }: { token: JWT }) {
-      return token;
+    async session({ session, token }: { session: Session, token: JWT }) {
+      if (token.sub) {
+        session.user.id = token.sub
+        session.user.role = token.role as string
+      }
+      return session
     }
   },
   pages: {
-    signIn: '/login'
+    signIn: '/',
+    error: '/'
   }
 };
 
