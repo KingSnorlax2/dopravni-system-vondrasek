@@ -18,14 +18,10 @@ const autoSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    console.log('GET request received');
-    
     const { searchParams } = new URL(request.url);
     const showAll = searchParams.get('showAll') === 'true';
     
-    console.log('Show all vehicles:', showAll);
-    
-    const vehicles = await prisma.auto.findMany({
+    const auta = await prisma.auto.findMany({
       where: showAll ? undefined : {
         aktivni: true
       },
@@ -34,6 +30,11 @@ export async function GET(request: Request) {
       },
       include: {
         fotky: true,
+        poznatky: {
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
         _count: {
           select: {
             gpsZaznamy: true,
@@ -44,17 +45,34 @@ export async function GET(request: Request) {
       }
     });
 
-    console.log('Found vehicles:', vehicles.length);
-    console.log('Active vehicles:', vehicles.filter(v => v.aktivni).length);
-    console.log('Vehicles by status:', vehicles.reduce((acc, v) => {
-      acc[v.stav] = (acc[v.stav] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>));
+    const transformedAuta = auta.map(auto => ({
+      id: auto.id,
+      spz: auto.spz,
+      znacka: auto.znacka,
+      model: auto.model,
+      rokVyroby: auto.rokVyroby,
+      najezd: auto.najezd,
+      stav: auto.stav as "aktivní" | "servis" | "vyřazeno",
+      fotky: auto.fotky.map(foto => ({
+        id: foto.id
+      })),
+      datumSTK: auto.datumSTK?.toISOString() || undefined,
+      poznamka: auto.poznamka || undefined,
+      poznatky: auto.poznatky.map(poznamka => ({
+        id: poznamka.id.toString(),
+        text: poznamka.text,
+        createdAt: poznamka.createdAt.toISOString()
+      })),
+      _count: auto._count
+    }));
 
-    return NextResponse.json(vehicles);
+    return NextResponse.json(transformedAuta);
   } catch (error) {
-    console.error('Error in GET request:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('Chyba při načítání vozidel:', error);
+    return NextResponse.json(
+      { error: 'Chyba při načítání vozidel' },
+      { status: 500 }
+    );
   }
 }
 
@@ -94,18 +112,22 @@ export async function POST(request: Request) {
 
     const vehicle = await prisma.auto.create({
       data: {
-        spz: validatedData.spz,
-        znacka: validatedData.znacka,
-        model: validatedData.model,
-        rokVyroby: validatedData.rokVyroby,
-        najezd: validatedData.najezd,
-        stav: validatedData.stav,
-        poznamka: validatedData.poznamka,
+        ...validatedData,
         datumSTK: validatedData.datumSTK ? new Date(validatedData.datumSTK) : null,
-        aktivni: true
+        aktivni: true,
+        fotky: validatedData.fotky?.length ? {
+          connect: validatedData.fotky.map(foto => ({ id: foto.id }))
+        } : undefined
       },
       include: {
-        fotky: true
+        fotky: true,
+        _count: {
+          select: {
+            gpsZaznamy: true,
+            udrzby: true,
+            tankovani: true
+          }
+        }
       }
     });
 
