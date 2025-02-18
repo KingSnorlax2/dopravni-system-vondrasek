@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AutoForm from '@/components/forms/AutoForm'
 import { QRCodeGenerator } from '@/components/QRCodeGenerator'
+import { OpravySection } from '@/components/sections/OpravySection'
 
 interface Foto {
   id: string
@@ -482,6 +483,18 @@ export default function DetailAuta() {
             Přidat poznámku
           </button>
         </form>
+      </div>
+
+      <div className="space-y-6">
+        {/* Main car info card */}
+        <div className="bg-white rounded-lg shadow p-6">
+          {/* Existing car details */}
+        </div>
+
+        {/* Opravy section */}
+        {auto && <OpravySection autoId={auto.id} />}
+
+        {/* Other sections like photos, notes, etc. */}
       </div>
     </div>
   )

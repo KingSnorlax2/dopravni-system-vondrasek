@@ -865,7 +865,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   </button>
                   <button 
                     onClick={handleUpdateSTK}
-                    className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors w-full"
+                    className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors"
                   >
                     Aktualizovat
                   </button>

@@ -24,6 +24,7 @@ model Auto {
   udrzby      Udrzba[] @relation("AutoUdrzba")
   tankovani   Tankovani[] @relation("AutoTankovani")
   aktivni     Boolean @default(true)
+  opravy      Oprava[]   @relation("AutoOpravy")
 }
 
 model Fotka {
@@ -109,4 +110,19 @@ model ArchivedAuto {
   datumArchivace DateTime @default(now())
   duvodArchivace String?
   archivedData  Json     // Store any additional data as JSON
+}
+
+model Oprava {
+  id          Int      @id @default(autoincrement())
+  autoId      Int
+  auto        Auto     @relation("AutoOpravy", fields: [autoId], references: [id], onDelete: Cascade)
+  datumOpravy DateTime
+  popis       String
+  cena        Float
+  typOpravy   String   
+  stav        String   
+  servis      String?
+  poznamka    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

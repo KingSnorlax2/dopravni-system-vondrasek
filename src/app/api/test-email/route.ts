@@ -12,12 +12,14 @@ export async function GET() {
       to: process.env.NOTIFICATION_EMAIL
     });
 
-    const testVehicles = [{
-      spz: "TEST123",
-      znacka: "Test",
-      model: "Auto",
-      datumSTK: new Date('2024-03-15')
-    }];
+    const testVehicles = [
+      {
+        spz: "TEST123",
+        znacka: "Test",
+        model: "Auto",
+        datumSTK: new Date('2024-03-15')
+      }
+    ];
 
     await sendSTKNotification(
       process.env.NOTIFICATION_EMAIL!,
