@@ -6,7 +6,7 @@ import { Auto } from '@/types/auto';
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Pencil } from "lucide-react"
-import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/AutoDetailForm"
+import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
 
 interface AutoTableProps {
   auta: Auto[]
