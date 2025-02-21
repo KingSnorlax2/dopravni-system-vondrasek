@@ -7,6 +7,7 @@ import { QRCodeSVG } from "qrcode.react"
 import { ArrowLeft, Camera, Wrench } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
+import { AutoDetailForm } from "@/components/forms/AutoDetailForm"
 
 interface AutoDetailProps {
   auto: {
@@ -23,6 +24,22 @@ interface AutoDetailProps {
 
 export function AutoDetail({ auto }: AutoDetailProps) {
   const [note, setNote] = useState("")
+  const [isEditOpen, setIsEditOpen] = useState(false)
+
+  const handleEdit = async (data: any) => {
+    try {
+      const response = await fetch(`/api/auta/${auto.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      
+      if (!response.ok) throw new Error('Failed to update')
+      window.location.reload()
+    } catch (error) {
+      console.error('Update failed:', error)
+    }
+  }
 
   return (
     <div className="container max-w-5xl py-8">
@@ -34,7 +51,9 @@ export function AutoDetail({ auto }: AutoDetailProps) {
           <ArrowLeft className="h-4 w-4 mr-1" />
           Zpět na seznam aut
         </Link>
-        <Button variant="outline">Upravit auto</Button>
+        <Button variant="outline" onClick={() => setIsEditOpen(true)}>
+          Upravit auto
+        </Button>
       </div>
 
       <h1 className="text-3xl font-bold mb-2">
@@ -120,6 +139,19 @@ export function AutoDetail({ auto }: AutoDetailProps) {
           </p>
         </div>
       </section>
+
+      {isEditOpen && (
+        <AutoDetailForm
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          initialData={{
+            ...auto,
+            datumSTK: auto.datumSTK ? new Date(auto.datumSTK) : undefined,
+            stav: auto.stav as "aktivní" | "servis" | "vyřazeno"
+          }}
+          onSubmit={handleEdit}
+        />
+      )}
     </div>
   )
 } 

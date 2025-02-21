@@ -2,142 +2,246 @@
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { QrCode, ArrowLeft, Camera, Wrench } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { QRCodeSVG } from "qrcode.react"
-import Link from "next/link"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { format } from "date-fns"
+import { Calendar } from "@/components/ui/calendar"
+import { CalendarIcon } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+
+const formSchema = z.object({
+  spz: z.string().min(1).max(8),
+  znacka: z.string().min(1).max(50),
+  model: z.string().min(1).max(50),
+  rokVyroby: z.number().min(1900).max(new Date().getFullYear()),
+  najezd: z.number().min(0),
+  stav: z.enum(["aktivní", "servis", "vyřazeno"]),
+  datumSTK: z.date().optional(),
+  poznamka: z.string().max(300).optional()
+})
 
 interface AutoDetailFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  initialData: {
-    id: string
-    spz: string
-    znacka: string
-    model: string
-    rokVyroby: number
-    najezd: number
-    stav: string
-    datumSTK?: string
-  }
+  initialData: z.infer<typeof formSchema> & { id: string }
+  onSubmit: (data: z.infer<typeof formSchema>) => Promise<void>
 }
 
-export function AutoDetailForm({ open, onOpenChange, initialData }: AutoDetailFormProps) {
+export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: AutoDetailFormProps) {
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      ...initialData,
+      datumSTK: initialData.datumSTK ? new Date(initialData.datumSTK) : undefined
+    }
+  })
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[600px] h-full flex flex-col overflow-y-auto">
-        <SheetHeader className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard/auta" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Zpět na seznam aut
-            </Link>
-            <Button variant="outline" size="sm">
-              Upravit auto
-            </Button>
-          </div>
-          
-          <SheetTitle className="flex items-baseline gap-2">
-            <span>{initialData.znacka} {initialData.model}</span>
-            <span className="text-muted-foreground">- {initialData.spz}</span>
-          </SheetTitle>
+      <SheetContent className="w-full sm:max-w-[540px] h-full flex flex-col">
+        <SheetHeader className="mb-4">
+          <SheetTitle>Upravit vozidlo</SheetTitle>
         </SheetHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2">
+            <div className="col-span-2 grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="spz"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SPZ</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Zadejte SPZ" {...field} />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      {field.value?.length || 0}/8 znaků
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
 
-        <div className="grid grid-cols-2 gap-6 mt-6">
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Rok výroby</p>
-              <p className="font-medium">{initialData.rokVyroby}</p>
+              <FormField
+                control={form.control}
+                name="stav"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stav</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Vyberte stav" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="aktivní">Aktivní</SelectItem>
+                        <SelectItem value="servis">V servisu</SelectItem>
+                        <SelectItem value="vyřazeno">Vyřazeno</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Nájezd</p>
-              <p className="font-medium">{initialData.najezd.toLocaleString()} km</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Stav</p>
-              <p className="font-medium capitalize">{initialData.stav}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Datum STK</p>
-              <p className="font-medium">
-                {initialData.datumSTK 
-                  ? format(new Date(initialData.datumSTK), "dd.MM.yyyy")
-                  : "Nenastaveno"}
-              </p>
-            </div>
-          </div>
 
-          <div className="flex flex-col items-center justify-center border rounded-lg p-4">
-            <p className="text-sm font-medium mb-2">QR kód vozidla</p>
-            <QRCodeSVG 
-              value={`${window.location.origin}/dashboard/auta/${initialData.id}`}
-              size={120}
+            <FormField
+              control={form.control}
+              name="znacka"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Značka</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Zadejte značku" {...field} />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    {field.value?.length || 0}/50 znaků
+                  </FormDescription>
+                </FormItem>
+              )}
             />
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Naskenujte pro přístup k detailu vozidla
-            </p>
-          </div>
-        </div>
 
-        <Separator className="my-6" />
+            <FormField
+              control={form.control}
+              name="model"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Model</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Zadejte model" {...field} />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    {field.value?.length || 0}/50 znaků
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
 
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-medium mb-4">Fotogalerie</h3>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <input
-                  type="file"
-                  className="hidden"
-                  id="photo-upload"
-                  accept="image/*"
-                />
-                <Button variant="outline" asChild>
-                  <label htmlFor="photo-upload" className="cursor-pointer">
-                    <Camera className="h-4 w-4 mr-2" />
-                    Nahrát fotografii
-                  </label>
-                </Button>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                {/* Photo grid will go here */}
-              </div>
+            <FormField
+              control={form.control}
+              name="rokVyroby"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rok výroby</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      {...field} 
+                      onChange={e => field.onChange(parseInt(e.target.value))}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="najezd"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nájezd (km)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      {...field} 
+                      onChange={e => field.onChange(parseInt(e.target.value))}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <div className="col-span-2">
+              <FormField
+                control={form.control}
+                name="datumSTK"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Datum STK</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "dd.MM.yyyy")
+                            ) : (
+                              <span>dd.mm.rrrr</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </FormItem>
+                )}
+              />
             </div>
-          </div>
 
-          <div>
-            <h3 className="text-lg font-medium mb-4">Poznámky</h3>
-            <div className="space-y-4">
-              <div>
-                <Textarea 
-                  placeholder="Napište poznámku..."
-                  className="resize-none"
-                  maxLength={300}
-                />
-                <p className="text-sm text-muted-foreground mt-1">
-                  0/300 znaků
-                </p>
-              </div>
-              <Button>Přidat poznámku</Button>
+            <div className="col-span-2">
+              <FormField
+                control={form.control}
+                name="poznamka"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Poznámka</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Zde můžete napsat poznámky k vozidlu..."
+                        className="resize-none h-20"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      {field.value?.length || 0}/300 znaků
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
             </div>
-          </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">Opravy a servis</h3>
-              <Button variant="outline">
-                <Wrench className="h-4 w-4 mr-2" />
-                Přidat opravu
+            <div className="col-span-2 flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Zrušit
+              </Button>
+              <Button type="submit">
+                Aktualizovat
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Žádné opravy nebyly nalezeny
-            </p>
-          </div>
-        </div>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   )
