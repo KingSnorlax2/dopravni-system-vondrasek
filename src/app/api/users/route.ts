@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { hash } from "bcryptjs"
+import { z } from "zod"
+
+const userSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(6),
+  role: z.enum(["USER", "ADMIN"])
+})
 
 export async function GET() {
   try {
@@ -23,12 +31,24 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json()
-    const hashedPassword = await hash(data.password, 10)
+    const json = await request.json()
+    const body = userSchema.parse(json)
 
+    const exists = await prisma.user.findUnique({
+      where: { email: body.email },
+    })
+
+    if (exists) {
+      return NextResponse.json(
+        { error: "User already exists" },
+        { status: 400 }
+      )
+    }
+
+    const hashedPassword = await hash(body.password, 10)
     const user = await prisma.user.create({
       data: {
-        ...data,
+        ...body,
         password: hashedPassword,
       },
       select: {
@@ -41,6 +61,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(user)
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors },
+        { status: 400 }
+      )
+    }
     return NextResponse.json(
       { error: "Failed to create user" },
       { status: 500 }

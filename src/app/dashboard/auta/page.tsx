@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import AutoTable from '@/components/dashboard/AutoTable'
-import AutoForm from '@/components/forms/AutoForm'
+import { AutoForm } from "@/components/forms/AutoForm"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 
 function isSTKExpiring(datumSTK: string | null) {
   if (!datumSTK) return false
@@ -48,7 +50,7 @@ export default function AutoPage() {
   const autaBliziciSeSTK = auta.filter(auto => isSTKExpiring(auto.datumSTK))
 
   return (
-    <div className="p-6">
+    <div className="container mx-auto py-10">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-gray-500">Celkem aut</h3>
@@ -106,13 +108,11 @@ export default function AutoPage() {
       )}
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-black">Správa vozidel</h1>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
+        <h1 className="text-3xl font-bold">Správa vozidel</h1>
+        <Button onClick={() => setShowForm(true)}>
+          <Plus className="mr-2 h-4 w-4" />
           Přidat auto
-        </button>
+        </Button>
       </div>
       
       {error && (
@@ -128,14 +128,14 @@ export default function AutoPage() {
         />
       </div>
 
-      {showForm && (
-        <div className="fixed top-0 left-0 w-full h-full bg-gray-500 bg-opacity-75 flex justify-center items-center z-50">
-          <AutoForm 
-            onCloseAction={() => setShowForm(false)}
-            onSuccessAction={handleSuccess}
-          />
-        </div>
-      )}
+      <AutoForm 
+        open={showForm} 
+        onOpenChange={setShowForm}
+        onSubmit={(data) => {
+          console.log(data)
+          handleSuccess()
+        }}
+      />
     </div>
   )
 }
