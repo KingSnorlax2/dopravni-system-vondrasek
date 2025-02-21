@@ -6,9 +6,9 @@ import { UserMoreActions } from "./user-actions"
 
 export type User = {
   id: string
-  name: string | null
-  email: string | null
-  role: string
+  name: string | undefined
+  email: string | undefined
+  role: "USER" | "ADMIN"
   createdAt?: string
 }
 
