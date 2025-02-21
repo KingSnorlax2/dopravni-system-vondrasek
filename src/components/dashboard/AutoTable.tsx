@@ -1,9 +1,12 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import AutoForm from '../forms/AutoForm';
+import { AutoForm } from "@/components/forms/AutoForm"
 import { Auto } from '@/types/auto';
 import { useRouter } from 'next/navigation'
+import { Button } from "@/components/ui/button"
+import { Pencil } from "lucide-react"
+import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/AutoDetailForm"
 
 interface AutoTableProps {
   auta: Auto[]
@@ -111,6 +114,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   const [showPicturesModal, setShowPicturesModal] = useState(false)
   const [currentPictures, setCurrentPictures] = useState<{ id: string }[]>([])
+
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editingAuto, setEditingAuto] = useState<Auto | null>(null)
 
   useEffect(() => {
     if (notification) {
@@ -358,7 +364,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         },
         body: JSON.stringify({
           ids: Array.from(selectedRows),
-          datumSTK: newDate ? new Date(newDate).toISOString() : 'N/A',
+          datumSTK: newDate ? new Date(newDate) : 'N/A',
         }),
       });
 
@@ -568,7 +574,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           rokVyroby: editedAuto.rokVyroby,
           najezd: editedAuto.najezd,
           stav: editedAuto.stav,
-          datumSTK: editedAuto.datumSTK,
+          datumSTK: editedAuto.datumSTK,  
           poznamka: editedAuto.poznamka
         })
       });
@@ -590,10 +596,32 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     setEditedAuto(null);
   };
 
-  const handleEditCar = (auto: Auto) => {
-    setEditedAuto(auto);
-    setIsEditModalOpen(true);
-  };
+  const handleEdit = (auto: Auto) => {
+    setEditingAuto({
+      ...auto,
+      id: auto.id,
+      datumSTK: auto.datumSTK ? auto.datumSTK.toString() : undefined
+    })
+    setIsEditOpen(true)
+  }
+
+  const handleEditSubmit = async (data: AutoDetailValues) => {
+    try {
+      const response = await fetch(`/api/auta/${editingAuto?.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      if (!response.ok) throw new Error('Failed to update')
+      
+      onRefresh?.()
+      setIsEditOpen(false)
+      setEditingAuto(null)
+    } catch (error) {
+      console.error('Update failed:', error)
+    }
+  }
 
   const handleSingleCarDelete = async () => {
     if (!deleteModalData || !deleteModalData.auto) return;
@@ -1074,12 +1102,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       : auto.poznamka || '-'}
                   </td>
                   <td className="px-3 py-3 text-right text-base space-x-2 w-[22%]">
-                    <button
-                      onClick={() => handleEditCar(auto)}
-                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(auto)}
                     >
-                      Upravit
-                    </button>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <button
                       onClick={() => setDeleteModalData({ auto, isOpen: true })}
                       className="text-red-600 hover:text-red-800 font-medium text-sm"
@@ -1349,6 +1378,15 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             </div>
           </div>
         </div>
+      )}
+
+      {editingAuto && (
+        <AutoDetailForm
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          initialData={editingAuto as unknown as AutoDetailValues & { id: string }}
+          onSubmit={handleEditSubmit}
+        />
       )}
     </div>
   )

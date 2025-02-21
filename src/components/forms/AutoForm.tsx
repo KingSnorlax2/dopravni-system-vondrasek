@@ -409,3 +409,5 @@ export function AutoForm({ open, onOpenChange, onSubmit, initialData }: AutoForm
     </Dialog>
   )
 }
+
+export default AutoForm;
