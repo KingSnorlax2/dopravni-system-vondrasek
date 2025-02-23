@@ -1,12 +1,11 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
 import { QRCodeSVG } from "qrcode.react"
-import { ArrowLeft, Camera, Wrench } from "lucide-react"
+import { ArrowLeft, Camera, X } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import Image from "next/image"
+import { useState, useEffect } from "react"
 import { AutoDetailForm } from "@/components/forms/AutoDetailForm"
 
 interface AutoDetailProps {
@@ -19,12 +18,17 @@ interface AutoDetailProps {
     najezd: number
     stav: string
     datumSTK?: string
+    fotky?: Array<{
+      id: string
+      url: string
+    }>
   }
 }
 
 export function AutoDetail({ auto }: AutoDetailProps) {
-  const [note, setNote] = useState("")
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [qrUrl, setQrUrl] = useState<string>("")
+  const [isUploading, setIsUploading] = useState(false)
 
   const handleEdit = async (data: any) => {
     try {
@@ -40,6 +44,46 @@ export function AutoDetail({ auto }: AutoDetailProps) {
       console.error('Update failed:', error)
     }
   }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return
+
+    setIsUploading(true)
+    const file = e.target.files[0]
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await fetch(`/api/auta/${auto.id}/fotky`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) throw new Error('Upload failed')
+      window.location.reload()
+    } catch (error) {
+      console.error('Photo upload failed:', error)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleDeletePhoto = async (photoId: string) => {
+    try {
+      const response = await fetch(`/api/auta/${auto.id}/fotky/${photoId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Delete failed')
+      window.location.reload()
+    } catch (error) {
+      console.error('Photo delete failed:', error)
+    }
+  }
+
+  useEffect(() => {
+    setQrUrl(`${window.location.origin}/dashboard/auta/${auto.id}`)
+  }, [auto.id])
 
   return (
     <div className="container max-w-5xl py-8">
@@ -60,7 +104,7 @@ export function AutoDetail({ auto }: AutoDetailProps) {
         {auto.znacka} {auto.model} - {auto.spz}
       </h1>
 
-      <div className="grid grid-cols-2 gap-8 mt-8">
+      <div className="grid md:grid-cols-2 gap-8 mt-8">
         <div className="space-y-4">
           <div>
             <p className="text-sm text-muted-foreground">Rok výroby</p>
@@ -84,59 +128,52 @@ export function AutoDetail({ auto }: AutoDetailProps) {
 
         <div className="flex flex-col items-center justify-center border rounded-lg p-6">
           <p className="text-sm font-medium mb-4">QR kód vozidla</p>
-          <QRCodeSVG 
-            value={`${window.location.origin}/dashboard/auta/${auto.id}`}
-            size={150}
-          />
+          {qrUrl && <QRCodeSVG value={qrUrl} size={150} />}
           <p className="text-xs text-muted-foreground mt-4 text-center">
             Naskenujte pro přístup k detailu vozidla
           </p>
         </div>
       </div>
 
-      <Separator className="my-8" />
-
-      <section className="space-y-8">
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Fotogalerie</h2>
-          <div className="space-y-4">
-            <Button variant="outline">
-              <Camera className="h-4 w-4 mr-2" />
-              Nahrát fotografii
-            </Button>
+      <section className="mt-8">
+        <h2 className="text-2xl font-semibold mb-4">Fotogalerie</h2>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              id="photo-upload"
+              onChange={handlePhotoUpload}
+            />
+            <label htmlFor="photo-upload">
+              <Button variant="outline" disabled={isUploading} asChild>
+                <span>
+                  <Camera className="h-4 w-4 mr-2" />
+                  {isUploading ? "Nahrávání..." : "Nahrát fotografii"}
+                </span>
+              </Button>
+            </label>
           </div>
-        </div>
-
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Poznámky</h2>
-          <div className="space-y-4">
-            <div>
-              <Textarea 
-                placeholder="Napište poznámku..."
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="resize-none"
-                maxLength={300}
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                {note.length}/300 znaků
-              </p>
-            </div>
-            <Button>Přidat poznámku</Button>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {auto.fotky?.map((photo) => (
+              <div key={photo.id} className="relative group aspect-square">
+                <Image
+                  src={photo.url}
+                  alt="Fotka auta"
+                  fill
+                  className="object-cover rounded-lg"
+                />
+                <button
+                  onClick={() => handleDeletePhoto(photo.id)}
+                  className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-semibold">Opravy a servis</h2>
-            <Button variant="outline">
-              <Wrench className="h-4 w-4 mr-2" />
-              Přidat opravu
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Žádné opravy nebyly nalezeny
-          </p>
         </div>
       </section>
 
