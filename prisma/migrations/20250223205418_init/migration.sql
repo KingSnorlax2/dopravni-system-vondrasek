@@ -1,3 +1,6 @@
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN');
+
 -- CreateTable
 CREATE TABLE "Auto" (
     "id" SERIAL NOT NULL,
@@ -131,8 +134,39 @@ CREATE TABLE "Oprava" (
     CONSTRAINT "Oprava_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Settings" (
+    "id" SERIAL NOT NULL,
+    "key" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "options" JSONB,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Settings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "name" TEXT,
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Auto_spz_key" ON "Auto"("spz");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Settings_key_key" ON "Settings"("key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- AddForeignKey
 ALTER TABLE "Fotka" ADD CONSTRAINT "Fotka_autoId_fkey" FOREIGN KEY ("autoId") REFERENCES "Auto"("id") ON DELETE CASCADE ON UPDATE CASCADE;
