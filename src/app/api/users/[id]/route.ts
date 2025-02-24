@@ -17,6 +17,12 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const json = await request.json()
     const body = userUpdateSchema.parse(json)
 
@@ -51,6 +57,14 @@ export async function PATCH(
         role: true,
       },
     })
+
+    // If this was a password update, return the unhashed password
+    if (body.password) {
+      return NextResponse.json({ 
+        ...user, 
+        password: body.password 
+      })
+    }
 
     return NextResponse.json(user)
   } catch (error) {
