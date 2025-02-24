@@ -108,7 +108,7 @@ export function AutoDetail({ auto }: AutoDetailProps) {
         <div className="space-y-4">
           <div>
             <p className="text-sm text-muted-foreground">Rok výroby</p>
-            <p className="font-medium">{auto.rokVyroby}</p>
+            <p className="font-light">{auto.rokVyroby}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Nájezd</p>
