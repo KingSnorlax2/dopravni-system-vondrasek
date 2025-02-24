@@ -1,27 +1,30 @@
 import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
-import { hash } from "bcryptjs"
-import { z } from "zod"
+import bcryptjs from "bcryptjs"
+import { authOptions } from "@/auth"
 
-const userSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
-  role: z.enum(["USER", "ADMIN"])
-})
-
+// Get all users
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
-        name: true,
         email: true,
-        role: true,
-      },
+        name: true,
+        role: true
+      }
     })
+
     return NextResponse.json(users)
   } catch (error) {
+    console.error("Error fetching users:", error)
     return NextResponse.json(
       { error: "Failed to fetch users" },
       { status: 500 }
@@ -29,44 +32,60 @@ export async function GET() {
   }
 }
 
+// Create new user
 export async function POST(request: Request) {
   try {
-    const json = await request.json()
-    const body = userSchema.parse(json)
+    const session = await getServerSession(authOptions)
+    
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-    const exists = await prisma.user.findUnique({
-      where: { email: body.email },
+    const body = await request.json()
+    const { email, password, name, role } = body
+
+    // Validate input
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 }
+      )
+    }
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
     })
 
-    if (exists) {
+    if (existingUser) {
       return NextResponse.json(
         { error: "User already exists" },
         { status: 400 }
       )
     }
 
-    const hashedPassword = await hash(body.password, 10)
+    // Hash password
+    const hashedPassword = await bcryptjs.hash(password, 10)
+
+    // Create user
     const user = await prisma.user.create({
       data: {
-        ...body,
+        email,
         password: hashedPassword,
+        name,
+        role: role || 'USER'
       },
       select: {
         id: true,
-        name: true,
         email: true,
-        role: true,
-      },
+        name: true,
+        role: true
+      }
     })
 
     return NextResponse.json(user)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors },
-        { status: 400 }
-      )
-    }
+    console.error("Error creating user:", error)
     return NextResponse.json(
       { error: "Failed to create user" },
       { status: 500 }
