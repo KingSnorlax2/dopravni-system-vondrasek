@@ -21,7 +21,8 @@ export const authOptions: NextAuthOptions = {
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        remember: { label: "Remember", type: "boolean" }
       },
       async authorize(credentials) {
         try {
@@ -90,10 +91,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 10 * 60, // 10 minutes in seconds
-  },
-  jwt: {
-    maxAge: 10 * 60 // 10 minutes in seconds
+    maxAge: 30 * 24 * 60 * 60 // 30 days
   },
   pages: {
     signIn: "/"

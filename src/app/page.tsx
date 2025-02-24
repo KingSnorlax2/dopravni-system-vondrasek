@@ -4,15 +4,32 @@ import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useState } from 'react'
+import { Checkbox } from "@/components/ui/checkbox"
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Cookies from 'js-cookie'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  // Load saved user info from cookies on component mount
+  useEffect(() => {
+    const savedEmail = Cookies.get('userEmail')
+    const savedRememberMe = Cookies.get('rememberMe')
+    
+    if (savedEmail) {
+      setEmail(savedEmail)
+    }
+    
+    if (savedRememberMe === 'true') {
+      setRememberMe(true)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -20,10 +37,20 @@ export default function LoginPage() {
     setError("")
 
     try {
+      // Save or remove user info in cookies based on remember me choice
+      if (rememberMe) {
+        Cookies.set('userEmail', email, { expires: 30, sameSite: 'strict' }) // Expires in 30 days
+        Cookies.set('rememberMe', 'true', { expires: 30, sameSite: 'strict' })
+      } else {
+        Cookies.remove('userEmail')
+        Cookies.remove('rememberMe')
+      }
+
       const result = await signIn('credentials', {
         email,
         password,
-        redirect: false
+        remember: rememberMe,
+        redirect: false,
       })
 
       if (result?.ok) {
@@ -59,6 +86,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={isLoading}
+              className="focus:ring-2 focus:ring-purple-500"
             />
             <Input
               type="password"
@@ -67,7 +95,22 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={isLoading}
+              className="focus:ring-2 focus:ring-purple-500"
             />
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                disabled={isLoading}
+              />
+              <label
+                htmlFor="remember"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Zapamatovat přihlášení
+              </label>
+            </div>
             <Button 
               type="submit" 
               className="w-full" 
