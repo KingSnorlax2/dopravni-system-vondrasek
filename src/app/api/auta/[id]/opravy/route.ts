@@ -10,6 +10,7 @@ const opravaSchema = z.object({
   stav: z.enum(["plánovaná", "probíhá", "dokončená"]),
   servis: z.string().optional(),
   poznamka: z.string().optional(),
+  najezdKm: z.number().optional(),
 });
 
 export async function POST(
@@ -24,8 +25,17 @@ export async function POST(
   }
 
   try {
-    const data = await request.json();
-    const validationResult = opravaSchema.safeParse(data);
+    const autoId = parseInt(params.id);
+    
+    if (isNaN(autoId)) {
+      return NextResponse.json(
+        { error: 'Invalid car ID' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const validationResult = opravaSchema.safeParse(body);
 
     if (!validationResult.success) {
       return NextResponse.json(
@@ -33,8 +43,6 @@ export async function POST(
         { status: 400 }
       );
     }
-
-    const autoId = parseInt(params.id);
 
     // Verify that the auto exists
     const auto = await prisma.auto.findUnique({
@@ -53,6 +61,7 @@ export async function POST(
         ...validationResult.data,
         autoId,
         datumOpravy: new Date(validationResult.data.datumOpravy),
+        najezdKm: validationResult.data.najezdKm || auto.najezd,
       },
     });
 
@@ -72,6 +81,14 @@ export async function GET(
 ) {
   try {
     const autoId = parseInt(params.id);
+    
+    if (isNaN(autoId)) {
+      return NextResponse.json(
+        { error: 'Invalid car ID' },
+        { status: 400 }
+      );
+    }
+
     const opravy = await prisma.oprava.findMany({
       where: { autoId },
       orderBy: { datumOpravy: 'desc' },
@@ -79,9 +96,9 @@ export async function GET(
 
     return NextResponse.json(opravy);
   } catch (error) {
-    console.error('Chyba při načítání oprav:', error);
+    console.error('Error fetching repairs:', error);
     return NextResponse.json(
-      { error: 'Nastala chyba při načítání oprav' },
+      { error: 'Failed to fetch repair records' },
       { status: 500 }
     );
   }

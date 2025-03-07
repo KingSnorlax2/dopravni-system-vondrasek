@@ -18,6 +18,10 @@ export default async function AutoDetailPage({ params }: PageProps) {
   return <AutoDetail auto={{
     ...auto,
     id: auto.id.toString(),
-    datumSTK: auto.datumSTK?.toISOString()
+    datumSTK: auto.datumSTK?.toISOString(),
+    fotky: auto.fotky.map(foto => ({
+      id: foto.id,
+      url: `data:${foto.mimeType};base64,${foto.data}`
+    }))
   }} />
 }

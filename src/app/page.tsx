@@ -1,140 +1,178 @@
 'use client';
 
+import { useState } from 'react'
 import { signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff } from "lucide-react"
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Cookies from 'js-cookie'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { useToast } from '@/components/ui/use-toast'
+import { Eye, EyeOff } from 'lucide-react'
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
-  const [error, setError] = useState<string>("")
-  const [isLoading, setIsLoading] = useState(false)
+export default function HomePage() {
   const router = useRouter()
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [formValues, setFormValues] = useState({
+    email: '',
+    password: '',
+    rememberMe: false
+  })
 
-  // Load saved user info from cookies on component mount
-  useEffect(() => {
-    const savedEmail = Cookies.get('userEmail')
-    const savedRememberMe = Cookies.get('rememberMe')
-    
-    if (savedEmail) {
-      setEmail(savedEmail)
-    }
-    
-    if (savedRememberMe === 'true') {
-      setRememberMe(true)
-    }
-  }, [])
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: value
+    }))
+  }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCheckboxChange = (checked: boolean) => {
+    setFormValues((prev) => ({
+      ...prev,
+      rememberMe: checked
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setError("")
+    setLoading(true)
 
     try {
-      // Save or remove user info in cookies based on remember me choice
-      if (rememberMe) {
-        Cookies.set('userEmail', email, { expires: 30, sameSite: 'strict' }) // Expires in 30 days
-        Cookies.set('rememberMe', 'true', { expires: 30, sameSite: 'strict' })
-      } else {
-        Cookies.remove('userEmail')
-        Cookies.remove('rememberMe')
-      }
-
       const result = await signIn('credentials', {
-        email,
-        password,
-        remember: rememberMe,
         redirect: false,
+        email: formValues.email,
+        password: formValues.password
       })
 
-      if (result?.ok) {
-        router.push('/dashboard')
-        router.refresh()
+      if (result?.error) {
+        toast({
+          title: 'Přihlášení selhalo',
+          description: 'Nesprávné přihlašovací údaje',
+          variant: 'destructive'
+        })
       } else {
-        setError("Špatný email nebo heslo")
+        router.push('/dashboard')
       }
     } catch (error) {
-      setError("Došlo k chybě při přihlašování")
+      console.error('Login error:', error)
+      toast({
+        title: 'Něco se pokazilo',
+        description: 'Zkuste to prosím později',
+        variant: 'destructive'
+      })
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword)
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-900 to-purple-800">
+      <Card className="w-[350px] shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl text-center">Dopravní systém</CardTitle>
+          <CardDescription className="text-center">Přihlaste se do systému</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
-                {error}
-              </div>
-            )}
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-              className="focus:ring-2 focus:ring-purple-500"
-            />
-            <div className="relative">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
-                type={showPassword ? "text" : "password"}
-                placeholder="Heslo"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                id="email"
+                name="email"
+                type="email"
+                placeholder="vas@email.cz"
+                value={formValues.email}
+                onChange={handleChange}
                 required
-                disabled={isLoading}
-                className="focus:ring-2 focus:ring-purple-500 pr-10"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Heslo</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={formValues.password}
+                  onChange={handleChange}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="remember"
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                disabled={isLoading}
+              <Checkbox 
+                id="rememberMe" 
+                checked={formValues.rememberMe}
+                onCheckedChange={handleCheckboxChange}
               />
-              <label
-                htmlFor="remember"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Zapamatovat přihlášení
-              </label>
+              <Label htmlFor="rememberMe" className="text-sm cursor-pointer">
+                Zapamatovat si mě
+              </Label>
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading}
-            >
-              {isLoading ? "Přihlašování..." : "Přihlásit"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Přihlašování..." : "Přihlásit se"}
             </Button>
           </form>
         </CardContent>
+        <CardFooter className="flex flex-col space-y-4">
+          {process.env.NODE_ENV === 'development' && (
+            <Button
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      email: 'admin@example.com',
+                      password: 'admin123',
+                      name: 'Admin User',
+                      role: 'ADMIN'
+                    }),
+                  })
+                  
+                  if (response.ok) {
+                    toast({
+                      title: 'Admin účet vytvořen!',
+                      description: 'Email: admin@example.com, Heslo: admin123',
+                    })
+                  } else {
+                    toast({
+                      title: 'Chyba při vytváření účtu',
+                      variant: 'destructive'
+                    })
+                  }
+                } catch (error) {
+                  console.error('Error creating admin:', error)
+                  toast({
+                    title: 'Chyba při vytváření účtu',
+                    variant: 'destructive'
+                  })
+                }
+              }}
+              variant="outline"
+              className="w-full text-sm"
+              size="sm"
+            >
+              Vytvořit admin účet (pouze pro vývoj)
+            </Button>
+          )}
+        </CardFooter>
       </Card>
     </div>
   )
