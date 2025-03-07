@@ -20,46 +20,46 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
-  const autoId = parseInt(id, 10);
-
-  if (isNaN(autoId)) {
-    return NextResponse.json(
-      { error: 'Neplatné ID vozidla' },
-      { status: 400 }
-    );
-  }
-
   try {
-    const auto = await prisma.auto.findUnique({
+    const autoId = parseInt(params.id);
+    
+    if (isNaN(autoId)) {
+      return NextResponse.json(
+        { error: 'Invalid car ID' },
+        { status: 400 }
+      );
+    }
+
+    const car = await prisma.auto.findUnique({
       where: {
         id: autoId
       },
       include: {
-        fotky: true,
-        poznatky: true,
-        _count: {
-          select: {
-            gpsZaznamy: true,
-            udrzby: true,
-            tankovani: true
-          }
-        }
+        fotky: true
       }
     });
 
-    if (!auto) {
+    if (!car) {
       return NextResponse.json(
-        { error: 'Vozidlo nebylo nalezeno' },
+        { error: 'Car not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(auto);
+    // Process photos to include the full URL
+    const processedCar = {
+      ...car,
+      fotky: car.fotky.map(foto => ({
+        id: foto.id,
+        url: `data:${foto.mimeType};base64,${foto.data}`
+      }))
+    };
+
+    return NextResponse.json(processedCar);
   } catch (error) {
-    console.error('Chyba při načítání vozidla:', error);
+    console.error('Error fetching car:', error);
     return NextResponse.json(
-      { error: `Chyba při načítání vozidla: ${error instanceof Error ? error.message : 'Neznámá chyba'}` },
+      { error: 'Failed to fetch car' },
       { status: 500 }
     );
   }
@@ -69,94 +69,56 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
-  const autoId = parseInt(id, 10);
-
-  if (isNaN(autoId)) {
-    return NextResponse.json(
-      { error: 'Neplatné ID vozidla' },
-      { status: 400 }
-    );
-  }
-
   try {
-    const data = await request.json();
-    console.log('Přijatá data pro aktualizaci:', data);
-
-    const validationResult = autoSchema.partial().safeParse(data);
-    if (!validationResult.success) {
+    const autoId = parseInt(params.id);
+    
+    if (isNaN(autoId)) {
       return NextResponse.json(
-        { 
-          error: 'Neplatná data',
-          details: validationResult.error.errors.map(e => ({
-            path: e.path.join('.'),
-            message: e.message
-          }))
-        },
+        { error: 'Invalid car ID' },
         { status: 400 }
       );
     }
 
-    const validatedData = validationResult.data;
-
-    const existingAuto = await prisma.auto.findUnique({
+    const body = await request.json();
+    
+    // Check if the car exists
+    const car = await prisma.auto.findUnique({
       where: { id: autoId }
     });
 
-    if (!existingAuto) {
+    if (!car) {
       return NextResponse.json(
-        { error: 'Vozidlo nebylo nalezeno' },
+        { error: 'Car not found' },
         { status: 404 }
       );
     }
 
-    // Kontrola duplicitní SPZ pokud se mění
-    if (validatedData.spz && validatedData.spz !== existingAuto.spz) {
-      const duplicateSpz = await prisma.auto.findFirst({
-        where: { 
-          spz: validatedData.spz,
-          id: { not: autoId }
-        }
-      });
-
-      if (duplicateSpz) {
-        return NextResponse.json(
-          { error: 'Vozidlo s touto SPZ již existuje' },
-          { status: 400 }
-        );
-      }
+    // Process datumSTK if it's a string
+    let datumSTK = body.datumSTK;
+    if (typeof datumSTK === 'string' && datumSTK) {
+      datumSTK = new Date(datumSTK);
     }
 
-    const updatedAuto = await prisma.auto.update({
+    // Update the car
+    const updatedCar = await prisma.auto.update({
       where: { id: autoId },
       data: {
-        ...validatedData,
-        datumSTK: validatedData.datumSTK ? new Date(validatedData.datumSTK) : null,
-        fotky: validatedData.fotky ? {
-          connect: validatedData.fotky.map(f => ({ id: f.id }))
-        } : undefined
-      },
-      include: {
-        fotky: true,
-        poznatky: true,
-        _count: {
-          select: {
-            gpsZaznamy: true,
-            udrzby: true,
-            tankovani: true
-          }
-        }
+        spz: body.spz,
+        znacka: body.znacka,
+        model: body.model,
+        rokVyroby: body.rokVyroby,
+        najezd: body.najezd,
+        stav: body.stav,
+        datumSTK: datumSTK || null,
+        poznamka: body.poznamka
       }
     });
 
-    return NextResponse.json({ success: true, data: updatedAuto });
+    return NextResponse.json(updatedCar);
   } catch (error) {
-    console.error('Chyba při aktualizaci vozidla:', error);
+    console.error('Error updating car:', error);
     return NextResponse.json(
-      { 
-        error: 'Chyba při aktualizaci vozidla',
-        details: error instanceof Error ? error.message : String(error)
-      },
+      { error: 'Failed to update car' },
       { status: 500 }
     );
   }

@@ -13,68 +13,7 @@ const opravaSchema = z.object({
   najezdKm: z.number().optional(),
 });
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  if (!prisma) {
-    return NextResponse.json(
-      { error: 'Database connection failed' },
-      { status: 500 }
-    );
-  }
-
-  try {
-    const autoId = parseInt(params.id);
-    
-    if (isNaN(autoId)) {
-      return NextResponse.json(
-        { error: 'Invalid car ID' },
-        { status: 400 }
-      );
-    }
-
-    const body = await request.json();
-    const validationResult = opravaSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Neplatná data', details: validationResult.error.errors },
-        { status: 400 }
-      );
-    }
-
-    // Verify that the auto exists
-    const auto = await prisma.auto.findUnique({
-      where: { id: autoId }
-    });
-
-    if (!auto) {
-      return NextResponse.json(
-        { error: 'Auto nebylo nalezeno' },
-        { status: 404 }
-      );
-    }
-
-    const oprava = await prisma.oprava.create({
-      data: {
-        ...validationResult.data,
-        autoId,
-        datumOpravy: new Date(validationResult.data.datumOpravy),
-        najezdKm: validationResult.data.najezdKm || auto.najezd,
-      },
-    });
-
-    return NextResponse.json(oprava);
-  } catch (error) {
-    console.error('Chyba při vytváření opravy:', error);
-    return NextResponse.json(
-      { error: 'Nastala chyba při vytváření opravy' },
-      { status: 500 }
-    );
-  }
-}
-
+// GET /api/auta/[id]/opravy - Fetch all repair records for a car
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -99,6 +38,84 @@ export async function GET(
     console.error('Error fetching repairs:', error);
     return NextResponse.json(
       { error: 'Failed to fetch repair records' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/auta/[id]/opravy - Create a new repair record
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const autoId = parseInt(params.id);
+    
+    if (isNaN(autoId)) {
+      return NextResponse.json(
+        { error: 'Invalid car ID' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const { 
+      datumOpravy, 
+      popis, 
+      cena, 
+      typOpravy, 
+      stav, 
+      servis,
+      poznamka
+    } = body;
+
+    // Validate required fields
+    if (!datumOpravy || !popis || !typOpravy || !stav || cena === undefined) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Check if the car exists
+    const car = await prisma.auto.findUnique({
+      where: { id: autoId }
+    });
+
+    if (!car) {
+      return NextResponse.json(
+        { error: 'Car not found' },
+        { status: 404 }
+      );
+    }
+
+    // Create the repair record
+    const oprava = await prisma.oprava.create({
+      data: {
+        autoId,
+        datumOpravy: new Date(datumOpravy),
+        popis,
+        cena: parseFloat(cena.toString()),
+        typOpravy,
+        stav,
+        servis,
+        poznamka
+      }
+    });
+
+    // Also update the car's mileage if a new value was provided
+    if (body.najezdKm && body.najezdKm > car.najezd) {
+      await prisma.auto.update({
+        where: { id: autoId },
+        data: { najezd: body.najezdKm }
+      });
+    }
+
+    return NextResponse.json(oprava, { status: 201 });
+  } catch (error) {
+    console.error('Error creating repair:', error);
+    return NextResponse.json(
+      { error: 'Failed to create repair record' },
       { status: 500 }
     );
   }

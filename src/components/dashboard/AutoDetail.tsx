@@ -100,7 +100,8 @@ export function AutoDetail({ auto }: AutoDetailProps) {
           type: record.typOpravy,
           status: record.stav,
           mileage: record.najezdKm || auto.najezd,
-          note: record.poznamka
+          note: record.poznamka,
+          service: record.servis
         })))
       } catch (error) {
         console.error('Error fetching service records:', error)
@@ -348,7 +349,7 @@ export function AutoDetail({ auto }: AutoDetailProps) {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Nájezd</p>
-                  <p className="font-medium">{auto.najezd.toLocaleString()} km</p>
+                  <p className="font-medium">{(auto.najezd || 0).toLocaleString()} km</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Datum STK</p>
@@ -497,7 +498,7 @@ export function AutoDetail({ auto }: AutoDetailProps) {
                             </div>
                             <div>
                               <p className="text-sm text-muted-foreground">Nájezd</p>
-                              <p className="font-medium">{record.mileage.toLocaleString()} km</p>
+                              <p className="font-medium">{(record.mileage || auto.najezd).toLocaleString()} km</p>
                             </div>
                             <div>
                               <p className="text-sm text-muted-foreground">Servis</p>
@@ -667,7 +668,7 @@ export function AutoDetail({ auto }: AutoDetailProps) {
                             </div>
                             <div>
                               <p className="text-sm text-muted-foreground">Nájezd</p>
-                              <p className="font-medium">{record.mileage.toLocaleString()} km</p>
+                              <p className="font-medium">{(record.mileage || auto.najezd).toLocaleString()} km</p>
                             </div>
                             {record.nextDate && (
                               <div>
