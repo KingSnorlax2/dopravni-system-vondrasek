@@ -11,11 +11,14 @@ import {
   Clock, 
   Plus, 
   FileText,
-  AlertCircle
+  AlertCircle,
+  PencilIcon,
+  Trash2Icon,
+  CropIcon
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { AutoDetailForm } from "@/components/forms/AutoDetailForm"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +29,11 @@ import { cs } from "date-fns/locale"
 import { useRouter } from "next/navigation"
 import { ServiceForm } from '@/components/forms/ServiceForm'
 import { MaintenanceForm } from '@/components/forms/MaintenanceForm'
+import { toast } from "@/components/ui/use-toast"
+import { Loader2 } from "lucide-react"
+import { ImageIcon } from "lucide-react"
+import { PhotoPositionModal } from "@/components/photo-positioning/PhotoPositionModal"
+import { PhotoGallery } from "@/components/dashboard/PhotoGallery"
 
 interface AutoDetailProps {
   auto: {
@@ -37,9 +45,13 @@ interface AutoDetailProps {
     najezd: number
     stav: string
     datumSTK?: string
+    thumbnailFotoId?: string
     fotky?: Array<{
       id: string
       url: string
+      positionX?: number
+      positionY?: number
+      scale?: number
     }>
   }
 }
@@ -82,6 +94,13 @@ export function AutoDetail({ auto }: AutoDetailProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false)
   const [isAddMaintenanceModalOpen, setIsAddMaintenanceModalOpen] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [currentEditPhotoId, setCurrentEditPhotoId] = useState<string | null>(null)
+  const [photoSize, setPhotoSize] = useState<'small' | 'medium' | 'large'>('medium')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const editFileInputRef = useRef<HTMLInputElement>(null)
+  const [isPositioningModalOpen, setIsPositioningModalOpen] = useState(false)
+  const [currentPositioningPhotoId, setCurrentPositioningPhotoId] = useState<string | null>(null)
 
   // fetch service records
   useEffect(() => {
@@ -152,25 +171,110 @@ export function AutoDetail({ auto }: AutoDetailProps) {
   }
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return
+    if (!e.target.files?.[0]) return;
 
-    setIsUploading(true)
-    const file = e.target.files[0]
-    const formData = new FormData()
-    formData.append('file', file)
+    setIsUploading(true);
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
       const response = await fetch(`/api/auta/${auto.id}/fotky`, {
         method: 'POST',
         body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+      
+      // Reload photos after successful upload
+      const photosResponse = await fetch(`/api/auta/${auto.id}/fotky`);
+      if (photosResponse.ok) {
+        const photosData = await photosResponse.json();
+        // Update auto.fotky with the new photos data
+        auto.fotky = photosData.map((foto: any) => ({
+          id: foto.id,
+          url: `data:${foto.mimeType};base64,${foto.data}`,
+          positionX: foto.positionX,
+          positionY: foto.positionY,
+          scale: foto.scale
+        }));
+        // Force re-render
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        // Just reload the page if we can't fetch updated photos
+        window.location.reload();
+      }
+      
+      toast({
+        title: "Fotografie nahrána",
+        description: "Fotografie byla úspěšně nahrána.",
+      });
+    } catch (error) {
+      console.error('Photo upload failed:', error);
+      toast({
+        title: "Chyba při nahrávání fotografie",
+        description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      // Reset the file input
+      if (e.target) {
+        e.target.value = '';
+      }
+    }
+  };
+
+  const handleEditPhoto = async (photoId: string) => {
+    setCurrentEditPhotoId(photoId)
+    // Trigger the file input click
+    if (editFileInputRef.current) {
+      editFileInputRef.current.click()
+    }
+  }
+
+  const handleEditPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!currentEditPhotoId) return
+    
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', files[0])
+
+      const response = await fetch(`/api/auta/${auto.id}/fotky/${currentEditPhotoId}`, {
+        method: 'PUT',
+        body: formData
       })
 
-      if (!response.ok) throw new Error('Upload failed')
-      window.location.reload()
+      if (!response.ok) {
+        throw new Error('Failed to update photo')
+      }
+
+      // Refresh the photos by incrementing the refresh trigger
+      setRefreshTrigger(prev => prev + 1)
+      toast({
+        title: "Fotografie aktualizována",
+        description: "Fotografie byla úspěšně aktualizována",
+      })
     } catch (error) {
-      console.error('Photo upload failed:', error)
+      console.error('Error updating photo:', error)
+      toast({
+        title: "Chyba při aktualizaci fotografie",
+        description: "Nepodařilo se aktualizovat fotografii",
+        variant: "destructive"
+      })
     } finally {
       setIsUploading(false)
+      setCurrentEditPhotoId(null)
+      if (editFileInputRef.current) {
+        editFileInputRef.current.value = ''
+      }
     }
   }
 
@@ -178,14 +282,54 @@ export function AutoDetail({ auto }: AutoDetailProps) {
     try {
       const response = await fetch(`/api/auta/${auto.id}/fotky/${photoId}`, {
         method: 'DELETE'
-      })
+      });
 
-      if (!response.ok) throw new Error('Delete failed')
-      window.location.reload()
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Delete failed');
+      }
+      
+      // Check if the deleted photo was the thumbnail
+      const wasThumbnail = photoId === auto.thumbnailFotoId;
+      
+      // If it was the thumbnail, clear the thumbnailFotoId
+      if (wasThumbnail) {
+        auto.thumbnailFotoId = undefined;
+        
+        // Also update on the server
+        try {
+          await fetch(`/api/auta/${auto.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thumbnailFotoId: null })
+          });
+        } catch (thumbnailError) {
+          console.error('Failed to clear thumbnail reference:', thumbnailError);
+        }
+      }
+      
+      // Update the UI by removing the deleted photo
+      if (auto.fotky) {
+        auto.fotky = auto.fotky.filter(foto => foto.id !== photoId);
+        // Force re-render
+        setRefreshTrigger(prev => prev + 1);
+      }
+      
+      toast({
+        title: "Fotografie odstraněna",
+        description: wasThumbnail 
+          ? "Fotografie byla odstraněna a reference na miniaturu byla zrušena."
+          : "Fotografie byla úspěšně odstraněna.",
+      });
     } catch (error) {
-      console.error('Photo delete failed:', error)
+      console.error('Photo delete failed:', error);
+      toast({
+        title: "Chyba při odstraňování fotografie",
+        description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   // Handle adding new service record
   const handleAddService = () => {
@@ -277,6 +421,84 @@ export function AutoDetail({ auto }: AutoDetailProps) {
     } catch (error) {
       console.error('Error creating maintenance record:', error)
     }
+  }
+
+  const handleSetAsThumbnail = async (photoId: string) => {
+    try {
+      const response = await fetch(`/api/auta/${auto.id}/fotky/${photoId}/thumbnail`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to set thumbnail');
+      }
+      
+      // Update the local auto object to reflect the change
+      auto.thumbnailFotoId = photoId;
+      
+      // Force re-render
+      setRefreshTrigger(prev => prev + 1);
+      
+      toast({
+        title: "Miniatura nastavena",
+        description: "Fotografie byla nastavena jako miniatura vozidla",
+      });
+    } catch (error) {
+      console.error('Setting thumbnail failed:', error);
+      toast({
+        title: "Chyba při nastavení miniatury",
+        description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to get photo height based on selected size
+  const getPhotoHeight = () => {
+    switch (photoSize) {
+      case 'small': return 'h-32';
+      case 'large': return 'h-64';
+      case 'medium':
+      default: return 'h-48';
+    }
+  };
+
+  const handleOpenPositioning = (photoId: string) => {
+    setCurrentPositioningPhotoId(photoId)
+    setIsPositioningModalOpen(true)
+  }
+
+  const handlePositionSaved = (photoId: string, position: { positionX: number, positionY: number, scale: number }) => {
+    // Update the local state with the new position
+    if (auto.fotky) {
+      auto.fotky = auto.fotky.map(photo => {
+        if (photo.id === photoId) {
+          return {
+            ...photo,
+            positionX: position.positionX,
+            positionY: position.positionY,
+            scale: position.scale
+          }
+        }
+        return photo
+      })
+      
+      // Force re-render
+      setRefreshTrigger(prev => prev + 1)
+    }
+  }
+
+  // Function to apply position styling to a photo
+  const getPhotoStyle = (photo: any) => {
+    if (photo.positionX !== undefined && photo.positionY !== undefined && photo.scale !== undefined) {
+      return {
+        objectPosition: `${photo.positionX}% ${photo.positionY}%`,
+        transform: `scale(${photo.scale})`,
+        transformOrigin: `${photo.positionX}% ${photo.positionY}%`
+      }
+    }
+    return {} // Default empty style if no position data
   }
 
   return (
@@ -714,73 +936,96 @@ export function AutoDetail({ auto }: AutoDetailProps) {
         </TabsContent>
 
         {/* Photos Tab */}
-        <TabsContent value="photos" className="mt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold">Fotogalerie</h2>
-            <div>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                id="photo-upload"
-                onChange={handlePhotoUpload}
-              />
-              <label htmlFor="photo-upload">
-                <Button variant="outline" disabled={isUploading} asChild>
-                  <span>
-                    <Camera className="h-4 w-4 mr-2" />
-                    {isUploading ? "Nahrávání..." : "Nahrát fotografii"}
-                  </span>
-                </Button>
-              </label>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {auto.fotky?.map((photo) => (
-              <div key={photo.id} className="relative group aspect-square">
-                <Image
-                  src={photo.url}
-                  alt="Fotka auta"
-                  fill
-                  className="object-cover rounded-lg"
-                />
-                <button
-                  onClick={() => handleDeletePhoto(photo.id)}
-                  className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-            
-            {auto.fotky?.length === 0 && (
-              <div className="col-span-full py-12 text-center border rounded-lg">
-                <Camera className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
-                <h3 className="mt-4 text-lg font-medium">Žádné fotografie</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Pro toto vozidlo zatím nejsou nahrány žádné fotografie.
-                </p>
-                <div className="mt-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    id="photo-upload-empty"
-                    onChange={handlePhotoUpload}
-                  />
-                  <label htmlFor="photo-upload-empty">
-                    <Button disabled={isUploading} asChild>
-                      <span>
-                        <Camera className="h-4 w-4 mr-2" />
-                        Nahrát první fotografii
-                      </span>
-                    </Button>
-                  </label>
+        <TabsContent value="photos" className="mt-4">
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Fotogalerie</h3>
+              <div className="flex items-center space-x-2">
+                {/* Photo size controls */}
+                <div className="flex items-center border rounded-md overflow-hidden mr-2">
+                  <Button 
+                    variant={photoSize === 'small' ? "default" : "ghost"}
+                    size="sm"
+                    className="rounded-none h-8 px-2"
+                    onClick={() => setPhotoSize('small')}
+                  >
+                    <ImageIcon className="h-3 w-3" />
+                    <span className="ml-1">S</span>
+                  </Button>
+                  <Button 
+                    variant={photoSize === 'medium' ? "default" : "ghost"}
+                    size="sm"
+                    className="rounded-none h-8 px-2"
+                    onClick={() => setPhotoSize('medium')}
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                    <span className="ml-1">M</span>
+                  </Button>
+                  <Button 
+                    variant={photoSize === 'large' ? "default" : "ghost"}
+                    size="sm"
+                    className="rounded-none h-8 px-2"
+                    onClick={() => setPhotoSize('large')}
+                  >
+                    <ImageIcon className="h-5 w-5" />
+                    <span className="ml-1">L</span>
+                  </Button>
                 </div>
+                <input
+                  type="file"
+                  id="photo-upload"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                  ref={fileInputRef}
+                />
+                <input
+                  type="file"
+                  id="photo-edit"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={handleEditPhotoChange}
+                  ref={editFileInputRef}
+                />
+                <Button 
+                  variant="outline" 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Nahrávám...
+                    </>
+                  ) : "Nahrát fotografii"}
+                </Button>
               </div>
-            )}
+            </div>
+
+            <PhotoGallery
+              photos={auto.fotky || []}
+              autoId={auto.id}
+              thumbnailId={auto.thumbnailFotoId}
+              onUpdateAction={() => setRefreshTrigger(prev => prev + 1)}
+            />
           </div>
+
+          {/* Photo positioning modal */}
+          {currentPositioningPhotoId && auto.fotky && (
+            <PhotoPositionModal
+              open={isPositioningModalOpen}
+              onOpenChange={setIsPositioningModalOpen}
+              photoId={currentPositioningPhotoId}
+              photoUrl={auto.fotky.find(p => p.id === currentPositioningPhotoId)?.url || ""}
+              autoId={auto.id}
+              initialPosition={{
+                positionX: auto.fotky.find(p => p.id === currentPositioningPhotoId)?.positionX || 50,
+                positionY: auto.fotky.find(p => p.id === currentPositioningPhotoId)?.positionY || 50,
+                scale: auto.fotky.find(p => p.id === currentPositioningPhotoId)?.scale || 1
+              }}
+              onPositionSaved={handlePositionSaved}
+            />
+          )}
         </TabsContent>
       </Tabs>
 

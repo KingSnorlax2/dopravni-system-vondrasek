@@ -13,23 +13,24 @@ enum UserRole {
 }
 
 model Auto {
-  id          Int      @id @default(autoincrement())
-  spz         String   @unique
-  znacka      String
-  model       String
-  rokVyroby   Int
-  najezd      Int
-  stav        String
-  poznamka    String?
-  datumSTK    DateTime?
-  fotky       Fotka[]  @relation("AutoFotky")
-  poznatky    Note[]   @relation("AutoNotes")
-  transakce   Transakce[] @relation("AutoTransakce")
-  gpsZaznamy  GPSZaznam[] @relation("AutoGPS")
-  udrzby      Udrzba[] @relation("AutoUdrzba")
-  tankovani   Tankovani[] @relation("AutoTankovani")
-  aktivni     Boolean @default(true)
-  opravy      Oprava[]   @relation("AutoOpravy")
+  id              Int       @id @default(autoincrement())
+  spz             String    @unique
+  znacka          String
+  model           String
+  rokVyroby       Int
+  najezd          Int
+  stav            String
+  poznamka        String?
+  datumSTK        DateTime?
+  thumbnailFotoId String?
+  fotky           Fotka[]   @relation("AutoFotky")
+  poznatky        Note[]    @relation("AutoNotes")
+  transakce       Transakce[] @relation("AutoTransakce")
+  gpsZaznamy     GPSZaznam[] @relation("AutoGPS")
+  udrzby          Udrzba[]  @relation("AutoUdrzba")
+  tankovani       Tankovani[] @relation("AutoTankovani")
+  aktivni         Boolean @default(true)
+  opravy          Oprava[]    @relation("AutoOpravy")
 }
 
 model Fotka {
@@ -37,6 +38,9 @@ model Fotka {
   data      String   @db.Text
   mimeType  String
   autoId    Int?
+  positionX Float?
+  positionY Float?
+  scale     Float?
   auto      Auto?    @relation("AutoFotky", fields: [autoId], references: [id], onDelete: Cascade)
 }
 
@@ -72,18 +76,18 @@ model GPSZaznam {
 }
 
 model Udrzba {
-  id              Int      @id @default(autoincrement())
-  autoId          Int
-  auto            Auto     @relation("AutoUdrzba", fields: [autoId], references: [id], onDelete: Cascade)
-  typ             String   // např. "servis", "STK", "výměna oleje"
-  popis           String
-  datumProvedeni  DateTime
-  datumPristi     DateTime?
-  najezdKm        Int
-  nakladyCelkem   Float
-  provedeno       Boolean  @default(false)
-  dokumenty       String?  // URL nebo cesta k dokumentům
-  poznamka        String?
+  id             String   @id @default(cuid())
+  autoId         Int
+  auto           Auto     @relation("AutoUdrzba", fields: [autoId], references: [id], onDelete: Cascade)
+  typ            String
+  popis          String?
+  datumProvedeni DateTime
+  datumPristi    DateTime?
+  najezdKm       Int
+  nakladyCelkem  Float
+  provedeno      Boolean
+  dokumenty      String?
+  poznamka       String?
 }
 
 model Tankovani {
