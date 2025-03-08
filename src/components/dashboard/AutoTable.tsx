@@ -1089,12 +1089,16 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     {(() => {
                       // Get the thumbnail URL with a timestamp to prevent caching
                       const timestamp = new Date().getTime();
-                      const thumbnailUrl = getThumbnailUrl(auto)
+                      const thumbnailUrl = auto.thumbnailUrl 
+                        ? `${auto.thumbnailUrl}?t=${timestamp}` 
+                        : auto.thumbnailFotoId 
+                          ? `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`
+                          : null;
                       
                       return thumbnailUrl ? (
                         <>
                           <div 
-                            className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+                            className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md"
                             onClick={() => setFullscreenPhoto(thumbnailUrl)}
                           >
                             <img 
@@ -1104,34 +1108,46 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                               loading="lazy"
                               onError={(e) => {
                                 console.error('Image failed to load:', thumbnailUrl);
-                                // Set a fallback image or hide the broken image
                                 e.currentTarget.style.display = 'none';
                               }}
                             />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
                           </div>
                           
                           {/* Fullscreen Photo Dialog */}
-                          <Dialog open={fullscreenPhoto === thumbnailUrl} onOpenChange={() => setFullscreenPhoto(null)}>
-                            <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/90">
+                          <Dialog open={!!fullscreenPhoto} onOpenChange={(open) => !open && setFullscreenPhoto(null)}>
+                            <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none">
                               <div className="relative w-full h-full flex items-center justify-center">
                                 <button 
                                   onClick={() => setFullscreenPhoto(null)}
-                                  className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 z-10"
+                                  className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-white/20 z-10 transition-all duration-200 backdrop-blur-sm"
+                                  aria-label="Close"
                                 >
                                   <X className="h-6 w-6" />
                                 </button>
-                                <img 
-                                  src={thumbnailUrl}
-                                  alt={`${auto.znacka} ${auto.model}`}
-                                  className="max-w-full max-h-[80vh] object-contain"
-                                />
+                                
+                                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
+                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
+                                
+                                {fullscreenPhoto && (
+                                  <div className="transition-all duration-300 ease-out transform scale-100">
+                                    <img 
+                                      src={fullscreenPhoto}
+                                      alt={`${auto.znacka} ${auto.model}`}
+                                      className="max-w-full max-h-[80vh] object-contain shadow-2xl"
+                                    />
+                                    <div className="mt-4 text-center text-white/80 text-sm">
+                                      {auto.znacka} {auto.model} • {auto.spz}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </DialogContent>
                           </Dialog>
                         </>
                       ) : (
                         <div 
-                          className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
+                          className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 shadow-sm"
                         >
                           <ImageIcon className="h-8 w-8 text-gray-400" />
                         </div>
