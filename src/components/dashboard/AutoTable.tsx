@@ -1068,11 +1068,31 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         </div>
 
         <div className="overflow-auto max-h-[calc(100vh-16rem)]">
-          <Table className="w-full table-fixed divide-y divide-gray-200">
-            <TableHeader>
+          <Table className="w-full table-fixed divide-y divide-gray-200
+          ">
+            <TableHeader className="bg-gray-50">
               <TableRow>
-                <TableHead className="w-16">Foto</TableHead>
-                <TableHead>SPZ</TableHead>
+                <TableHead className="w-[50px] text-center">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded border-gray-300 w-5 h-5 cursor-pointer"
+                  />
+                </TableHead>
+                <TableHead className="w-[80px]">Foto</TableHead>
+                <TableHead className="w-[20px]"></TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-100 transition-colors px-4"
+                  onClick={() => handleSort('spz')}
+                >
+                  <div className="flex items-center gap-1">
+                    SPZ
+                    {sortField === 'spz' && (
+                      <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </TableHead>
                 <TableHead>Značka</TableHead>
                 <TableHead>Model</TableHead>
                 <TableHead>Rok výroby</TableHead>
@@ -1084,7 +1104,18 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             </TableHeader>
             <TableBody>
               {paginatedAuta.map((auto) => (
-                <TableRow key={auto.id} className="hover:bg-gray-50">
+                <TableRow 
+                  key={auto.id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
+                  <TableCell className="text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(auto.id.toString())}
+                      onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
+                      className="rounded border-gray-300 w-5 h-5 cursor-pointer"
+                    />
+                  </TableCell>
                   <TableCell>
                     {(() => {
                       // Get the thumbnail URL with a timestamp to prevent caching
@@ -1154,6 +1185,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       );
                     })()}
                   </TableCell>
+                  <TableCell></TableCell>
                   <TableCell className="font-medium">{auto.spz}</TableCell>
                   <TableCell>{auto.znacka}</TableCell>
                   <TableCell>{auto.model}</TableCell>
