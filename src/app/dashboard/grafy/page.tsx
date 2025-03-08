@@ -1,5 +1,4 @@
 'use client'
-
 import React, { useEffect, useState } from 'react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
@@ -130,7 +129,7 @@ export default function GrafyPage() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -156,8 +155,8 @@ export default function GrafyPage() {
               <XAxis dataKey="datum" />
               <YAxis />
               <Tooltip 
-                formatter={(value) => formatCastka(Number(value))}
-                labelFormatter={(label) => new Date(label).toLocaleDateString('cs-CZ')}
+                formatter={(value: number) => formatCastka(value)}
+                labelFormatter={(label: string) => new Date(label).toLocaleDateString('cs-CZ')}
               />
               <Legend />
               <Bar dataKey="castka" fill="#8884d8" />
