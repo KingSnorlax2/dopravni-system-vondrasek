@@ -45,6 +45,20 @@ export async function GET(request: Request) {
       }
     });
 
+    // For each car without a thumbnail, set the first photo as thumbnail
+    for (const auto of auta) {
+      if (!auto.thumbnailFotoId && auto.fotky.length > 0) {
+        // Update the database to set the first photo as thumbnail
+        await prisma.auto.update({
+          where: { id: auto.id },
+          data: { thumbnailFotoId: auto.fotky[0].id }
+        });
+        
+        // Update the object in memory too
+        auto.thumbnailFotoId = auto.fotky[0].id;
+      }
+    }
+
     const transformedAuta = auta.map(auto => ({
       id: auto.id,
       spz: auto.spz,
@@ -56,6 +70,7 @@ export async function GET(request: Request) {
       fotky: auto.fotky.map(foto => ({
         id: foto.id
       })),
+      thumbnailFotoId: auto.thumbnailFotoId,
       datumSTK: auto.datumSTK?.toISOString() || undefined,
       poznamka: auto.poznamka || undefined,
       poznatky: auto.poznatky.map(poznamka => ({

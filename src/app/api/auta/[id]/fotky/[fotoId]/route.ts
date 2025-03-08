@@ -148,4 +148,54 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string, fotoId: string } }
+) {
+  try {
+    const autoId = parseInt(params.id);
+    const fotoId = params.fotoId;
+    
+    if (isNaN(autoId)) {
+      return NextResponse.json(
+        { error: 'Invalid car ID' },
+        { status: 400 }
+      );
+    }
+
+    // Find the photo
+    const photo = await prisma.fotka.findFirst({
+      where: {
+        id: fotoId,
+        autoId
+      }
+    });
+
+    if (!photo) {
+      return NextResponse.json(
+        { error: 'Photo not found' },
+        { status: 404 }
+      );
+    }
+
+    // Convert base64 to buffer
+    const buffer = Buffer.from(photo.data, 'base64');
+    
+    // Return the image with proper content type
+    return new NextResponse(buffer, {
+      headers: {
+        'Content-Type': photo.mimeType,
+        'Cache-Control': 'public, max-age=31536000, immutable'
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching photo:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch photo' },
+      { status: 500 }
+    );
+  }
 } 

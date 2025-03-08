@@ -2,11 +2,37 @@
 
 import React, { useState, useMemo, useEffect } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
-import { Auto } from '@/types/auto';
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Pencil } from "lucide-react"
+import { Pencil, ImageIcon, X } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
+import Image from 'next/image'
+import { Badge } from "@/components/ui/badge"
+import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+
+interface Auto {
+  id: string;
+  spz: string;
+  znacka: string;
+  model: string;
+  rokVyroby: number;
+  najezd: number;
+  stav: 'aktivní' | 'servis' | 'vyřazeno';
+  datumSTK?: string | null;
+  thumbnailUrl?: string;
+  thumbnailFotoId?: string;
+  poznamka?: string;
+  fotky?: {
+    id: string;
+    data: string;
+    mimeType: string;
+    autoId?: number | null;
+    positionX?: number | null;
+    positionY?: number | null;
+    scale?: number | null;
+  }[];
+}
 
 interface AutoTableProps {
   auta: Auto[]
@@ -118,6 +144,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [editingAuto, setEditingAuto] = useState<Auto | null>(null)
 
+  const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
+
+  // Add a state to track thumbnail updates
+  const [thumbnailVersion, setThumbnailVersion] = useState(0);
+
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => {
@@ -191,7 +222,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             return auto.datumSTK && new Date(auto.datumSTK) < new Date()
           }
           if (filterSTK === 'blizici') {
-            return isSTKExpiring(auto.datumSTK)
+            return auto.datumSTK ? isSTKExpiring(auto.datumSTK) : false
           }
           return true
         })()
@@ -554,7 +585,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
   }
 
-  const handleCarDetail = (autoId: number) => {
+  const handleCarDetail = (autoId: string) => {
     router.push(`/dashboard/auta/${autoId}`)
   }
 
@@ -772,6 +803,40 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       });
     }
   }
+
+  // Update the getThumbnailUrl function
+  const getThumbnailUrl = (auto: Auto) => {
+    // Add a random query parameter to force refresh
+    const cacheBuster = new Date().getTime();
+    
+    if (auto.thumbnailUrl) {
+      return `${auto.thumbnailUrl}?v=${cacheBuster}`;
+    }
+    
+    // If there's a thumbnailFotoId but no URL, construct it
+    if (auto.thumbnailFotoId && auto.id) {
+      return `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?v=${cacheBuster}`;
+    }
+    
+    return null;
+  };
+
+  // Modify your setThumbnail function to update the version
+  const handleSetThumbnail = async (autoId: string, photoId: string) => {
+    try {
+      const response = await fetch(`/api/auta/${autoId}/fotky/${photoId}/thumbnail`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        // Force refresh of thumbnails
+        setThumbnailVersion(prev => prev + 1);
+        onRefresh(); // Also trigger parent refresh if needed
+      }
+    } catch (error) {
+      console.error('Error setting thumbnail:', error);
+    }
+  };
 
   return (
     <div className="w-full h-full p-2">
@@ -1014,94 +1079,94 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         </div>
 
         <div className="overflow-auto max-h-[calc(100vh-16rem)]">
-          <table className="w-full table-fixed divide-y divide-gray-200">
-            <thead className="bg-gray-50 sticky top-0 z-10">
-              <tr>
-                <th className="w-[3%] px-2 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                </th>
-                <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('spz')}>
-                  SPZ {sortField === 'spz' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('znacka')}>
-                  Značka {sortField === 'znacka' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('model')}>
-                  Model {sortField === 'model' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('rokVyroby')}>
-                  Rok výroby {sortField === 'rokVyroby' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('najezd')}>
-                  Nájezd (km) {sortField === 'najezd' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[10%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stav
-                </th>
-                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('datumSTK')}>
-                  Datum STK {sortField === 'datumSTK' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('poznamka')}>
-                  Poznámka {sortField === 'poznamka' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th className="w-[22%] px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Akce
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+          <Table className="w-full table-fixed divide-y divide-gray-200">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-16">Foto</TableHead>
+                <TableHead>SPZ</TableHead>
+                <TableHead>Značka</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Rok výroby</TableHead>
+                <TableHead>Nájezd</TableHead>
+                <TableHead>Stav</TableHead>
+                <TableHead>STK</TableHead>
+                <TableHead className="text-right">Akce</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {paginatedAuta.map((auto) => (
-                <tr key={auto.id} className="hover:bg-gray-50">
-                  <td className="px-2 py-3 w-[3%]">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.has(auto.id.toString())}
-                      onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                  </td>
-                  <td className="px-3 py-3 text-base font-medium text-gray-900 truncate w-[10%]">
-                    {auto.spz}
-                  </td>
-                  <td className="px-3 py-3 text-base text-gray-900 truncate w-[15%]">
-                    {auto.znacka}
-                  </td>
-                  <td className="px-3 py-3 text-base text-gray-900 truncate w-[15%]">
-                    {auto.model}
-                  </td>
-                  <td className="px-3 py-3 text-base text-gray-900 truncate w-[10%]">
-                    {auto.rokVyroby}
-                  </td>
-                  <td className="px-3 py-3 text-base text-gray-900 truncate w-[10%]">
-                    {formatNumber(auto.najezd)}
-                  </td>
-                  <td className="px-3 py-3 w-[10%]">
-                    <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                      auto.stav === 'aktivní'
-                        ? 'bg-green-100 text-green-800'
-                        : auto.stav === 'servis'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
+                <TableRow key={auto.id} className="hover:bg-gray-50">
+                  <TableCell>
+                    {(() => {
+                      // Get the thumbnail URL with a timestamp to prevent caching
+                      const timestamp = new Date().getTime();
+                      const thumbnailUrl = auto.thumbnailUrl 
+                        ? `${auto.thumbnailUrl}?t=${timestamp}` 
+                        : auto.thumbnailFotoId 
+                          ? `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`
+                          : null;
+                      
+                      return thumbnailUrl ? (
+                        <>
+                          <div 
+                            className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setFullscreenPhoto(thumbnailUrl)}
+                          >
+                            <img 
+                              src={thumbnailUrl}
+                              alt={`${auto.znacka} ${auto.model}`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                              onError={(e) => {
+                                console.error('Image failed to load:', thumbnailUrl);
+                                // Set a fallback image or hide the broken image
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                          
+                          {/* Fullscreen Photo Dialog */}
+                          <Dialog open={fullscreenPhoto === thumbnailUrl} onOpenChange={() => setFullscreenPhoto(null)}>
+                            <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/90">
+                              <div className="relative w-full h-full flex items-center justify-center">
+                                <button 
+                                  onClick={() => setFullscreenPhoto(null)}
+                                  className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 z-10"
+                                >
+                                  <X className="h-6 w-6" />
+                                </button>
+                                <img 
+                                  src={thumbnailUrl}
+                                  alt={`${auto.znacka} ${auto.model}`}
+                                  className="max-w-full max-h-[80vh] object-contain"
+                                />
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </>
+                      ) : (
+                        <div 
+                          className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
+                        >
+                          <ImageIcon className="h-8 w-8 text-gray-400" />
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell className="font-medium">{auto.spz}</TableCell>
+                  <TableCell>{auto.znacka}</TableCell>
+                  <TableCell>{auto.model}</TableCell>
+                  <TableCell>{auto.rokVyroby}</TableCell>
+                  <TableCell>{formatNumber(auto.najezd)}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(auto.stav)}>
                       {auto.stav}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-base text-gray-500 w-[15%]">
-                    <span className={isSTKExpiring(auto.datumSTK) ? 'text-red-600 font-bold' : ''}>
-                      {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : 'N/A'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-base text-gray-600 truncate w-[15%]">
-                    {auto.poznamka && auto.poznamka.length > MAX_POZNAMKA_LENGTH 
-                      ? `${auto.poznamka.substring(0, MAX_POZNAMKA_LENGTH)}...` 
-                      : auto.poznamka || '-'}
-                  </td>
-                  <td className="px-3 py-3 text-right text-base space-x-2 w-[22%]">
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}
+                  </TableCell>
+                  <TableCell className="text-right">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -1121,11 +1186,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     >
                       Detail
                     </button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         <div className="px-4 py-4 bg-gray-50 border-t border-gray-200">

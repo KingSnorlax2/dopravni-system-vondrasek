@@ -17,39 +17,11 @@ export async function POST(
       );
     }
 
-    // Check if the car exists
-    const car = await prisma.auto.findUnique({
-      where: { id: autoId }
+    // Update the car to set this photo as thumbnail
+    await prisma.auto.update({
+      where: { id: autoId },
+      data: { thumbnailFotoId: fotoId }
     });
-
-    if (!car) {
-      return NextResponse.json(
-        { error: 'Car not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if the photo exists and belongs to the car
-    const photo = await prisma.fotka.findFirst({
-      where: {
-        id: fotoId,
-        autoId
-      }
-    });
-
-    if (!photo) {
-      return NextResponse.json(
-        { error: 'Photo not found or does not belong to this car' },
-        { status: 404 }
-      );
-    }
-
-    // Update the car to set this photo as thumbnail using raw SQL
-    await prisma.$executeRaw`
-      UPDATE "Auto" 
-      SET "thumbnailFotoId" = ${fotoId}
-      WHERE "id" = ${autoId}
-    `;
 
     return NextResponse.json({ 
       message: 'Thumbnail set successfully',

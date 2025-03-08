@@ -203,6 +203,15 @@ export function PhotoGallery({ photos, autoId, thumbnailId, onUpdateAction }: Ph
                   </Button>
                 </div>
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleSetThumbnail(photo.id)}
+                className="absolute bottom-2 right-2 bg-white/80 hover:bg-white"
+              >
+                <ImageIcon className="h-4 w-4 mr-1" />
+                Set as Thumbnail
+              </Button>
             </div>
           ))}
         </div>

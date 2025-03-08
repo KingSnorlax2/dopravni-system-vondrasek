@@ -1,4 +1,5 @@
 export interface Auto {
+  thumbnailUrl: any
   id: number
   spz: string
   znacka: string

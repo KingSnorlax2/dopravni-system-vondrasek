@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import {
   Form,
@@ -235,9 +236,12 @@ export function AutoForm({ open, onOpenChange, onSubmit, initialData }: AutoForm
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Přidat nové auto</DialogTitle>
+          <DialogTitle>Přidat nové vozidlo</DialogTitle>
+          <DialogDescription>
+            Vyplňte údaje o novém vozidle. Povinná pole jsou označena hvězdičkou.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
