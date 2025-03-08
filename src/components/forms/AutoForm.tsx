@@ -38,6 +38,7 @@ import {
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
+import { useTransition } from 'react'
 
 const autoSchema = z.object({
   spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -57,7 +58,7 @@ type AutoFormData = z.infer<typeof autoSchema>
 
 interface AutoFormProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  onOpenChangeClientAction: (open: boolean) => Promise<void>
   onSubmit?: (data: AutoFormData) => void
   initialData?: Partial<AutoFormData> & { id?: string }
 }
@@ -70,7 +71,7 @@ const MAX_SPZ_LENGTH = 8;
 const MAX_ZNACKA_LENGTH = 20;
 const MAX_MODEL_LENGTH = 20;
 
-export function AutoForm({ open, onOpenChange, onSubmit, initialData }: AutoFormProps) {
+export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData }: AutoFormProps) {
   const [uploading, setUploading] = useState(false)
   const [fotky, setFotky] = useState<FileItem[]>(initialData?.fotky || [])
   const [loading, setLoading] = useState(false)
@@ -80,6 +81,7 @@ export function AutoForm({ open, onOpenChange, onSubmit, initialData }: AutoForm
   const [currentPictures, setCurrentPictures] = useState<FileItem[]>([])
   const [selectedAuto, setSelectedAuto] = useState<AutoFormData & { id: string } | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isPending, startTransition] = useTransition()
 
   const form = useForm<AutoFormData>({
     resolver: zodResolver(autoSchema),
@@ -143,7 +145,7 @@ export function AutoForm({ open, onOpenChange, onSubmit, initialData }: AutoForm
     } finally {
       setLoading(false);
     }
-    onOpenChange(false)
+    handleClose()
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement> | Event) => {
@@ -234,8 +236,17 @@ export function AutoForm({ open, onOpenChange, onSubmit, initialData }: AutoForm
     }
   }
 
+  const handleClose = () => {
+    startTransition(() => {
+      onOpenChangeClientAction(false)
+    })
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(isOpen) => startTransition(() => onOpenChangeClientAction(isOpen))}
+    >
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Přidat nové vozidlo</DialogTitle>
@@ -400,7 +411,7 @@ export function AutoForm({ open, onOpenChange, onSubmit, initialData }: AutoForm
             />
 
             <div className="flex justify-end space-x-4 pt-4">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" onClick={handleClose}>
                 Zrušit
               </Button>
               <Button type="submit">

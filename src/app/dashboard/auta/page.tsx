@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import AutoTable from '@/components/dashboard/AutoTable'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { Button } from "@/components/ui/button"
@@ -21,10 +21,18 @@ export default function AutoPage() {
   const [refresh, setRefresh] = useState(0)
   const [auta, setAuta] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
   const handleSuccess = () => {
     setRefresh(prev => prev + 1)
     setShowForm(false)
+  }
+
+  const handleOpenChange = async (open: boolean) => {
+    startTransition(() => {
+      setShowForm(open)
+    })
+    return Promise.resolve()
   }
 
   useEffect(() => {
@@ -168,7 +176,7 @@ export default function AutoPage() {
 
       <AutoForm 
         open={showForm} 
-        onOpenChange={setShowForm}
+        onOpenChangeClientAction={handleOpenChange}
         onSubmit={(data) => {
           console.log(data)
           handleSuccess()

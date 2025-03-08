@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { NextRequest } from 'next/server';
 
 const autoSchema = z.object({
   spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -66,61 +67,35 @@ export async function GET(
 }
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const autoId = parseInt(params.id);
+    const id = params.id
+    const data = await request.json()
     
-    if (isNaN(autoId)) {
-      return NextResponse.json(
-        { error: 'Invalid car ID' },
-        { status: 400 }
-      );
+    // Format the data properly
+    const updateData = {
+      ...data,
+      // Convert datumSTK from Date object to ISO string if it exists
+      datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
     }
-
-    const body = await request.json();
     
-    // Check if the car exists
-    const car = await prisma.auto.findUnique({
-      where: { id: autoId }
-    });
-
-    if (!car) {
-      return NextResponse.json(
-        { error: 'Car not found' },
-        { status: 404 }
-      );
-    }
-
-    // Process datumSTK if it's a string
-    let datumSTK = body.datumSTK;
-    if (typeof datumSTK === 'string' && datumSTK) {
-      datumSTK = new Date(datumSTK);
-    }
-
-    // Update the car
-    const updatedCar = await prisma.auto.update({
-      where: { id: autoId },
-      data: {
-        spz: body.spz,
-        znacka: body.znacka,
-        model: body.model,
-        rokVyroby: body.rokVyroby,
-        najezd: body.najezd,
-        stav: body.stav,
-        datumSTK: datumSTK || null,
-        poznamka: body.poznamka
-      }
-    });
-
-    return NextResponse.json(updatedCar);
+    // Remove any fields that shouldn't be updated
+    delete updateData.id
+    delete updateData.fotky
+    const updatedAuto = await prisma.auto.update({
+      where: { id: parseInt(id) },
+      data: updateData
+    })
+    
+    return NextResponse.json(updatedAuto)
   } catch (error) {
-    console.error('Error updating car:', error);
+    console.error('Error updating vehicle:', error)
     return NextResponse.json(
-      { error: 'Failed to update car' },
+      { error: 'Failed to update vehicle' },
       { status: 500 }
-    );
+    )
   }
 }
 

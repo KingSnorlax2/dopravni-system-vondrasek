@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { toast } from "@/components/ui/use-toast"
 
 interface Auto {
   id: string;
@@ -638,21 +639,43 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   const handleEditSubmit = async (data: AutoDetailValues) => {
     try {
-      const response = await fetch(`/api/auta/${editingAuto?.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-
-      if (!response.ok) throw new Error('Failed to update')
+      if (!editingAuto) return;
       
-      onRefresh?.()
-      setIsEditOpen(false)
-      setEditingAuto(null)
+      // Format the data for the API
+      const formattedData = {
+        ...data,
+        // Ensure datumSTK is properly formatted
+        datumSTK: data.datumSTK ? data.datumSTK : null,
+      };
+      
+      const response = await fetch(`/api/auta/${editingAuto.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formattedData),
+      });
+
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to update vehicle');
+      }
+
+      // Refresh the data
+      onRefresh();
+      
+      // Close the form
+      setIsEditOpen(false);
     } catch (error) {
-      console.error('Update failed:', error)
+      console.error('Error updating vehicle:', error);
+      toast({
+        title: "Chyba při aktualizaci",
+        description: error instanceof Error ? error.message : "Nepodařilo se aktualizovat údaje o vozidle",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   const handleSingleCarDelete = async () => {
     if (!deleteModalData || !deleteModalData.auto) return;
@@ -1481,7 +1504,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       {editingAuto && (
         <AutoDetailForm
           open={isEditOpen}
-          onOpenChange={setIsEditOpen}
+          onOpenChangeAction={async (open: boolean) => {
+            setIsEditOpen(open)
+            return Promise.resolve()
+          }}
           initialData={editingAuto as unknown as AutoDetailValues & { id: string }}
           onSubmit={handleEditSubmit}
         />

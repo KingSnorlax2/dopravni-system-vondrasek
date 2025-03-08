@@ -9,6 +9,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet"
 import {
   Form,
@@ -37,6 +38,8 @@ import {
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
+import { useTransition } from 'react'
 
 const autoDetailSchema = z.object({
   spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -55,29 +58,60 @@ export type AutoDetailValues = z.infer<typeof autoDetailSchema>
 
 interface AutoDetailFormProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  onOpenChangeAction: ((open: boolean) => Promise<void>) | ((open: boolean) => void)
   onSubmit?: (data: AutoDetailValues) => void
   initialData: AutoDetailValues & { id: string }
 }
 
-export function AutoDetailForm({ open, onOpenChange, onSubmit, initialData }: AutoDetailFormProps) {
+export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData }: AutoDetailFormProps) {
+  const [isPending, startTransition] = useTransition()
+  
   const form = useForm<AutoDetailValues>({
     resolver: zodResolver(autoDetailSchema),
     defaultValues: initialData
   })
 
   const handleSubmit = async (data: AutoDetailValues) => {
-    if (onSubmit) {
-      await onSubmit(data)
+    try {
+      if (onSubmit) {
+        await onSubmit(data);
+        toast({
+          title: "Vozidlo aktualizováno",
+          description: "Údaje o vozidle byly úspěšně aktualizovány",
+        });
+      }
+      
+      // Safely handle the onOpenChangeAction
+      startTransition(() => {
+        onOpenChangeAction(false);
+      });
+    } catch (error) {
+      console.error("Error updating vehicle:", error);
+      toast({
+        title: "Chyba při aktualizaci",
+        description: "Nepodařilo se aktualizovat údaje o vozidle",
+        variant: "destructive",
+      });
     }
-    onOpenChange(false)
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[540px] h-full flex flex-col">
+    <Sheet 
+      open={open} 
+      onOpenChange={(value) => {
+        startTransition(() => {
+          void onOpenChangeAction(value);
+        });
+      }}
+    >
+      <SheetContent 
+        className="w-full sm:max-w-[540px] h-full flex flex-col"
+      >
         <SheetHeader className="mb-4">
           <SheetTitle>Upravit vozidlo</SheetTitle>
+          <SheetDescription>
+            Upravte údaje o vozidle a klikněte na tlačítko Uložit
+          </SheetDescription>
         </SheetHeader>
         
         <Form {...form}>
@@ -251,11 +285,19 @@ export function AutoDetailForm({ open, onOpenChange, onSubmit, initialData }: Au
             </div>
 
             <div className="col-span-2 flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button 
+                variant="outline" 
+                type="button" 
+                onClick={() => {
+                  startTransition(() => {
+                    onOpenChangeAction(false);
+                  });
+                }}
+              >
                 Zrušit
               </Button>
-              <Button type="submit">
-                Aktualizovat
+              <Button type="submit" disabled={isPending}>
+                {isPending ? 'Ukládám...' : 'Uložit změny'}
               </Button>
             </div>
           </form>
