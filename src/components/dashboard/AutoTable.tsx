@@ -804,38 +804,27 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
   }
 
-  // Update the getThumbnailUrl function
+  const handleRefreshThumbnails = () => {
+    // Force refresh of thumbnails
+    setThumbnailVersion(prev => prev + 1);
+    // Also trigger parent refresh to get updated data from the server
+    onRefresh();
+  };
+
+  // Update the getThumbnailUrl function to use the version
   const getThumbnailUrl = (auto: Auto) => {
-    // Add a random query parameter to force refresh
-    const cacheBuster = new Date().getTime();
+    // Add the version to force cache busting
+    const cacheBuster = `${thumbnailVersion}_${new Date().getTime()}`;
     
     if (auto.thumbnailUrl) {
       return `${auto.thumbnailUrl}?v=${cacheBuster}`;
     }
     
-    // If there's a thumbnailFotoId but no URL, construct it
     if (auto.thumbnailFotoId && auto.id) {
       return `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?v=${cacheBuster}`;
     }
     
     return null;
-  };
-
-  // Modify your setThumbnail function to update the version
-  const handleSetThumbnail = async (autoId: string, photoId: string) => {
-    try {
-      const response = await fetch(`/api/auta/${autoId}/fotky/${photoId}/thumbnail`, {
-        method: 'POST',
-      });
-      
-      if (response.ok) {
-        // Force refresh of thumbnails
-        setThumbnailVersion(prev => prev + 1);
-        onRefresh(); // Also trigger parent refresh if needed
-      }
-    } catch (error) {
-      console.error('Error setting thumbnail:', error);
-    }
   };
 
   return (
@@ -1100,11 +1089,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     {(() => {
                       // Get the thumbnail URL with a timestamp to prevent caching
                       const timestamp = new Date().getTime();
-                      const thumbnailUrl = auto.thumbnailUrl 
-                        ? `${auto.thumbnailUrl}?t=${timestamp}` 
-                        : auto.thumbnailFotoId 
-                          ? `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`
-                          : null;
+                      const thumbnailUrl = getThumbnailUrl(auto)
                       
                       return thumbnailUrl ? (
                         <>

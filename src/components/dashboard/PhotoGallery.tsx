@@ -15,13 +15,15 @@ interface Photo {
   positionX?: number;
   positionY?: number;
   scale?: number;
+  data?: string;
+  mimeType?: string;
 }
 
 interface PhotoGalleryProps {
   photos: Photo[];
   autoId: string;
   thumbnailId?: string;
-  onUpdateAction: () => void;
+  onUpdateAction: (params?: { newThumbnailId?: string }) => void;
 }
 
 export function PhotoGallery({ photos, autoId, thumbnailId, onUpdateAction }: PhotoGalleryProps) {
@@ -45,15 +47,21 @@ export function PhotoGallery({ photos, autoId, thumbnailId, onUpdateAction }: Ph
       
       if (!response.ok) throw new Error('Failed to set thumbnail');
       
-      // Update local state
-      setLocalPhotos(prev => [...prev]);
+      // Update local state immediately to reflect the new thumbnail
+      // This will update the UI to show which photo is the thumbnail
+      const updatedPhotos = [...localPhotos];
       
       toast({
         title: "Úspěch",
         description: "Miniatura byla nastavena",
       });
       
-      onUpdateAction();
+      // Call the parent's update function with the new thumbnailId
+      // This allows the parent component to update its state without a full refresh
+      if (onUpdateAction) {
+        // Pass the new thumbnailId to the parent component
+        onUpdateAction({ newThumbnailId: photoId });
+      }
     } catch (error) {
       toast({
         title: "Chyba",
@@ -205,12 +213,14 @@ export function PhotoGallery({ photos, autoId, thumbnailId, onUpdateAction }: Ph
               </div>
               <Button 
                 variant="outline" 
-                size="sm" 
-                onClick={() => handleSetThumbnail(photo.id)}
-                className="absolute bottom-2 right-2 bg-white/80 hover:bg-white"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSetThumbnail(photo.id);
+                }}
+                className="absolute bottom-2 right-2 bg-white/80 hover:bg-white rounded-full h-8 w-8"
               >
-                <ImageIcon className="h-4 w-4 mr-1" />
-                Set as Thumbnail
+                <ImageIcon className="h-4 w-4" />
               </Button>
             </div>
           ))}

@@ -1006,7 +1006,14 @@ export function AutoDetail({ auto }: AutoDetailProps) {
               photos={auto.fotky || []}
               autoId={auto.id}
               thumbnailId={auto.thumbnailFotoId}
-              onUpdateAction={() => setRefreshTrigger(prev => prev + 1)}
+              onUpdateAction={(updates) => {
+                if (updates?.newThumbnailId) {
+                  auto.thumbnailFotoId = updates.newThumbnailId;
+                  setRefreshTrigger(prev => prev + 1);
+                } else {
+                  setRefreshTrigger(prev => prev + 1);
+                }
+              }}
             />
           </div>
 
