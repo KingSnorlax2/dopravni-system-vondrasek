@@ -629,24 +629,37 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   };
 
   const handleEdit = (auto: Auto) => {
+    console.log('Editing auto:', auto);
     setEditingAuto({
       ...auto,
       id: auto.id,
       datumSTK: auto.datumSTK ? auto.datumSTK.toString() : undefined
-    })
-    setIsEditOpen(true)
+    });
+    setIsEditOpen(true);
   }
 
   const handleEditSubmit = async (data: AutoDetailValues) => {
     try {
-      if (!editingAuto) return;
+      if (!editingAuto) {
+        console.error('No auto being edited');
+        return;
+      }
       
-      // Format the data for the API
+      console.log('Original form data:', data);
+      
+      // Format the data for the API with proper type handling
       const formattedData = {
         ...data,
-        // Ensure datumSTK is properly formatted
-        datumSTK: data.datumSTK ? data.datumSTK : null,
+        id: editingAuto.id, // Ensure ID is included
+        // Convert string values to numbers where needed
+        rokVyroby: typeof data.rokVyroby === 'string' ? parseInt(data.rokVyroby) : data.rokVyroby,
+        najezd: typeof data.najezd === 'string' ? parseInt(data.najezd) : data.najezd,
+        // Ensure datumSTK is properly formatted (could be a string date or Date object)
+        datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
       };
+      
+      console.log('Submitting updated vehicle data:', formattedData);
+      console.log('API endpoint:', `/api/auta/${editingAuto.id}`);
       
       const response = await fetch(`/api/auta/${editingAuto.id}`, {
         method: 'PATCH',
@@ -656,16 +669,25 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         body: JSON.stringify(formattedData),
       });
 
+      console.log('Response status:', response.status);
       const responseData = await response.json();
+      console.log('Response data:', responseData);
       
       if (!response.ok) {
         throw new Error(responseData.error || 'Failed to update vehicle');
       }
 
+      // Show success message
+      toast({
+        title: "Vozidlo aktualizováno",
+        description: "Údaje o vozidle byly úspěšně aktualizovány",
+      });
+
       // Refresh the data
       onRefresh();
       
-      // Close the form
+      // Reset state and close the form
+      setEditingAuto(null);
       setIsEditOpen(false);
     } catch (error) {
       console.error('Error updating vehicle:', error);
