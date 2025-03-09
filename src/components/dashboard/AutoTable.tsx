@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
+import { loadSettings, saveSettings } from '@/utils/settings'
 
 interface Auto {
   id: string;
@@ -150,6 +151,47 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   // Add a state to track thumbnail updates
   const [thumbnailVersion, setThumbnailVersion] = useState(0);
 
+  // Load saved settings on component mount
+  const savedSettings = useMemo(() => loadSettings(), []);
+  
+  // Update existing state with saved settings (not creating new ones)
+  useEffect(() => {
+    setItemsPerPage(savedSettings.itemsPerPage || 10);
+    setSortField((savedSettings.sortField || 'spz') as SortField);
+    setSortOrder((savedSettings.sortOrder || 'asc') as SortOrder);
+    setFilterStav(savedSettings.filterStav || 'vse');
+    setFilterSTK(savedSettings.filterSTK || 'vse');
+    setDateFrom(savedSettings.dateFrom || '');
+    setDateTo(savedSettings.dateTo || '');
+    setMileageFrom(savedSettings.mileageFrom || '');
+    setMileageTo(savedSettings.mileageTo || '');
+  }, [savedSettings]);
+
+  // Save settings when they change
+  useEffect(() => {
+    saveSettings({
+      itemsPerPage,
+      sortField,
+      sortOrder,
+      filterStav,
+      filterSTK,
+      dateFrom,
+      dateTo,
+      mileageFrom,
+      mileageTo
+    });
+  }, [
+    itemsPerPage,
+    sortField,
+    sortOrder,
+    filterStav,
+    filterSTK,
+    dateFrom,
+    dateTo,
+    mileageFrom,
+    mileageTo
+  ]);
+
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => {
@@ -159,6 +201,53 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       return () => clearTimeout(timer)
     }
   }, [notification])
+
+  // Define filteredAuta first
+  const filteredAuta = useMemo(() => {
+    console.log('Filtering cars with criteria:', {
+      filterStav,
+      filterSTK,
+      dateFrom,
+      dateTo,
+      searchTerm
+    });
+    
+    return auta.filter(auto => {
+      // Default to showing the car
+      let shouldShow = true;
+      
+      // Apply each filter
+      if (filterStav !== 'vse') {
+        shouldShow = shouldShow && auto.stav === filterStav;
+      }
+      
+      // Add similar logic for other filters
+      
+      return shouldShow;
+    });
+  }, [auta, filterStav, filterSTK, dateFrom, dateTo, searchTerm]);
+
+  // Then use it in the useEffect
+  useEffect(() => {
+    console.log('Auta received:', auta);
+    console.log('Current filters:', {
+      filterStav,
+      filterSTK,
+      dateFrom,
+      dateTo,
+      searchTerm
+    });
+    
+    // Reset filters if no cars are showing
+    if (filteredAuta.length === 0 && auta.length > 0) {
+      console.log('No cars match filters, resetting filters');
+      setFilterStav('vse');
+      setFilterSTK('vse');
+      setDateFrom('');
+      setDateTo('');
+      setSearchTerm('');
+    }
+  }, [auta, filteredAuta]);
 
   const handleDelete = async (auto: Auto) => {
     try {
@@ -207,94 +296,15 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     setCurrentPage(page)
   }
 
-  const filteredAndSortedAuta = useMemo(() => {
-    return [...auta]
-      .filter(auto => {
-        const matchesSearch = 
-          auto.spz.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          auto.znacka.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          auto.model.toLowerCase().includes(searchTerm.toLowerCase())
-        
-        const matchesStav = filterStav === 'vse' || auto.stav === filterStav
-        
-        const matchesSTK = (() => {
-          if (filterSTK === 'vse') return true
-          if (filterSTK === 'prosle') {
-            return auto.datumSTK && new Date(auto.datumSTK) < new Date()
-          }
-          if (filterSTK === 'blizici') {
-            return auto.datumSTK ? isSTKExpiring(auto.datumSTK) : false
-          }
-          return true
-        })()
-
-        const matchesDateRange = (() => {
-          if (!dateFrom && !dateTo) return true
-          if (dateFrom && dateTo) {
-            return auto.datumSTK && new Date(auto.datumSTK) >= new Date(dateFrom) && new Date(auto.datumSTK) <= new Date(dateTo)
-          }
-          if (dateFrom) {
-            return auto.datumSTK && new Date(auto.datumSTK) >= new Date(dateFrom)
-          }
-          if (dateTo) {
-            return auto.datumSTK && new Date(auto.datumSTK) <= new Date(dateTo)
-          }
-          return true
-        })()
-
-        const matchesMileageRange = (() => {
-          if (!mileageFrom && !mileageTo) return true
-          if (mileageFrom && mileageTo) {
-            return auto.najezd >= Number(mileageFrom) && auto.najezd <= Number(mileageTo)
-          }
-          if (mileageFrom) {
-            return auto.najezd >= Number(mileageFrom)
-          }
-          if (mileageTo) {
-            return auto.najezd <= Number(mileageTo)
-          }
-          return true
-        })()
-
-        return matchesSearch && matchesStav && matchesSTK && matchesDateRange && matchesMileageRange
-      })
-      .sort((a, b) => {
-        let comparison = 0
-        
-        switch (sortField) {
-          case 'spz':
-          case 'znacka':
-          case 'model':
-          case 'stav':
-          case 'poznamka':
-            comparison = (a[sortField] || '').localeCompare(b[sortField] || '')
-            break
-          case 'rokVyroby':
-          case 'najezd':
-            comparison = (a[sortField] || 0) - (b[sortField] || 0)
-            break
-          case 'datumSTK':
-            const dateA = a.datumSTK ? new Date(a.datumSTK).getTime() : 0
-            const dateB = b.datumSTK ? new Date(b.datumSTK).getTime() : 0
-            comparison = dateA - dateB
-            break
-          default:
-            comparison = 0
-        }
-
-        return sortOrder === 'asc' ? comparison : -comparison
-      })
-  }, [auta, searchTerm, filterStav, filterSTK, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder])
-
   const paginatedAuta = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
-    return filteredAndSortedAuta.slice(start, end);
-  }, [filteredAndSortedAuta, currentPage, itemsPerPage]);
+    return filteredAuta.slice(start, end);
+  }, [filteredAuta, currentPage, itemsPerPage]);
 
   const totalPages = useMemo(() => {
-    return Math.ceil(filteredAndSortedAuta.length / itemsPerPage);
-  }, [filteredAndSortedAuta.length, itemsPerPage]);
+    return Math.ceil(filteredAuta.length / itemsPerPage);
+  }, [filteredAuta.length, itemsPerPage]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -520,10 +530,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   };
 
   const sortedAndFilteredAuta = useMemo(() => {
-    return [...filteredAndSortedAuta].sort((a, b) => {
+    return [...filteredAuta].sort((a, b) => {
       return 0;
     });
-  }, [filteredAndSortedAuta]);
+  }, [filteredAuta]);
 
   const handlePoznamkaSubmit = async (e: React.FormEvent, autoId: number) => {
     e.preventDefault();
@@ -594,7 +604,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     if (!editedAuto) return;
 
     try {
-      const response = await fetch(`/api/auta/${editedAuto.id}`, {
+      const response = await fetch(`/api/auta/${editedAuto.id}?_t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -608,7 +618,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           stav: editedAuto.stav,
           datumSTK: editedAuto.datumSTK,  
           poznamka: editedAuto.poznamka
-        })
+        }),
+        cache: 'no-store'
       });
 
       if (!response.ok) {
@@ -617,9 +628,18 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
       onRefresh();
       handleCloseEditModal();
+      
+      toast({
+        title: "Vozidlo aktualizováno",
+        description: "Údaje o vozidle byly úspěšně aktualizovány"
+      });
     } catch (error) {
       console.error('Error updating vehicle:', error);
-      alert('Nepodařilo se aktualizovat vozidlo. Zkuste to prosím znovu.');
+      toast({
+        title: "Chyba při aktualizaci",
+        description: "Nepodařilo se aktualizovat vozidlo",
+        variant: "destructive"
+      });
     }
   };
 
@@ -650,30 +670,29 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       // Format the data for the API with proper type handling
       const formattedData = {
         ...data,
-        id: editingAuto.id, // Ensure ID is included
+        id: editingAuto.id,
         // Convert string values to numbers where needed
         rokVyroby: typeof data.rokVyroby === 'string' ? parseInt(data.rokVyroby) : data.rokVyroby,
         najezd: typeof data.najezd === 'string' ? parseInt(data.najezd) : data.najezd,
-        // Ensure datumSTK is properly formatted (could be a string date or Date object)
+        // Ensure datumSTK is properly formatted
         datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
+        // Preserve existing data that isn't part of the form
+        thumbnailFotoId: editingAuto.thumbnailFotoId,
+        thumbnailUrl: editingAuto.thumbnailUrl,
       };
       
       console.log('Submitting updated vehicle data:', formattedData);
-      console.log('API endpoint:', `/api/auta/${editingAuto.id}`);
       
       const response = await fetch(`/api/auta/${editingAuto.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formattedData),
+        body: JSON.stringify(formattedData)
       });
 
-      console.log('Response status:', response.status);
-      const responseData = await response.json();
-      console.log('Response data:', responseData);
-      
       if (!response.ok) {
+        const responseData = await response.json();
         throw new Error(responseData.error || 'Failed to update vehicle');
       }
 
@@ -683,12 +702,12 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         description: "Údaje o vozidle byly úspěšně aktualizovány",
       });
 
-      // Refresh the data
-      onRefresh();
-      
       // Reset state and close the form
       setEditingAuto(null);
       setIsEditOpen(false);
+      
+      // Force page reload like in the detail view
+      window.location.reload();
     } catch (error) {
       console.error('Error updating vehicle:', error);
       toast({
@@ -870,6 +889,20 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
     
     return null;
+  };
+
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+  
+  const handleSortChange = (field: string) => {
+    if (field === sortField) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field as SortField);
+      setSortOrder('asc');
+    }
   };
 
   return (
@@ -1129,7 +1162,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                 <TableHead className="w-[20px]"></TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-gray-100 transition-colors px-4"
-                  onClick={() => handleSort('spz')}
+                  onClick={() => handleSortChange('spz')}
                 >
                   <div className="flex items-center gap-1">
                     SPZ
@@ -1275,14 +1308,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
-                Zobrazeno {paginatedAuta.length} z {filteredAndSortedAuta.length} vozidel
+                Zobrazeno {paginatedAuta.length} z {filteredAuta.length} vozidel
               </span>
               <select
                 value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value))
-                  setCurrentPage(1)
-                }}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
                 className="border rounded px-2 py-1"
               >
                 <option value={5}>5 / stránka</option>
@@ -1293,7 +1323,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               </select>
             </div>
             <div className="flex items-center space-x-2">
-              {Array.from({ length: Math.ceil(filteredAndSortedAuta.length / itemsPerPage) }, (_, i) => (
+              {Array.from({ length: Math.ceil(filteredAuta.length / itemsPerPage) }, (_, i) => (
                 <button
                   key={i}
                   onClick={() => handlePageChange(i + 1)}

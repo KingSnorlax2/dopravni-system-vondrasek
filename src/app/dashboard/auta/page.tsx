@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useCallback } from 'react'
 import AutoTable from '@/components/dashboard/AutoTable'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ export default function AutoPage() {
   const [auta, setAuta] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSuccess = () => {
     setRefresh(prev => prev + 1)
@@ -35,63 +36,26 @@ export default function AutoPage() {
     return Promise.resolve()
   }
 
-  useEffect(() => {
-    const fetchAuta = async () => {
-      try {
-        const response = await fetch('/api/auta')
-        
-        if (!response.ok) {
-          throw new Error('Chyba při načítání dat z API')
-        }
-        
-        const data = await response.json()
-        
-        // Debug logging
-        console.log('Raw data from API:', data[0]?.fotky?.length, 'photos');
-        if (data[0]?.thumbnailFotoId) {
-          const thumb = data[0].fotky.find((f: any) => f.id === data[0].thumbnailFotoId);
-          console.log('Thumbnail found:', !!thumb, 'Has data:', !!thumb?.data);
-        }
-        
-        // Process data to include thumbnail URLs
-        const processedData = data.map((auto: any) => {
-          // If thumbnailFotoId exists, use it
-          if (auto.thumbnailFotoId) {
-            return {
-              ...auto,
-              thumbnailUrl: `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}`
-            };
-          }
-          
-          // If no thumbnailFotoId but photos exist, use the first photo
-          if (auto.fotky && auto.fotky.length > 0) {
-            const firstPhoto = auto.fotky[0];
-            console.log('No thumbnail set, using first photo:', firstPhoto.id);
-            
-            return {
-              ...auto,
-              thumbnailFotoId: firstPhoto.id,
-              thumbnailUrl: `/api/auta/${auto.id}/fotky/${firstPhoto.id}`
-            };
-          }
-          
-          // No photos at all
-          return {
-            ...auto,
-            thumbnailUrl: undefined
-          };
-        })
-        
-        setAuta(Array.isArray(processedData) ? processedData : [])
-        setError(null)
-      } catch (error) {
-        console.error('Chyba při načítání aut:', error)
-        setError(error instanceof Error ? error.message : 'Neznámá chyba')
-        setAuta([])
+  const refreshData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/auta?_t=${Date.now()}`, {
+        cache: 'no-store'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAuta(data);
       }
+    } catch (error) {
+      console.error('Error refreshing vehicles:', error);
+    } finally {
+      setIsLoading(false);
     }
-    fetchAuta()
-  }, [refresh])
+  }, []);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const autaBliziciSeSTK = auta.filter(auto => isSTKExpiring(auto.datumSTK))
 
@@ -170,7 +134,7 @@ export default function AutoPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <AutoTable 
           auta={auta}
-          onRefresh={() => setRefresh(prev => prev + 1)}
+          onRefresh={refreshData}
         />
       </div>
 
