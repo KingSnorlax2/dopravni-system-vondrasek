@@ -1,7 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useTransition } from 'react';
 import type { Transakce } from '@/types/transakce';
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { toast } from '@/components/ui/use-toast';
+import TransactionTable from '@/components/dashboard/TransactionTable';
+import { TransactionForm } from '@/components/forms/TransactionForm';
 
 const MAX_POPIS_LENGTH = 300;
 const MAX_NAZEV_LENGTH = 50;
@@ -32,27 +37,92 @@ const TransakcePage: React.FC = () => {
   const [itemsToDelete, setItemsToDelete] = useState<number[]>([]);
   const [sortField, setSortField] = useState<'autoId' | 'castka' | 'datum' | 'typ' | 'nazev' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showForm, setShowForm] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    const fetchTransakce = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch('/api/transakce');
-        if (!response.ok) {
-          throw new Error('Chyba při načítání transakcí');
+  // Calculate totals and balances
+  const { totalIncome, totalExpense, balance, monthlyIncome, monthlyExpense } = React.useMemo(() => {
+    const currentDate = new Date();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+
+    return transakce.reduce((acc, t) => {
+      const transactionDate = new Date(t.datum);
+      const amount = Math.abs(t.castka);
+
+      if (t.typ === 'příjem') {
+        acc.totalIncome += amount;
+        if (transactionDate >= firstDayOfMonth) {
+          acc.monthlyIncome += amount;
         }
+      } else {
+        acc.totalExpense += amount;
+        if (transactionDate >= firstDayOfMonth) {
+          acc.monthlyExpense += amount;
+        }
+      }
+
+      acc.balance = acc.totalIncome - acc.totalExpense;
+
+      return acc;
+    }, {
+      totalIncome: 0,
+      totalExpense: 0,
+      balance: 0,
+      monthlyIncome: 0,
+      monthlyExpense: 0
+    });
+  }, [transakce]);
+
+  const currentMonthTransactions = transakce.filter(t => {
+    const date = new Date(t.datum);
+    const now = new Date();
+    return date.getMonth() === now.getMonth() && 
+           date.getFullYear() === now.getFullYear();
+  });
+
+  const handleSuccess = () => {
+    refreshData();
+    setIsModalOpen(false);
+  };
+
+  const handleOpenChange = async (open: boolean) => {
+    startTransition(() => {
+      setIsModalOpen(open);
+    });
+    return Promise.resolve();
+  };
+
+  const refreshData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/transakce?_t=' + Date.now(), {
+        cache: 'no-store'
+      });
+      if (response.ok) {
         const data = await response.json();
         setTransakce(data);
         setFilteredTransakce(data);
-      } catch (error) {
-        setError(error instanceof Error ? error.message : 'Nastala chyba');
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchTransakce();
+    } catch (error) {
+      console.error('Error refreshing transactions:', error);
+      toast({
+        title: "Chyba při načítání",
+        description: "Nepodařilo se načíst seznam transakcí",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  const refreshDataAction = async () => {
+    await refreshData()
+    return Promise.resolve()
+  }
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   useEffect(() => {
     const filtered = transakce.filter(transakce => {
@@ -87,23 +157,27 @@ const TransakcePage: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleTransactionSubmitAction = async (data: any) => {
     try {
+      console.log("Submitting transaction data:", data);
+      
+      // Determine type based on amount sign and set amount accordingly
+      const isIncome = data.castka > 0;
+      
       const submitData = {
-        ...formData,
-        castka: Number(formData.castka),
-        datum: new Date(formData.datum).toISOString(),
-        autoId: formData.autoId ? Number(formData.autoId) : null
+        nazev: data.popis,
+        castka: isIncome ? Math.abs(data.castka) : -Math.abs(data.castka), // Ensure proper sign
+        datum: new Date(data.datum).toISOString(),
+        typ: isIncome ? 'příjem' : 'výdaj', // Set type based on amount sign
+        popis: data.popis,
+        autoId: data.vztahKVozidlu && data.idVozidla ? Number(data.idVozidla) : null,
+        kategorie: data.kategorie
       };
-
-      if (!submitData.id) {
-        delete submitData.id;
-      }
+      
+      console.log("Transformed data:", submitData);
 
       const response = await fetch('/api/transakce', {
-        method: formData.id ? 'PUT' : 'POST',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -115,25 +189,21 @@ const TransakcePage: React.FC = () => {
         throw new Error(errorData.error || 'Chyba při přidávání transakce');
       }
 
-      const newTransakce = await response.json();
-      setTransakce(prev => {
-        if (formData.id) {
-          return prev.map(t => (t.id === formData.id ? newTransakce.data : t));
-        }
-        return [newTransakce.data, ...prev];
+      await refreshData();
+      toast({
+        title: "Transakce přidána",
+        description: `Transakce ${data.popis} byla úspěšně přidána.`,
       });
-      setFormData({
-        nazev: '',
-        castka: 0,
-        datum: new Date().toISOString().split('T')[0],
-        typ: 'výdaj',
-        popis: '',
-        autoId: null
-      });
-      setIsModalOpen(false);
+      
+      return Promise.resolve();
     } catch (error) {
-      console.error('Error:', error);
-      setError(error instanceof Error ? error.message : 'Nastala chyba při přidávání transakce');
+      console.error('Error adding transaction:', error);
+      toast({
+        title: "Chyba při přidávání",
+        description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
+        variant: "destructive"
+      });
+      throw error;
     }
   };
 
@@ -183,6 +253,10 @@ const TransakcePage: React.FC = () => {
       setTransakce(prev => prev.filter(t => !itemsToDelete.includes(t.id!)));
       setSelectedTransakce(prev => prev.filter(id => !itemsToDelete.includes(id)));
       setShowDeleteConfirm(false);
+      toast({
+        title: "Transakce odstraněna",
+        description: `Transakce ${itemsToDelete.map(id => `#${id}`).join(', ')} byla úspěšně odstraněna.`,
+      });
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Nastala chyba při odstraňování transakce');
     }
@@ -666,362 +740,66 @@ const TransakcePage: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return <div className="text-center text-lg">Načítání...</div>;
-  }
-
-  if (error) {
-    return <div className="text-red-500 text-center">{error}</div>;
-  }
-
-  // Calculate statistics
-  const totalTransakce = transakce.length;
-  const totalPříjem = transakce.filter(t => t.typ === 'příjem').length;
-  const totalVýdaj = transakce.filter(t => t.typ === 'výdaj').length;
-  const finančníStav = transakce.reduce((acc, t) => acc + t.castka, 0);
-
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="text-lg font-bold">Celkem transakcí</h3>
-          <p className="text-2xl">{totalTransakce}</p>
+    <div className="container mx-auto py-10">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-gray-500">Celkem transakcí</h3>
+          <p className="text-2xl font-bold text-black">{transakce.length}</p>
         </div>
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="text-lg font-bold">Počet příjmů</h3>
-          <p className="text-2xl text-green-600">{totalPříjem}</p>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-gray-500">Celkem příjmy</h3>
+          <p className="text-2xl font-bold text-green-600">
+            {totalIncome.toLocaleString()} Kč
+          </p>
         </div>
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="text-lg font-bold">Počet výdajů</h3>
-          <p className="text-2xl text-red-600">{totalVýdaj}</p>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-gray-500">Celkem výdaje</h3>
+          <p className="text-2xl font-bold text-red-600">
+            {totalExpense.toLocaleString()} Kč
+          </p>
         </div>
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="text-lg font-bold">Finanční stav</h3>
-          <p className="text-2xl">{finančníStav} Kč</p>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-gray-500">Bilance</h3>
+          <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {balance.toLocaleString()} Kč
+          </p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-gray-500">Měsíční bilance</h3>
+          <p className={`text-2xl font-bold ${monthlyIncome - monthlyExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {(monthlyIncome - monthlyExpense).toLocaleString()} Kč
+          </p>
         </div>
       </div>
 
-      <h1 className="text-2xl font-bold text-black mb-6">Správa transakcí</h1>
-      <button 
-        onClick={() => openModal()}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4"
-      >
-        Přidat transakci
-      </button>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Správa transakcí</h1>
+        <Button onClick={() => setIsModalOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Přidat transakci
+        </Button>
+      </div>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p>{error}</p>
+        </div>
+      )}
 
-      <div className="flex flex-wrap gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Vyhledat..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="border rounded-lg p-2 w-64 text-black"
+      <div className="bg-white rounded-lg shadow p-6">
+        <TransactionTable 
+          transactions={filteredTransakce} 
+          onRefreshAction={refreshDataAction}
+          isLoading={loading}
         />
-        
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="border rounded-lg p-2 text-black"
-        >
-          <option value="all">Všechny typy</option>
-          <option value="příjem">Příjem</option>
-          <option value="výdaj">Výdaj</option>
-        </select>
-
-        <div className="flex items-center gap-2 text-black">
-          <input
-            type="number"
-            placeholder="Částka od"
-            value={minAmount}
-            onChange={(e) => setMinAmount(e.target.value)}
-            className="border rounded p-2 w-32 text-black"    
-          />
-          <span>-</span>
-          <input
-            type="number"
-            placeholder="Částka do"
-            value={maxAmount}
-            onChange={(e) => setMaxAmount(e.target.value)}
-            className="border rounded p-2 w-32 text-black"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 text-black">
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="border rounded p-2 w-40 text-black"
-            placeholder="Datum od"
-          />
-          <span>-</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="border rounded p-2 w-40 text-black"
-            placeholder="Datum do"
-          />
-        </div>
-
-        <select
-          value={itemsPerPage}
-          onChange={(e) => setItemsPerPage(Number(e.target.value))}
-          className="border rounded p-2 text-black"
-        >
-          <option value="5">5</option>
-          <option value="10">10</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
       </div>
 
-      <div className="w-full overflow-x-auto bg-white rounded-lg shadow mb-6">
-        <div className="min-w-full">
-          <div className="grid grid-cols-7 gap-4 p-4 text-sm font-medium text-black border-b bg-gray-200">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={selectedTransakce.length === filteredTransakce.length}
-                onChange={handleSelectAll}
-                className="w-4 h-4"
-              />
-            </div>
-            <div 
-              className="cursor-pointer hover:text-blue-600 flex items-center gap-1"
-              onClick={() => handleSort('nazev')}
-            >
-              NÁZEV
-              {sortField === 'nazev' && (
-                <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-              )}
-            </div>
-            <div 
-              className="cursor-pointer hover:text-blue-600 flex items-center gap-1"
-              onClick={() => handleSort('castka')}
-            >
-              ČÁSTKA
-              {sortField === 'castka' && (
-                <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-              )}
-            </div>
-            <div 
-              className="cursor-pointer hover:text-blue-600 flex items-center gap-1"
-              onClick={() => handleSort('datum')}
-            >
-              DATUM
-              {sortField === 'datum' && (
-                <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-              )}
-            </div>
-            <div 
-              className="cursor-pointer hover:text-blue-600 flex items-center gap-1"
-              onClick={() => handleSort('typ')}
-            >
-              TYP
-              {sortField === 'typ' && (
-                <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-              )}
-            </div>
-            <div>POPIS</div>
-            <div>AKCE</div>
-          </div>
-          {paginatedTransakce.map(transakce => (
-            <div 
-              key={transakce.id} 
-              className="grid grid-cols-7 gap-4 p-4 border-b hover:bg-opacity-100 font-medium text-base"
-              style={{
-                transition: 'background-color 0.2s',
-                backgroundColor: transakce.typ === 'příjem' ? 'rgb(240, 253, 244)' : 'rgb(254, 242, 242)',
-                opacity: 0.9
-              }}
-            >
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={selectedTransakce.includes(transakce.id!)}
-                  onChange={() => handleSelect(transakce.id!)}
-                  className="w-4 h-4"
-                />
-              </div>
-              <div>{transakce.nazev}</div>
-              <div className={transakce.typ === 'příjem' ? 'text-green-700' : 'text-red-700'}>
-                {transakce.castka} Kč
-              </div>
-              <div>{new Date(transakce.datum).toLocaleDateString('cs-CZ')}</div>
-              <div>{transakce.typ}</div>
-              <div className="truncate">{transakce.popis}</div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => openModal(transakce)}
-                  className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition"
-                >
-                  Upravit
-                </button>
-                <button
-                  onClick={() => {
-                    setItemsToDelete([transakce.id!]);
-                    setShowDeleteConfirm(true);
-                  }}
-                  className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition"
-                >
-                  Smazat
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {selectedTransakce.length > 0 && (
-        <div className="fixed bottom-[25px] left-1/2 transform -translate-x-1/2 bg-white shadow-xl rounded-lg border border-gray-200" style={{ width: '647px', height: '64px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}>
-          <div className="flex items-center justify-center h-full px-6 gap-6">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <span className="text-gray-600">Vybráno: {selectedTransakce.length}</span>
-            </div>
-
-            <button 
-              className="text-purple-500 hover:text-purple-700 flex items-center gap-1"
-              onClick={handlePrint}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Tisk
-            </button>
-
-            <button 
-              className="text-green-500 hover:text-green-700 flex items-center gap-1"
-              onClick={handleExportCSV}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Export CSV
-            </button>
-
-            <button 
-              className="text-red-500 hover:text-red-700 flex items-center gap-1"
-              onClick={handleBulkDelete}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Smazat
-            </button>
-          </div>
-        </div>
-      )}
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{formData?.id ? 'Upravit transakci' : 'Přidat transakci'}</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <input
-                  type="text"
-                  name="nazev"
-                  value={formData?.nazev || ''}
-                  onChange={handleChange}
-                  placeholder="Název transakce"
-                  maxLength={MAX_NAZEV_LENGTH}
-                  required
-                  className="border border-gray-300 p-2 rounded w-full"
-                />
-                <p className={`text-sm mt-1 ${
-                  (formData?.nazev?.length || 0) >= MAX_NAZEV_LENGTH ? 'text-red-500' : 'text-gray-500'
-                }`}>
-                  {formData?.nazev?.length || 0}/{MAX_NAZEV_LENGTH} znaků
-                </p>
-              </div>
-              <div className="mb-4">
-                <input
-                  type="number"
-                  name="castka"
-                  value={formData?.castka || ''}
-                  onChange={handleChange}
-                  placeholder="Částka"
-                  required
-                  className="border border-gray-300 p-2 rounded w-full"
-                />
-              </div>
-              <div className="mb-4">
-                <input
-                  type="date"
-                  name="datum"
-                  value={formData?.datum || ''}
-                  onChange={handleChange}
-                  required
-                  className="border border-gray-300 p-2 rounded w-full"
-                />
-              </div>
-              <div className="mb-4">
-                <select
-                  name="typ"
-                  value={formData?.typ || ''}
-                  onChange={handleChange}
-                  required
-                  className="border border-gray-300 p-2 rounded w-full"
-                >
-                  <option value="">Vyberte typ</option>
-                  <option value="příjem">Příjem</option>
-                  <option value="výdaj">Výdaj</option>
-                </select>
-              </div>
-              <div className="mb-4">
-                <textarea
-                  name="popis"
-                  value={formData?.popis || ''}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange(e as any)}
-                  placeholder="Popis transakce" 
-                  maxLength={MAX_POPIS_LENGTH}
-                  required
-                  className="border border-gray-300 p-2 rounded w-full"
-                />
-                <p className={`text-sm mt-1 ${
-                  (formData?.popis?.length || 0) >= MAX_POPIS_LENGTH ? 'text-red-500' : 'text-gray-500'
-                }`}>
-                  {formData?.popis?.length || 0}/{MAX_POPIS_LENGTH} znaků
-                </p>
-              </div>
-              <div className="flex justify-between">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="bg-gray-300 text-black p-2 rounded">Zavřít</button>
-                <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition">{formData?.id ? 'Uložit' : 'Přidat transakci'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">Potvrzení smazání</h2>
-            <p className="mb-6">
-              Opravdu chcete smazat {itemsToDelete.length === 1 ? 'tuto položku' : `${itemsToDelete.length} položek`}?
-            </p>
-            <div className="flex justify-end gap-4">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Zrušit
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-600"
-              >
-                Smazat
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TransactionForm 
+        open={isModalOpen} 
+        onOpenChangeClientAction={handleOpenChange}
+        onSubmitAction={handleTransactionSubmitAction}
+      />
     </div>
   );
 };

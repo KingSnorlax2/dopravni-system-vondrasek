@@ -16,25 +16,19 @@ const transakceSchema = z.object({
   typ: z.enum(['příjem', 'výdaj']),
   popis: z.string().min(1, 'Popis je povinný'),
   faktura: z.string().optional(),
+  kategorieId: z.number().nullable().optional(),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const transakce = await prisma.transakce.findMany({
-      orderBy: {
-        datum: 'desc'
-      },
+    const transactions = await prisma.transakce.findMany({
+      orderBy: { datum: 'desc' },
       include: {
-        auto: {
-          select: {
-            spz: true,
-            znacka: true,
-            model: true
-          }
-        }
+        auto: true
       }
     });
-    return NextResponse.json(transakce);
+
+    return NextResponse.json(transactions);
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return NextResponse.json({ 
@@ -46,27 +40,21 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const validationResult = transakceSchema.safeParse(data);
     
-    if (!validationResult.success) {
-      return NextResponse.json({ 
-        error: validationResult.error.errors[0].message 
-      }, { status: 400 });
-    }
-
+    // Create the transaction
     const transakce = await prisma.transakce.create({
       data: {
         nazev: data.nazev,
-        autoId: data.autoId,
         castka: data.castka,
         datum: new Date(data.datum),
         typ: data.typ,
         popis: data.popis,
-        faktura: data.faktura
+        autoId: data.autoId,  // Direct field
       },
       include: {
         auto: {
           select: {
+            id: true,
             spz: true,
             znacka: true,
             model: true
@@ -75,12 +63,13 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ data: transakce });
+    return NextResponse.json(transakce);
   } catch (error) {
     console.error('Error creating transaction:', error);
-    return NextResponse.json({ 
-      error: 'Nepodařilo se vytvořit transakci' 
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Nepodařilo se vytvořit transakci' },
+      { status: 500 }
+    );
   }
 }
 
@@ -104,7 +93,7 @@ export async function PUT(request: Request) {
         datum: new Date(data.datum),
         typ: data.typ,
         popis: data.popis,
-        faktura: data.faktura
+        kategorieId: data.kategorieId
       },
       include: {
         auto: {
@@ -113,13 +102,24 @@ export async function PUT(request: Request) {
             znacka: true,
             model: true
           }
+        },
+        kategorie: {
+          select: {
+            id: true,
+            nazev: true
+          }
         }
       }
     });
 
     return NextResponse.json({ data: transakce });
   } catch (error) {
-    console.error('Error updating transaction:', error);
+    if (error instanceof Error) {
+      console.error('Error updating transaction:', error.message);
+      return NextResponse.json({ 
+        error: `Nepodařilo se aktualizovat transakci: ${error.message}` 
+      }, { status: 500 });
+    }
     return NextResponse.json({ 
       error: 'Nepodařilo se aktualizovat transakci' 
     }, { status: 500 });

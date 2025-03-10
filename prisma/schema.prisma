@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -23,6 +26,7 @@ model Auto {
   poznamka        String?
   datumSTK        DateTime?
   thumbnailFotoId String?
+  thumbnailUrl    String?
   fotky           Fotka[]   @relation("AutoFotky")
   poznatky        Note[]    @relation("AutoNotes")
   transakce       Transakce[] @relation("AutoTransakce")
@@ -31,6 +35,10 @@ model Auto {
   tankovani       Tankovani[] @relation("AutoTankovani")
   aktivni         Boolean @default(true)
   opravy          Oprava[]    @relation("AutoOpravy")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  Transakce Transakce[]
 }
 
 model Fotka {
@@ -52,16 +60,27 @@ model Note {
   createdAt DateTime @default(now())
 }
 
+model Kategorie {
+  id         Int         @id @default(autoincrement())
+  nazev      String
+  transakce  Transakce[]
+}
+
 model Transakce {
-  id      Int      @id @default(autoincrement())
-  nazev   String
-  autoId  Int?
-  castka  Float
-  datum   DateTime
-  typ     String
-  popis   String 
-  faktura String?  
-  auto    Auto?    @relation("AutoTransakce", fields: [autoId], references: [id])
+  id          Int       @id @default(autoincrement())
+  nazev       String
+  castka      Float
+  datum       DateTime
+  typ         String
+  popis       String
+  kategorieId Int?
+  kategorie   Kategorie? @relation(fields: [kategorieId], references: [id])
+  autoId      Int?
+  auto        Auto?    @relation(fields: [autoId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Auto Auto[] @relation("AutoTransakce")
 }
 
 model GPSZaznam {
