@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       orderBy: { datum: 'desc' },
       include: {
         auto: true
-      }
+      } 
     });
 
     return NextResponse.json(transactions);
@@ -137,11 +137,20 @@ export async function DELETE(request: Request) {
       }, { status: 400 });
     }
 
+    const numericId = parseInt(id);
+    if (isNaN(numericId)) {
+      return NextResponse.json({ 
+        error: 'Neplatné ID transakce' 
+      }, { status: 400 });
+    }
+
     await prisma.transakce.delete({
-      where: { id: parseInt(id) }
+      where: { id: numericId }
     });
 
-    return NextResponse.json({ message: 'Transakce byla úspěšně smazána' });
+    return NextResponse.json({ 
+      message: 'Transakce byla úspěšně smazána' 
+    });
   } catch (error) {
     console.error('Error deleting transaction:', error);
     return NextResponse.json({ 

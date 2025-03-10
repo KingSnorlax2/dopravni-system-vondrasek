@@ -21,7 +21,8 @@ import {
   DialogContent, 
   DialogFooter, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogDescription
 } from '@/components/ui/dialog'
 import { toast } from '@/components/ui/use-toast'
 import { TransactionForm } from '@/components/forms/TransactionForm'
@@ -187,33 +188,37 @@ export default function TransactionTable({
   };
 
   const handleDelete = async () => {
-    if (!deleteTransaction) return
+    if (!deleteTransaction) return;
 
     try {
-      const response = await fetch(`/api/transakce/${deleteTransaction.id}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(`/api/transakce?id=${deleteTransaction.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Chyba při mazání transakce')
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Chyba při mazání transakce');
       }
 
       toast({
         title: "Transakce smazána",
         description: "Transakce byla úspěšně odstraněna."
-      })
-      onRefreshAction()
-      setDeleteTransaction(null)
+      });
+      
+      await onRefreshAction();
+      setDeleteTransaction(null);
     } catch (error) {
-      console.error('Error deleting transaction:', error)
+      console.error('Error deleting transaction:', error);
       toast({
         title: "Chyba při mazání",
         description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
         variant: "destructive"
-      })
+      });
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -476,20 +481,22 @@ export default function TransactionTable({
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteTransaction} onOpenChange={(open) => !open && setDeleteTransaction(null)}>
+      <Dialog open={!!deleteTransaction} onOpenChange={() => setDeleteTransaction(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Potvrzení smazání</DialogTitle>
+            <DialogTitle>Smazat transakci</DialogTitle>
+            <DialogDescription>
+              Opravdu chcete smazat tuto transakci? Tato akce je nevratná.
+            </DialogDescription>
           </DialogHeader>
-          <p>
-            Opravdu chcete smazat transakci <strong>{deleteTransaction?.popis}</strong> s částkou{' '}
-            <strong>{deleteTransaction?.castka.toLocaleString()} Kč</strong>?
-          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTransaction(null)}>
               Zrušit
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+            >
               Smazat
             </Button>
           </DialogFooter>
