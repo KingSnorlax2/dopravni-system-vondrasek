@@ -98,10 +98,28 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
     }
   })
 
+  const checkSPZExists = async (spz: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/auta/check-spz?spz=${encodeURIComponent(spz)}`);
+      const data = await response.json();
+      return data.exists;
+    } catch (error) {
+      console.error('Error checking SPZ:', error);
+      return false;
+    }
+  };
+
   const handleSubmit = async (data: AutoFormData) => {
     setLoading(true)
     setError(null)
     try {
+      if (!initialData || (initialData && initialData.spz !== data.spz)) {
+        const exists = await checkSPZExists(data.spz);
+        if (exists) {
+          throw new Error('Vozidlo s touto SPZ již existuje');
+        }
+      }
+
       const submitData = {
         ...data,
         rokVyroby: Number(data.rokVyroby),
@@ -135,7 +153,7 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
       }
 
       if (onSubmit) {
-        await onSubmit(data);
+        await onSubmit(result);
       }
 
       form.reset();

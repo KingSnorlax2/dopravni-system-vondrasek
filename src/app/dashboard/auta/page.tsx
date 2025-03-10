@@ -6,6 +6,7 @@ import { AutoForm } from "@/components/forms/AutoForm"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import Link from 'next/link'
+import { toast } from '@/components/ui/use-toast'
 
 function isSTKExpiring(datumSTK: string | null) {
   if (!datumSTK) return false
@@ -22,7 +23,7 @@ export default function AutoPage() {
   const [auta, setAuta] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   const handleSuccess = () => {
     setRefresh(prev => prev + 1)
@@ -48,6 +49,11 @@ export default function AutoPage() {
       }
     } catch (error) {
       console.error('Error refreshing vehicles:', error);
+      toast({
+        title: "Chyba při načítání",
+        description: "Nepodařilo se načíst seznam vozidel",
+        variant: "destructive"
+      })
     } finally {
       setIsLoading(false);
     }
@@ -58,6 +64,15 @@ export default function AutoPage() {
   }, [refreshData]);
 
   const autaBliziciSeSTK = auta.filter(auto => isSTKExpiring(auto.datumSTK))
+
+  const handleAutoSubmit = async (newAuto: any) => {
+    console.log("New auto submitted:", newAuto)
+    await refreshData() // Refetch the data to update the list
+    toast({
+      title: "Vozidlo přidáno",
+      description: `${newAuto.znacka} ${newAuto.model} (${newAuto.spz}) bylo úspěšně přidáno.`,
+    })
+  }
 
   return (
     <div className="container mx-auto py-10">
@@ -141,10 +156,7 @@ export default function AutoPage() {
       <AutoForm 
         open={showForm} 
         onOpenChangeClientAction={handleOpenChange}
-        onSubmit={(data) => {
-          console.log(data)
-          handleSuccess()
-        }}
+        onSubmit={handleAutoSubmit}
       />
     </div>
   )

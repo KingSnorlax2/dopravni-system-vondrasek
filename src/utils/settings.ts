@@ -12,18 +12,23 @@ export interface AppSettings {
   dateTo: string | null;
   mileageFrom: string | null;
   mileageTo: string | null;
+  // Application settings
+  enableNotifications: boolean;
+  stkWarningDays: number;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   itemsPerPage: 10,
-  sortField: 'id',
+  sortField: 'spz',
   sortOrder: 'desc',
-  filterStav: 'all',
-  filterSTK: 'all',
+  filterStav: 'vse',
+  filterSTK: 'vse',
   dateFrom: null,
   dateTo: null,
   mileageFrom: null,
-  mileageTo: null
+  mileageTo: null,
+  enableNotifications: true,
+  stkWarningDays: 30
 };
 
 export function loadSettings(): AppSettings {
@@ -31,7 +36,7 @@ export function loadSettings(): AppSettings {
   
   try {
     const savedSettings = localStorage.getItem('appSettings');
-    return savedSettings ? JSON.parse(savedSettings) : DEFAULT_SETTINGS;
+    return savedSettings ? { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) } : DEFAULT_SETTINGS;
   } catch (error) {
     console.error('Failed to load settings:', error);
     return DEFAULT_SETTINGS;
