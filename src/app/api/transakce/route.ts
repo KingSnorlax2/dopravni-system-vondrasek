@@ -40,19 +40,21 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
+    console.log('Received data:', data); // Debug log
     
-    // Create the transaction
     const transakce = await prisma.transakce.create({
       data: {
         nazev: data.nazev,
-        castka: data.castka,
+        castka: Number(data.castka),
         datum: new Date(data.datum),
         typ: data.typ,
         popis: data.popis,
-        autoId: data.autoId,  // Direct field
+        Auto: data.autoId ? {
+          connect: [{ id: Number(data.autoId) }]
+        } : undefined
       },
       include: {
-        auto: {
+        Auto: {
           select: {
             id: true,
             spz: true,

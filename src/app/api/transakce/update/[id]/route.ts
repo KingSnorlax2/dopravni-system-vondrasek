@@ -8,19 +8,25 @@ export async function PUT(
   try {
     const id = params.id;
     const data = await request.json();
+    console.log('Update data received:', data);
+
+    // Keep the amount as provided without modifying the sign
+    const castka = Number(data.castka);
 
     const updatedTransaction = await prisma.transakce.update({
       where: { id: Number(id) },
       data: {
         nazev: data.nazev,
-        castka: data.castka,
+        castka: castka,  // Use the amount as is
         datum: new Date(data.datum),
-        typ: data.typ,
+        typ: castka >= 0 ? 'příjem' : 'výdaj',  // Set type based on amount
         popis: data.popis,
-        autoId: data.autoId
+        Auto: data.autoId ? {
+          connect: [{ id: Number(data.autoId) }]
+        } : undefined
       },
       include: {
-        auto: {
+        Auto: {
           select: {
             id: true,
             spz: true,
@@ -34,6 +40,8 @@ export async function PUT(
     return NextResponse.json(updatedTransaction);
   } catch (error) {
     console.error('Error updating transaction:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Nepodařilo se aktualizovat transakci' 
+    }, { status: 500 });
   }
 }   
