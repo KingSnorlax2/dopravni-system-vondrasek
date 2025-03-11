@@ -10,22 +10,23 @@ export async function PUT(
     const data = await request.json();
     console.log('Update data received:', data);
 
-    // Keep the amount as provided without modifying the sign
     const castka = Number(data.castka);
 
     const updatedTransaction = await prisma.transakce.update({
       where: { id: Number(id) },
       data: {
         nazev: data.nazev,
-        castka: castka,  // Use the amount as is
+        castka: castka,
         datum: new Date(data.datum),
-        typ: castka >= 0 ? 'příjem' : 'výdaj',  // Set type based on amount
+        typ: castka >= 0 ? 'příjem' : 'výdaj',
         popis: data.popis,
+        kategorieId: data.kategorieId,
         Auto: data.autoId ? {
           connect: [{ id: Number(data.autoId) }]
         } : undefined
       },
       include: {
+        kategorie: true,
         Auto: {
           select: {
             id: true,

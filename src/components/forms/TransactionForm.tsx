@@ -69,6 +69,11 @@ const ALL_CATEGORIES = [
   'Ostatní výdaj'
 ]
 
+interface Kategorie {
+  id: number;
+  nazev: string;
+}
+
 interface TransactionFormProps {
   open: boolean
   onOpenChangeClientAction: (open: boolean) => Promise<void>
@@ -87,11 +92,13 @@ export function TransactionForm({
     initialData?.vztahKVozidlu || false
   )
   const [vehicles, setVehicles] = useState<any[]>([])
+  const [categories, setCategories] = useState<Kategorie[]>([])
 
   // Fetch vehicles when form opens
   useEffect(() => {
     if (open) {
       fetchVehicles()
+      fetchCategories()
     }
   }, [open])
 
@@ -104,6 +111,39 @@ export function TransactionForm({
       }
     } catch (error) {
       console.error('Error fetching vehicles:', error)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      // First try to fetch existing categories
+      const response = await fetch('/api/kategorie')
+      if (response.ok) {
+        const existingCategories = await response.json()
+        
+        // Create any missing categories from ALL_CATEGORIES
+        const missingCategories = ALL_CATEGORIES.filter(
+          cat => !existingCategories.find((ec: Kategorie) => ec.nazev === cat)
+        )
+        
+        if (missingCategories.length > 0) {
+          const createResponse = await fetch('/api/kategorie', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categories: missingCategories })
+          })
+          if (createResponse.ok) {
+            // Fetch again to get all categories with IDs
+            const finalResponse = await fetch('/api/kategorie')
+            const finalCategories = await finalResponse.json()
+            setCategories(finalCategories)
+          }
+        } else {
+          setCategories(existingCategories)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error)
     }
   }
 
@@ -133,17 +173,18 @@ export function TransactionForm({
         values.idVozidla = undefined
       }
       
-      // Determine type based on amount with correct diacritics
       const submitData = {
         ...values,
+        kategorieId: values.kategorie ? Number(values.kategorie) : null,
         typ: values.castka > 0 ? 'příjem' : 'výdaj'
       }
       
+      console.log('Submitting data:', submitData)
       await onSubmitAction(submitData)
       form.reset(defaultValues)
       await onOpenChangeClientAction(false)
     } catch (error) {
-      console.error('Error creating transaction:', error)
+      console.error('Error submitting:', error)
       toast({
         title: 'Chyba při vytváření transakce',
         description: error instanceof Error ? error.message : 'Nastala neočekávaná chyba',
@@ -238,16 +279,22 @@ export function TransactionForm({
                 <FormItem>
                   <FormLabel>Kategorie</FormLabel>
                   <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
+                    value={field.value?.toString() || ""}
+                    onValueChange={(value) => {
+                      field.onChange(value === "none" ? null : value);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Vyberte kategorii" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ALL_CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
+                      <SelectItem value="none">Bez kategorie</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem 
+                          key={category.id} 
+                          value={category.id.toString()}
+                        >
+                          {category.nazev}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -126,7 +126,7 @@ export default function TransactionTable({
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>()
     transactions.forEach(t => {
-      if (t.kategorie) uniqueCategories.add(t.kategorie)
+      if (t.kategorie?.nazev) uniqueCategories.add(t.kategorie.nazev)
     })
     return Array.from(uniqueCategories).sort()
   }, [transactions])
@@ -152,7 +152,7 @@ export default function TransactionTable({
         typ: isIncome ? 'PRIJEM' : 'VYDAJ',
         popis: data.popis,
         autoId: data.vztahKVozidlu && data.idVozidla ? Number(data.idVozidla) : null,
-        kategorie: data.kategorie
+        kategorieId: data.kategorie ? Number(data.kategorie) : null
       };
 
       // Updated API endpoint to match Next.js App Router convention
@@ -220,6 +220,92 @@ export default function TransactionTable({
     }
   };
 
+  const columns = [
+    {
+      accessorKey: "datum",
+      header: "Datum",
+      cell: ({ row }: { row: { original: { datum: string } } }) => {
+        const transakce = row.original;
+        return new Date(transakce.datum).toLocaleDateString('cs-CZ');
+      }
+    },
+    {
+      accessorKey: "popis",
+      header: "Popis",
+      cell: ({ row }: { row: { original: { popis: string } } }) => {
+        const transakce = row.original;
+        return transakce.popis;
+      }
+    },
+    {
+      accessorKey: "kategorie",
+      header: "Kategorie",
+      cell: ({ row }: { row: { original: { kategorie?: { nazev: string } } } }) => {
+        const transakce = row.original;
+        return transakce.kategorie?.nazev || "Bez kategorie";
+      }
+    },
+    {
+      accessorKey: "castka",
+      header: "Částka",
+      cell: ({ row }: { row: { original: { castka: number } } }) => {
+        const transakce = row.original;
+        const isIncome = transakce.castka > 0;
+        return (
+          <span className={`${isIncome ? 'text-green-600' : 'text-red-600'}`}>
+            {isIncome ? `+${Math.abs(transakce.castka).toLocaleString()} Kč` : `-${Math.abs(transakce.castka).toLocaleString()} Kč`}
+          </span>
+        );
+      }
+    },
+    {
+      accessorKey: "typ",
+      header: "Typ", 
+      cell: ({ row }: { row: { original: { typ: string } } }) => {
+        const transakce = row.original;
+        return (
+          <Badge variant={transakce.typ === 'příjem' ? 'success' : 'destructive'}>
+            {transakce.typ === 'příjem' ? 'Příjem' : 'Výdaj'}
+          </Badge>
+        );
+      }
+    },
+    {
+      id: "actions",
+      header: "Akce",
+      cell: ({ row }: { row: { original: any } }) => {
+        const transakce = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Otevřít menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => setEditTransaction(transakce)}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Upravit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setDeleteTransaction(transakce)}
+                  className="text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Smazat
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      }
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row">
@@ -268,12 +354,17 @@ export default function TransactionTable({
               value={filterCategory} 
               onValueChange={setFilterCategory}
             >
-              <option value="vse">Všechny</option>
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
+              <SelectTrigger>
+                <SelectValue placeholder="Všechny" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vse">Všechny</SelectItem>
+                {categories.map(category => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>
@@ -353,7 +444,7 @@ export default function TransactionTable({
                     <TableCell>{transaction.popis}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {transaction.kategorie || 'Bez kategorie'}
+                        {transaction.kategorie?.nazev || 'Bez kategorie'}
                       </Badge>
                     </TableCell>
                     <TableCell className={`text-right ${transaction.typ === 'příjem' ? 'text-green-600' : 'text-red-600'}`}>

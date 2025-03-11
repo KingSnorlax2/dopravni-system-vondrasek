@@ -62,7 +62,7 @@ model Note {
 
 model Kategorie {
   id         Int         @id @default(autoincrement())
-  nazev      String
+  nazev      String     @unique
   transakce  Transakce[]
 }
 

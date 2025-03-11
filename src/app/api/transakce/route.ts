@@ -24,8 +24,21 @@ export async function GET(request: Request) {
     const transactions = await prisma.transakce.findMany({
       orderBy: { datum: 'desc' },
       include: {
-        auto: true
-      } 
+        Auto: {
+          select: {
+            id: true,
+            spz: true,
+            znacka: true,
+            model: true
+          }
+        },
+        kategorie: {
+          select: {
+            id: true,
+            nazev: true
+          }
+        }
+      }
     });
 
     return NextResponse.json(transactions);
