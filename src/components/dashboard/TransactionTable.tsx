@@ -67,7 +67,7 @@ export default function TransactionTable({
       const searchTermLower = searchTerm.toLowerCase()
       const matchesSearch = 
         transaction.popis?.toLowerCase().includes(searchTermLower) ||
-        transaction.kategorie?.toLowerCase().includes(searchTermLower) ||
+        transaction.kategorie?.nazev?.toLowerCase().includes(searchTermLower) ||
         transaction.poznamka?.toLowerCase().includes(searchTermLower) ||
         transaction.castka?.toString().includes(searchTermLower)
 
