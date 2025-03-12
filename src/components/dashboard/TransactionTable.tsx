@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent, CardTitle, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Eye, FileText, Download, Upload } from 'lucide-react'
 import { 
   Dialog, 
   DialogContent, 
@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface TransactionTableProps {
   transactions: any[]
@@ -56,6 +57,8 @@ export default function TransactionTable({
   const [currentPage, setCurrentPage] = useState(1)
   const [editTransaction, setEditTransaction] = useState<any>(null)
   const [deleteTransaction, setDeleteTransaction] = useState<any>(null)
+  const [detailTransaction, setDetailTransaction] = useState<any>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   // Filter and sort the transactions
   const filteredTransactions = useMemo(() => {
@@ -220,6 +223,50 @@ export default function TransactionTable({
     }
   };
 
+  const handleFileUpload = async (transactionId: number, file: File) => {
+    setIsUploading(true);
+    console.log('Starting file upload:', { transactionId, fileName: file.name }); // Debug log
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      console.log('Sending request to:', `/api/transakce/${transactionId}/invoice`); // Debug log
+      
+      const response = await fetch(`/api/transakce/${transactionId}/invoice`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Upload failed:', errorData); // Debug log
+        throw new Error('Upload failed');
+      }
+      
+      const result = await response.json();
+      console.log('Upload successful:', result); // Debug log
+      
+      // Refresh transaction details
+      const updatedTransaction = await fetch(`/api/transakce/${transactionId}`).then(res => res.json());
+      setDetailTransaction(updatedTransaction);
+      
+      toast({
+        title: "Faktura nahrána",
+        description: "Faktura byla úspěšně nahrána k transakci.",
+      });
+    } catch (error) {
+      console.error('Error in handleFileUpload:', error); // Debug log
+      toast({
+        title: "Chyba při nahrávání",
+        description: "Nepodařilo se nahrát fakturu.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const columns = [
     {
       accessorKey: "datum",
@@ -276,7 +323,14 @@ export default function TransactionTable({
       cell: ({ row }: { row: { original: any } }) => {
         const transakce = row.original;
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDetailTransaction(transakce)}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -459,29 +513,38 @@ export default function TransactionTable({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Otevřít menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => setEditTransaction(transaction)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Upravit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDeleteTransaction(transaction)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Smazat
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDetailTransaction(transaction)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Otevřít menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => setEditTransaction(transaction)}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Upravit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeleteTransaction(transaction)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Smazat
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -593,6 +656,138 @@ export default function TransactionTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Detail Transaction Dialog */}
+      {detailTransaction && (
+        <Dialog open={!!detailTransaction} onOpenChange={() => setDetailTransaction(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Detail transakce</DialogTitle>
+              <DialogDescription>
+                Zobrazení detailů transakce a správa faktury
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details">Základní informace</TabsTrigger>
+                <TabsTrigger value="invoice">Faktura</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Informace o transakci</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="font-semibold">Datum:</div>
+                      <div>{new Date(detailTransaction.datum).toLocaleDateString('cs-CZ')}</div>
+                      
+                      <div className="font-semibold">Popis:</div>
+                      <div>{detailTransaction.popis}</div>
+                      
+                      <div className="font-semibold">Částka:</div>
+                      <div className={detailTransaction.castka >= 0 ? "text-green-600" : "text-red-600"}>
+                        {new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK' })
+                          .format(detailTransaction.castka)}
+                      </div>
+                      
+                      <div className="font-semibold">Typ:</div>
+                      <div>{detailTransaction.typ}</div>
+                      
+                      {detailTransaction.Auto && (
+                        <>
+                          <div className="font-semibold">Vozidlo:</div>
+                          <div>{detailTransaction.Auto.spz} - {detailTransaction.Auto.znacka} {detailTransaction.Auto.model}</div>
+                        </>
+                      )}
+                      
+                      {detailTransaction.kategorie && (
+                        <>
+                          <div className="font-semibold">Kategorie:</div>
+                          <div>{detailTransaction.kategorie.nazev}</div>
+                        </>
+                      )}
+                      
+                      {detailTransaction.poznamka && (
+                        <>
+                          <div className="font-semibold">Poznámka:</div>
+                          <div>{detailTransaction.poznamka}</div>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="invoice">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Faktura</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {detailTransaction.faktura ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <FileText className="h-5 w-5" />
+                            <span>Faktura je nahrána</span>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`/api/transakce/${detailTransaction.id}/invoice`, '_blank')}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Stáhnout fakturu
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg">
+                          <Upload className="h-8 w-8 mb-4 text-gray-400" />
+                          <Button 
+                            variant="outline" 
+                            disabled={isUploading}
+                            onClick={() => document.getElementById('invoice-upload')?.click()}
+                          >
+                            {isUploading ? (
+                              <>Nahrávání...</>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Nahrát fakturu
+                              </>
+                            )}
+                          </Button>
+                          <input
+                            id="invoice-upload"
+                            type="file"
+                            className="hidden"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                console.log("File selected:", file.name);
+                                handleFileUpload(detailTransaction.id, file);
+                              }
+                            }}
+                          />
+                          <p className="mt-2 text-sm text-gray-500">
+                            Podporované formáty: PDF, JPG, PNG
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 } 

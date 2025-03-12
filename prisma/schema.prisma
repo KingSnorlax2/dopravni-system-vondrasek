@@ -79,6 +79,9 @@ model Transakce {
   auto        Auto?    @relation(fields: [autoId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  faktura     String?
+  fakturaTyp  String?
+  fakturaNazev String?
 
   Auto Auto[] @relation("AutoTransakce")
 }

@@ -8,7 +8,7 @@ import { toast } from '@/components/ui/use-toast';
 import TransactionTable from '@/components/dashboard/TransactionTable';
 import { TransactionForm } from '@/components/forms/TransactionForm';
 
-const MAX_POPIS_LENGTH = 300;
+const MAX_POPIS_LENGTH = 300; 
 const MAX_NAZEV_LENGTH = 50;
 
 const TransakcePage: React.FC = () => {
