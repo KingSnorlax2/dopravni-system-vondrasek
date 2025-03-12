@@ -732,16 +732,48 @@ export default function TransactionTable({
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <FileText className="h-5 w-5" />
-                            <span>Faktura je nahrána</span>
+                            <span>{detailTransaction.fakturaNazev}</span>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(`/api/transakce/${detailTransaction.id}/invoice`, '_blank')}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Stáhnout fakturu
-                          </Button>
+                          <div className="space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const base64Data = detailTransaction.faktura;
+                                const blob = new Blob(
+                                  [Buffer.from(base64Data, 'base64')], 
+                                  { type: detailTransaction.fakturaTyp }
+                                );
+                                const url = URL.createObjectURL(blob);
+                                window.open(url, '_blank');
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Zobrazit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const base64Data = detailTransaction.faktura;
+                                const blob = new Blob(
+                                  [Buffer.from(base64Data, 'base64')], 
+                                  { type: detailTransaction.fakturaTyp }
+                                );
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = detailTransaction.fakturaNazev;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Stáhnout
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ) : (
