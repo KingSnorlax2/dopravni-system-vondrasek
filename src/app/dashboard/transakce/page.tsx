@@ -171,7 +171,7 @@ const TransakcePage: React.FC = () => {
         typ: isIncome ? 'příjem' : 'výdaj', // Set type based on amount sign
         popis: data.popis,
         autoId: data.vztahKVozidlu && data.idVozidla ? Number(data.idVozidla) : null,
-        kategorie: data.kategorie
+        kategorieId: data.kategorie ? Number(data.kategorie) : null
       };
       
       console.log("Transformed data:", submitData);

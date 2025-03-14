@@ -68,21 +68,38 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
-    console.log('Received data:', data); // Debug log
+    const body = await request.json();
+    const validatedData = transakceSchema.parse(body);
     
-    const transakce = await prisma.transakce.create({
+    const newTransaction = await prisma.transakce.create({
       data: {
-        nazev: data.nazev,
-        castka: Number(data.castka),
-        datum: new Date(data.datum),
-        typ: data.typ,
-        popis: data.popis,
-        Auto: data.autoId ? {
-          connect: [{ id: Number(data.autoId) }]
-        } : undefined
+        nazev: validatedData.nazev,
+        castka: validatedData.castka,
+        datum: new Date(validatedData.datum),
+        typ: validatedData.typ,
+        popis: validatedData.popis,
+        faktura: validatedData.faktura,
+        // Ensure the category relationship is properly established
+        ...(validatedData.kategorieId ? {
+          kategorie: {
+            connect: { id: validatedData.kategorieId }
+          }
+        } : {}),
+        // Handle the auto relationship if needed
+        ...(validatedData.autoId ? {
+          Auto: {
+            connect: { id: validatedData.autoId }
+          }
+        } : {})
       },
+      // Include the category in the response
       include: {
+        kategorie: {
+          select: {
+            id: true,
+            nazev: true
+          }
+        },
         Auto: {
           select: {
             id: true,
@@ -93,12 +110,15 @@ export async function POST(request: Request) {
         }
       }
     });
-
-    return NextResponse.json(transakce);
+    
+    return NextResponse.json(newTransaction);
   } catch (error) {
     console.error('Error creating transaction:', error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
+    }
     return NextResponse.json(
-      { error: 'Nepodařilo se vytvořit transakci' },
+      { error: 'Failed to create transaction' },
       { status: 500 }
     );
   }

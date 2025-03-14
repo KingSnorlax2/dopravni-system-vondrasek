@@ -81,12 +81,14 @@ export default function TransactionTable({
         ? transactionDate <= new Date(dateTo) 
         : true
 
-      // Apply type filter
-      const matchesType = filterType === 'vse' || transaction.typ === filterType
+      // Apply type filter - fix the matching to handle diacritics
+      const matchesType = filterType === 'vse' || 
+        (filterType === 'prijem' && transaction.typ?.toLowerCase() === 'příjem') ||
+        (filterType === 'vydaj' && transaction.typ?.toLowerCase() === 'výdaj');
 
-      // Apply category filter
+      // Apply category filter (fix object comparison with case-insensitive matching)
       const matchesCategory = filterCategory === 'vse' || 
-        transaction.kategorie === filterCategory
+        (transaction.kategorie?.nazev?.toLowerCase() === filterCategory.toLowerCase());
 
       return matchesSearch && matchesDateFrom && matchesDateTo && 
         matchesType && matchesCategory
@@ -398,9 +400,14 @@ export default function TransactionTable({
               value={filterType} 
               onValueChange={setFilterType}
             >
-              <option value="vse">Všechny</option>
-              <option value="prijem">Příjmy</option>
-              <option value="vydaj">Výdaje</option>
+              <SelectTrigger>
+                <SelectValue placeholder="Všechny" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vse">Všechny</SelectItem>
+                <SelectItem value="prijem">Příjmy</SelectItem>
+                <SelectItem value="vydaj">Výdaje</SelectItem>
+              </SelectContent>
             </Select>
           </div>
           <div>
