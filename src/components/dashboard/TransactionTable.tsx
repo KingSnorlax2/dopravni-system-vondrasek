@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PDFViewer } from '@react-pdf/renderer'
 
 interface TransactionTableProps {
   transactions: any[]
@@ -729,7 +730,7 @@ export default function TransactionTable({
                   <CardContent>
                     {detailTransaction.faktura ? (
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-2">
                             <FileText className="h-5 w-5" />
                             <span>{detailTransaction.fakturaNazev}</span>
@@ -775,6 +776,16 @@ export default function TransactionTable({
                             </Button>
                           </div>
                         </div>
+                        
+                        {detailTransaction.fakturaTyp === 'application/pdf' && (
+                          <div className="border rounded-lg p-4 h-[500px]">
+                            <iframe
+                              src={`data:${detailTransaction.fakturaTyp};base64,${detailTransaction.faktura}`}
+                              className="w-full h-full"
+                              title="PDF Viewer"
+                            />
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-4">
