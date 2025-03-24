@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
-import { cs } from "date-fns/locale"
+import cs from 'date-fns/locale/cs'
 import { useRouter } from "next/navigation"
 import { ServiceForm } from '@/components/forms/ServiceForm'
 import { MaintenanceForm } from '@/components/forms/MaintenanceForm'

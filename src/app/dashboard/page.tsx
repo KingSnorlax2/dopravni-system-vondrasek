@@ -15,7 +15,7 @@ import {
   ArrowRight
 } from "lucide-react"
 import { format, isBefore, addMonths } from "date-fns"
-import { cs } from "date-fns/locale"
+import cs from 'date-fns/locale/cs'
 import Link from "next/link"
 
 export default function DashboardPage() {

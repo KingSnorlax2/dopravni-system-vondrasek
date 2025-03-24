@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { format } from 'date-fns'
-import { cs } from 'date-fns/locale'
+import { format } from "date-fns"
+import cs from 'date-fns/locale/cs'
 import { CalendarIcon } from 'lucide-react'
 
 import {
