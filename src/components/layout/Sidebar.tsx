@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
+import { Map } from "lucide-react"
 
 // Define types for better type safety
 type Subcategory = {
@@ -133,6 +134,13 @@ const Sidebar = () => {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
             </svg>
+          )
+        },
+        {
+          name: 'Mapa',
+          href: '/dashboard/auta/mapa',
+          icon: (
+            <Map className="mr-2 h-4 w-4" />
           )
         }
       ]

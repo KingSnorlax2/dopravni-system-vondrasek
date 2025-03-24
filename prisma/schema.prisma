@@ -37,6 +37,11 @@ model Auto {
   opravy          Oprava[]    @relation("AutoOpravy")
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  gpsDeviceId     String?     @unique
+  lastLatitude    Float?
+  lastLongitude   Float?
+  lastLocationUpdate DateTime?
+  locations       VehicleLocation[]
 
   Transakce Transakce[]
 }
@@ -175,4 +180,19 @@ model User {
   password String
   name     String?
   role     String    @default("USER")
+}
+
+model VehicleLocation {
+  id            String   @id @default(uuid())
+  autoId        Int
+  latitude      Float
+  longitude     Float
+  speed         Float?
+  heading       Float?
+  altitude      Float?
+  accuracy      Float?
+  batteryLevel  Float?
+  timestamp     DateTime @default(now())
+  
+  auto          Auto     @relation(fields: [autoId], references: [id], onDelete: Cascade)
 }

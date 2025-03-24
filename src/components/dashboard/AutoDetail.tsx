@@ -14,7 +14,9 @@ import {
   AlertCircle,
   PencilIcon,
   Trash2Icon,
-  CropIcon
+  CropIcon,
+  Image as ImageIcon,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -30,8 +32,6 @@ import { useRouter } from "next/navigation"
 import { ServiceForm } from '@/components/forms/ServiceForm'
 import { MaintenanceForm } from '@/components/forms/MaintenanceForm'
 import { toast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
-import { ImageIcon } from "lucide-react"
 import { PhotoPositionModal } from "@/components/photo-positioning/PhotoPositionModal"
 import { PhotoGallery } from "@/components/dashboard/PhotoGallery"
 

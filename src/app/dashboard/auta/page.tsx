@@ -5,10 +5,11 @@ import AutoTable from '@/components/dashboard/AutoTable'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import Link from 'next/link'
-import { toast } from '@/components/ui/use-toast'
+import Link from "next/link"
+import { toast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
-import cs from 'date-fns/locale/cs'
+import { cs } from "date-fns/locale"
+import { generateRandomVehicleData } from "@/lib/mock-data"
 
 function isSTKExpiring(datumSTK: string | null) {
   if (!datumSTK) return false
@@ -76,6 +77,41 @@ export default function AutoPage() {
     })
   }
 
+  async function addRandomVehicles() {
+    try {
+      const randomVehicles = generateRandomVehicleData(5); // Generate 5 random vehicles
+      
+      for (const vehicle of Array.isArray(randomVehicles) ? randomVehicles : [randomVehicles]) {
+        const response = await fetch('/api/auta', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(vehicle),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to add random vehicle');
+        }
+      }
+      
+      toast({
+        title: "Úspěch",
+        description: "Náhodná vozidla byla přidána",
+      });
+      
+      // Refresh the page or data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error adding random vehicles:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se přidat náhodná vozidla",
+        variant: "destructive",
+      });
+    }
+  }
+
   return (
     <div className="container mx-auto py-10">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -139,6 +175,9 @@ export default function AutoPage() {
         <Button onClick={() => setShowForm(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Přidat auto
+        </Button>
+        <Button onClick={addRandomVehicles} variant="outline" size="sm" className="ml-2">
+          Přidat náhodná vozidla
         </Button>
       </div>
       

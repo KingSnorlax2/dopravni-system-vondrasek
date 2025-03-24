@@ -11,6 +11,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage
 } from "@/components/ui/form"
 import {
   Select,
@@ -30,14 +31,14 @@ import { cn } from "@/lib/utils"
 import cs from 'date-fns/locale/cs'
 
 const formSchema = z.object({
-  spz: z.string().min(1).max(8),
-  znacka: z.string().min(1).max(50),
-  model: z.string().min(1).max(50),
-  rokVyroby: z.number().min(1900).max(new Date().getFullYear()),
-  najezd: z.number().min(0),
+  spz: z.string().min(1, "SPZ je povinná").max(8, "SPZ může mít maximálně 8 znaků"),
+  znacka: z.string().min(1, "Značka je povinná").max(50, "Značka může mít maximálně 50 znaků"),
+  model: z.string().min(1, "Model je povinný").max(50, "Model může mít maximálně 50 znaků"),
+  rokVyroby: z.number().min(1900, "Rok výroby musí být od 1900").max(new Date().getFullYear(), "Rok výroby nemůže být v budoucnosti"),
+  najezd: z.number().min(0, "Nájezd nemůže být záporný"),
   stav: z.enum(["aktivní", "servis", "vyřazeno"]),
   datumSTK: z.date().optional(),
-  poznamka: z.string().max(300).optional()
+  poznamka: z.string().max(300, "Poznámka může mít maximálně 300 znaků").optional()
 })
 
 interface AutoDetailFormProps {
@@ -73,11 +74,12 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                   <FormItem>
                     <FormLabel>SPZ</FormLabel>
                     <FormControl>
-                      <Input placeholder="Zadejte SPZ" {...field} />
+                      <Input placeholder="Zadejte SPZ" {...field} maxLength={8} value={field.value || ''} />
                     </FormControl>
                     <FormDescription className="text-xs">
                       {field.value?.length || 0}/8 znaků
                     </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -100,6 +102,7 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                         <SelectItem value="vyřazeno">Vyřazeno</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -117,6 +120,7 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                   <FormDescription className="text-xs">
                     {field.value?.length || 0}/50 znaků
                   </FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -133,6 +137,7 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                   <FormDescription className="text-xs">
                     {field.value?.length || 0}/50 znaků
                   </FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -147,9 +152,10 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                     <Input 
                       type="number" 
                       {...field} 
-                      onChange={e => field.onChange(parseInt(e.target.value))}
+                      onChange={e => field.onChange(parseInt(e.target.value) || 0)}
                     />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -164,9 +170,10 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                     <Input 
                       type="number" 
                       {...field} 
-                      onChange={e => field.onChange(parseInt(e.target.value))}
+                      onChange={e => field.onChange(parseInt(e.target.value) || 0)}
                     />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -203,9 +210,11 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                           selected={field.value}
                           onSelect={field.onChange}
                           initialFocus
+                          locale={cs}
                         />
                       </PopoverContent>
                     </Popover>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -223,18 +232,20 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                         placeholder="Zde můžete napsat poznámky k vozidlu..."
                         className="resize-none h-20"
                         {...field}
+                        value={field.value || ''}
                       />
                     </FormControl>
                     <FormDescription className="text-xs">
                       {field.value?.length || 0}/300 znaků
                     </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
             <div className="col-span-2 flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" onClick={() => onOpenChange(false)} type="button">
                 Zrušit
               </Button>
               <Button type="submit">
@@ -246,4 +257,4 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
       </SheetContent>
     </Sheet>
   )
-} 
+}

@@ -240,7 +240,7 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
                             )}
                           >
                             {field.value ? (
-                              format(field.value, "dd.MM.yyyy")
+                              format(new Date(field.value), "dd.MM.yyyy")
                             ) : (
                               <span>dd.mm.rrrr</span>
                             )}

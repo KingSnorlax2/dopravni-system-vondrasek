@@ -20,8 +20,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -71,6 +73,7 @@ type FileItem =
 const MAX_SPZ_LENGTH = 8;
 const MAX_ZNACKA_LENGTH = 20;
 const MAX_MODEL_LENGTH = 20;
+const MAX_POZNAMKA_LENGTH = 300;
 
 export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData }: AutoFormProps) {
   const [uploading, setUploading] = useState(false)
@@ -289,8 +292,16 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                 <FormItem>
                   <FormLabel>SPZ</FormLabel>
                   <FormControl>
-                    <Input placeholder="Zadejte SPZ" {...field} />
+                    <Input 
+                      placeholder="Zadejte SPZ" 
+                      {...field} 
+                      maxLength={MAX_SPZ_LENGTH}
+                      value={field.value || ''}
+                    />
                   </FormControl>
+                  <FormDescription className="text-xs">
+                    {field.value?.length || 0}/{MAX_SPZ_LENGTH} znaků
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -303,8 +314,16 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                 <FormItem>
                   <FormLabel>Značka</FormLabel>
                   <FormControl>
-                    <Input placeholder="Zadejte značku" {...field} />
+                    <Input 
+                      placeholder="Zadejte značku" 
+                      {...field} 
+                      maxLength={MAX_ZNACKA_LENGTH}
+                      value={field.value || ''}
+                    />
                   </FormControl>
+                  <FormDescription className="text-xs">
+                    {field.value?.length || 0}/{MAX_ZNACKA_LENGTH} znaků
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -317,8 +336,16 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                 <FormItem>
                   <FormLabel>Model</FormLabel>
                   <FormControl>
-                    <Input placeholder="Zadejte model" {...field} />
+                    <Input 
+                      placeholder="Zadejte model" 
+                      {...field} 
+                      maxLength={MAX_MODEL_LENGTH}
+                      value={field.value || ''}
+                    />
                   </FormControl>
+                  <FormDescription className="text-xs">
+                    {field.value?.length || 0}/{MAX_MODEL_LENGTH} znaků
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -334,7 +361,8 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                     <Input 
                       type="number" 
                       {...field} 
-                      onChange={e => field.onChange(parseInt(e.target.value))}
+                      value={field.value || ''}
+                      onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : '')}
                     />
                   </FormControl>
                   <FormMessage />
@@ -352,7 +380,8 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                     <Input 
                       type="number" 
                       {...field} 
-                      onChange={e => field.onChange(parseInt(e.target.value))}
+                      value={field.value || ''}
+                      onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
                     />
                   </FormControl>
                   <FormMessage />
@@ -393,6 +422,7 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
+                          type="button"
                           variant="outline"
                           className={cn(
                             "w-full pl-3 text-left font-normal",
@@ -414,6 +444,7 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                         selected={field.value ? new Date(field.value) : undefined}
                         onSelect={(date) => field.onChange(date ? date.toISOString() : '')}
                         initialFocus
+                        locale={cs}
                       />
                     </PopoverContent>
                   </Popover>
@@ -429,19 +460,27 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                 <FormItem>
                   <FormLabel>Poznámka</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Textarea
+                      placeholder="Zde můžete napsat poznámky k vozidlu..."
+                      className="resize-none h-20"
+                      {...field}
+                      value={field.value || ''}
+                    />
                   </FormControl>
+                  <FormDescription className="text-xs">
+                    {field.value?.length || 0}/{MAX_POZNAMKA_LENGTH} znaků
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
             <div className="flex justify-end space-x-4 pt-4">
-              <Button variant="outline" onClick={handleClose}>
+              <Button type="button" variant="outline" onClick={handleClose}>
                 Zrušit
               </Button>
               <Button type="submit">
-                Přidat
+                {initialData ? 'Aktualizovat' : 'Přidat'}
               </Button>
             </div>
           </form>
