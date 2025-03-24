@@ -56,18 +56,17 @@ L.Icon.Default.mergeOptions({
 
 // Create custom icons for different vehicle statuses
 const createCustomIcon = (status: 'aktivní' | 'servis' | 'vyřazeno') => {
-  const iconUrl = status === 'servis' 
-    ? '/images/marker-service.png' 
-    : status === 'vyřazeno'
-      ? '/images/marker-inactive.png'
-      : '/images/marker-active.png';
-  
-  return new L.Icon({
-    iconUrl,
+  // Use Leaflet's default icon with different colors
+  return new L.Icon.Default({
+    iconUrl: status === 'servis'
+      ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png'
+      : status === 'vyřazeno'
+      ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png'
+      : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
-    shadowUrl: '/images/marker-shadow.png',
     shadowSize: [41, 41]
   });
 };
