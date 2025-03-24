@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MapaVozidla } from './MapaVozidla';
 import { format } from 'date-fns';
-import { cs } from 'date-fns/locale';
+import cs from 'date-fns/locale/cs';
 
 interface GPSZaznam {
   id: number;

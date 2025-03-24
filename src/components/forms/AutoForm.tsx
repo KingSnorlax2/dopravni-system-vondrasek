@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import { useTransition } from 'react'
+import cs from 'date-fns/locale/cs'
 
 const autoSchema = z.object({
   spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -385,16 +386,16 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
-                          variant={"outline"}
+                          variant="outline"
                           className={cn(
                             "w-full pl-3 text-left font-normal",
                             !field.value && "text-muted-foreground"
                           )}
                         >
                           {field.value ? (
-                            format(field.value, "dd.MM.yyyy")
+                            format(new Date(field.value), "dd.MM.yyyy", { locale: cs })
                           ) : (
-                            <span>dd.mm.rrrr</span>
+                            <span>Vyberte datum STK</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -404,9 +405,9 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                       <Calendar
                         mode="single"
                         selected={field.value ? new Date(field.value) : undefined}
-                        onSelect={field.onChange}
+                        onSelect={(date) => field.onChange(date ? date.toISOString() : '')}
                         initialFocus
-                      />  
+                      />
                     </PopoverContent>
                   </Popover>
                   <FormMessage />

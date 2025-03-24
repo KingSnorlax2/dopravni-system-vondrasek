@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { cs } from 'date-fns/locale';
+import cs from 'date-fns/locale/cs';
 
 interface Udrzba {
   id: number;

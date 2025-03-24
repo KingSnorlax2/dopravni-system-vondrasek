@@ -27,6 +27,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { CalendarIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import cs from 'date-fns/locale/cs'
 
 const formSchema = z.object({
   spz: z.string().min(1).max(8),
