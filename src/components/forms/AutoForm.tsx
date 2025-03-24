@@ -99,9 +99,13 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
     }
   })
 
-  const checkSPZExists = async (spz: string): Promise<boolean> => {
+  const checkSPZExists = async (spz: string, excludeId?: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/auta/check-spz?spz=${encodeURIComponent(spz)}`);
+      let url = `/api/auta/check-spz?spz=${encodeURIComponent(spz)}`;
+      if (excludeId) {
+        url += `&excludeId=${encodeURIComponent(excludeId)}`;
+      }
+      const response = await fetch(url);
       const data = await response.json();
       return data.exists;
     } catch (error) {
@@ -115,7 +119,10 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
     setError(null)
     try {
       if (!initialData || (initialData && initialData.spz !== data.spz)) {
-        const exists = await checkSPZExists(data.spz);
+        const exists = await checkSPZExists(
+          data.spz,
+          initialData?.id
+        );
         if (exists) {
           throw new Error('Vozidlo s touto SPZ již existuje');
         }
@@ -125,7 +132,7 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
         ...data,
         rokVyroby: Number(data.rokVyroby),
         najezd: Number(data.najezd),
-        datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
+        datumSTK: data.datumSTK || null,
         fotky
       }
 
