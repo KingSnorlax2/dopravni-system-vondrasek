@@ -28,6 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Sidebar from '@/components/layout/Sidebar';
 
 // Types
 interface DeliveryRoute {
@@ -74,6 +75,20 @@ export default function NewspaperDistributionPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [mounted, setMounted] = useState(false);
+  
+  // Static values for initial render
+  const staticStats = {
+    totalPapers: 4500,
+    deliveredPapers: 2370,
+    activeRoutes: 3,
+    completedRoutes: 1,
+    progressPercentage: 53
+  };
+  
+  // Use state for values that will be calculated
+  const [stats, setStats] = useState(staticStats);
 
   // Load data
   useEffect(() => {
@@ -160,6 +175,15 @@ export default function NewspaperDistributionPage() {
     fetchData();
   }, [selectedDate]);
 
+  useEffect(() => {
+    setMounted(true);
+    // Now it's safe to calculate values on the client
+    setStats({
+      ...staticStats,
+      // Any recalculated values go here
+    });
+  }, []);
+
   // Handlers
   const handleRouteAction = (routeId: string, action: string) => {
     toast({
@@ -222,6 +246,11 @@ export default function NewspaperDistributionPage() {
 
   // Format date for display
   const formattedDate = format(new Date(selectedDate), 'EEEE, d. MMMM yyyy', { locale: cs });
+
+  // Don't render dynamic content until after hydration
+  if (!mounted) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto py-6 max-w-7xl">
