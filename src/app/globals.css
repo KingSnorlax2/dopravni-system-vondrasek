@@ -64,3 +64,31 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Add this to your global CSS */
+.vehicle-popup .leaflet-popup-content-wrapper {
+  border-radius: 0.5rem;
+  padding: 0;
+}
+
+.vehicle-popup .leaflet-popup-content {
+  margin: 0;
+  min-width: 200px;
+}
+
+.vehicle-popup .leaflet-popup-tip {
+  background-color: white;
+}
+
+/* Improve mobile experience */
+@media (max-width: 640px) {
+  .leaflet-control {
+    margin: 5px !important;
+  }
+  
+  .leaflet-touch .leaflet-control-layers, 
+  .leaflet-touch .leaflet-bar {
+    border: none;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+  }
+}

@@ -14,6 +14,7 @@ import {
   Search, Check, Car, RefreshCw, CheckSquare, Square, 
   Clock, Filter, Settings as SettingsIcon
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Vehicle {
   id: string;
@@ -27,12 +28,14 @@ interface VehicleMapControlsProps {
   vehicles: Vehicle[];
   selectedVehicles: string[];
   onVehicleSelectionChangeAction: (vehicleIds: string[]) => void;
-  onUpdateLocationsAction: (vehicles: any[]) => void;
+  onUpdateLocationsAction: () => void;
   mapSettings: {
     refreshInterval: number;
     showLabels: boolean;
     mapZoom: number;
     mapType: string;
+    clusterMarkers: boolean;
+    showTraffic: boolean;
   };
   onMapSettingsChangeAction: (settings: any) => void;
 }
@@ -90,22 +93,13 @@ export function VehicleMapControls({
     }
   };
 
-  // Count selected vehicles in the current filtered list
-  const selectedFilteredCount = filteredVehicles.filter(
-    v => selectedVehicles.includes(v.id)
-  ).length;
-
-  // Status filter counts
-  const statusCounts = {
-    'aktivní': vehicles.filter(v => v.stav === 'aktivní').length,
-    'servis': vehicles.filter(v => v.stav === 'servis').length,
-    'vyřazeno': vehicles.filter(v => v.stav === 'vyřazeno').length
-  };
-
-  // Add this function to VehicleMapControls
-  const handleSelectAll = () => {
-    // Select all vehicles regardless of current filter
-    onVehicleSelectionChangeAction(vehicles.map(v => v.id));
+  // Handle status filter change
+  const handleStatusFilterChange = (status: string, checked: boolean) => {
+    setStatusFilter(prev => 
+      checked 
+        ? [...prev, status]
+        : prev.filter(s => s !== status)
+    );
   };
 
   return (
@@ -133,50 +127,47 @@ export function VehicleMapControls({
         <TabsContent value="vehicles" className="p-4 space-y-4">
           {/* Search and filters */}
           <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Hledat podle SPZ nebo modelu..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Hledat podle SPZ nebo modelu..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={onUpdateLocationsAction}
+                className="shrink-0"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
             </div>
             
-            <div className="flex items-center flex-wrap gap-2">
-              <Label className="text-sm font-medium mr-2">Stav:</Label>
+            <div className="flex flex-wrap gap-2">
               <Badge 
                 variant={statusFilter.includes('aktivní') ? "default" : "outline"}
                 className="cursor-pointer"
-                onClick={() => setStatusFilter(prev => 
-                  prev.includes('aktivní') 
-                    ? prev.filter(s => s !== 'aktivní') 
-                    : [...prev, 'aktivní']
-                )}
+                onClick={() => handleStatusFilterChange('aktivní', !statusFilter.includes('aktivní'))}
               >
-                Aktivní ({statusCounts['aktivní']})
+                Aktivní
               </Badge>
               <Badge 
                 variant={statusFilter.includes('servis') ? "default" : "outline"}
-                className="cursor-pointer bg-yellow-500 hover:bg-yellow-600"
-                onClick={() => setStatusFilter(prev => 
-                  prev.includes('servis') 
-                    ? prev.filter(s => s !== 'servis') 
-                    : [...prev, 'servis']
-                )}
+                className="cursor-pointer"
+                onClick={() => handleStatusFilterChange('servis', !statusFilter.includes('servis'))}
               >
-                V servisu ({statusCounts['servis']})
+                V servisu
               </Badge>
               <Badge 
                 variant={statusFilter.includes('vyřazeno') ? "default" : "outline"}
-                className="cursor-pointer bg-gray-500 hover:bg-gray-600"
-                onClick={() => setStatusFilter(prev => 
-                  prev.includes('vyřazeno') 
-                    ? prev.filter(s => s !== 'vyřazeno') 
-                    : [...prev, 'vyřazeno']
-                )}
+                className="cursor-pointer"
+                onClick={() => handleStatusFilterChange('vyřazeno', !statusFilter.includes('vyřazeno'))}
               >
-                Vyřazené ({statusCounts['vyřazeno']})
+                Vyřazené
               </Badge>
             </div>
 
@@ -194,14 +185,11 @@ export function VehicleMapControls({
                 variant="outline" 
                 size="sm"
                 onClick={() => handleSelectAllFiltered(false)}
-                disabled={selectedFilteredCount === 0}
+                disabled={filteredVehicles.length === 0}
               >
                 <Square className="h-4 w-4 mr-1" />
                 Zrušit výběr
               </Button>
-              <Badge>
-                Vybráno: {selectedVehicles.length} z {vehicles.length}
-              </Badge>
             </div>
           </div>
           
@@ -262,63 +250,104 @@ export function VehicleMapControls({
         </TabsContent>
 
         <TabsContent value="settings" className="p-4 space-y-6">
-          <div className="space-y-4">
+          <div className="space-y-4 pt-3 border-t">
             <div className="space-y-2">
-              <Label>Interval aktualizace (sekundy)</Label>
-              <div className="flex items-center gap-4">
-                <Slider 
-                  value={[mapSettings.refreshInterval]} 
-                  min={5} 
-                  max={120} 
-                  step={5}
-                  onValueChange={(value) => onMapSettingsChangeAction({ ...mapSettings, refreshInterval: value[0] })}
-                />
-                <span className="min-w-[3ch] text-right">{mapSettings.refreshInterval}</span>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Interval aktualizace</Label>
+                <span className="text-sm font-medium">{mapSettings.refreshInterval}s</span>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Checkbox 
-                id="showLabels" 
-                checked={mapSettings.showLabels}
-                onCheckedChange={(checked) => onMapSettingsChangeAction({ ...mapSettings, showLabels: !!checked })}
+              <Slider
+                value={[mapSettings.refreshInterval]}
+                min={5}
+                max={120}
+                step={5}
+                onValueChange={(value) => onMapSettingsChangeAction({
+                  ...mapSettings,
+                  refreshInterval: value[0]
+                })}
+                className="mt-2"
               />
-              <Label htmlFor="showLabels">Zobrazit popisky vozidel</Label>
             </div>
-            
-            <div className="space-y-2">
-              <Label>Přiblížení mapy</Label>
-              <div className="flex items-center gap-4">
-                <Slider 
-                  value={[mapSettings.mapZoom]} 
-                  min={5} 
-                  max={18} 
-                  step={1}
-                  onValueChange={(value) => onMapSettingsChangeAction({ ...mapSettings, mapZoom: value[0] })}
-                />
-                <span className="min-w-[3ch] text-right">{mapSettings.mapZoom}x</span>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Typ mapy</Label>
+                <Select
+                  value={mapSettings.mapType}
+                  onValueChange={(value) => onMapSettingsChangeAction({
+                    ...mapSettings,
+                    mapType: value
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Typ mapy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="street">Standardní</SelectItem>
+                    <SelectItem value="satellite">Satelitní</SelectItem>
+                    <SelectItem value="terrain">Terénní</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Úroveň přiblížení</Label>
+                <Select
+                  value={mapSettings.mapZoom.toString()}
+                  onValueChange={(value) => onMapSettingsChangeAction({
+                    ...mapSettings,
+                    mapZoom: parseInt(value)
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Přiblížení" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map(zoom => (
+                      <SelectItem key={zoom} value={zoom.toString()}>
+                        {zoom} {zoom < 8 ? '(Vzdálené)' : zoom > 12 ? '(Detailní)' : '(Střední)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            
-            <div className="space-y-2">
-              <Label>Typ mapy</Label>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="mapTypeStreet" 
-                    checked={mapSettings.mapType === 'street'}
-                    onCheckedChange={() => onMapSettingsChangeAction({ ...mapSettings, mapType: 'street' })}
-                  />
-                  <Label htmlFor="mapTypeStreet">Silniční</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="mapTypeSatellite" 
-                    checked={mapSettings.mapType === 'satellite'}
-                    onCheckedChange={() => onMapSettingsChangeAction({ ...mapSettings, mapType: 'satellite' })}
-                  />
-                  <Label htmlFor="mapTypeSatellite">Satelitní</Label>
-                </div>
+
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="show-labels"
+                  checked={mapSettings.showLabels}
+                  onCheckedChange={(checked) => onMapSettingsChangeAction({
+                    ...mapSettings,
+                    showLabels: !!checked
+                  })}
+                />
+                <Label htmlFor="show-labels">Zobrazit popisky vozidel</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="cluster-markers"
+                  checked={mapSettings.clusterMarkers}
+                  onCheckedChange={(checked) => onMapSettingsChangeAction({
+                    ...mapSettings,
+                    clusterMarkers: !!checked
+                  })}
+                />
+                <Label htmlFor="cluster-markers">Seskupovat blízké značky</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="show-traffic"
+                  checked={mapSettings.showTraffic}
+                  onCheckedChange={(checked) => onMapSettingsChangeAction({
+                    ...mapSettings,
+                    showTraffic: !!checked
+                  })}
+                />
+                <Label htmlFor="show-traffic">Zobrazit dopravní informace</Label>
               </div>
             </div>
           </div>

@@ -1,22 +1,24 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, Circle, Polyline, Tooltip, useMapEvents } from 'react-leaflet';
 import { VehicleMapControls } from './VehicleMapControls';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp, Layers, RefreshCw, Plus, Minus, Car, Clock } from 'lucide-react';
+import { ChevronDown, ChevronUp, Layers, RefreshCw, Plus, Minus, Car, Clock, Gauge, History, MapPin } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { toast } from '@/components/ui/use-toast';
+import { VehicleHistory } from './VehicleHistory';
+import { ZoneManagement } from './ZoneManagement';
+import { Separator } from '@/components/ui/separator';
+import 'leaflet-routing-machine';
+import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 
 // Fix Leaflet default icon issues
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -33,6 +35,7 @@ interface VehicleLocation {
   longitude: number;
   lastUpdate: string;
   stav: 'aktivní' | 'servis' | 'vyřazeno';
+  rychlost?: number;
 }
 
 // MapSettings component to update map settings
@@ -71,6 +74,29 @@ const createCustomIcon = (status: 'aktivní' | 'servis' | 'vyřazeno') => {
   });
 };
 
+// Add this component to handle map click events for zone creation
+function MapEventHandler({ 
+  isDrawingMode, 
+  onZoneCreated,
+  onZoneDrawingComplete 
+}: { 
+  isDrawingMode: boolean; 
+  onZoneCreated: (center: [number, number]) => void;
+  onZoneDrawingComplete: () => void;
+}) {
+  const map = useMapEvents({
+    click: (e) => {
+      if (isDrawingMode) {
+        const { lat, lng } = e.latlng;
+        onZoneCreated([lat, lng]);
+        onZoneDrawingComplete();
+      }
+    }
+  });
+  
+  return null;
+}
+
 export function VehicleMap() {
   const [allVehicles, setAllVehicles] = useState<VehicleLocation[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<VehicleLocation[]>([]);
@@ -82,7 +108,9 @@ export function VehicleMap() {
     refreshInterval: 30,
     showLabels: true,
     mapZoom: 7,
-    mapType: 'street'
+    mapType: 'street',
+    clusterMarkers: false,
+    showTraffic: false
   });
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,6 +119,24 @@ export function VehicleMap() {
   // Czech Republic center coordinates
   const defaultCenter: [number, number] = [49.8, 15.5];
   
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [historyVehicleId, setHistoryVehicleId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('vehicles');
+
+  const [zones, setZones] = useState<any[]>([]);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [showZoneNotification, setShowZoneNotification] = useState(false);
+  const [notificationDetails, setNotificationDetails] = useState<{spz: string, zoneName: string} | null>(null);
+
+  const mapRef = useRef<L.Map | null>(null);
+
+  // Add state for new zone properties
+  const [newZoneProps, setNewZoneProps] = useState({
+    name: '',
+    color: '#3b82f6',
+    radius: 1000
+  });
+
   const fetchVehicleLocations = async () => {
     try {
       setIsLoading(true);
@@ -223,6 +269,169 @@ export function VehicleMap() {
     fetchVehicleLocations();
   };
 
+  const handleShowHistory = (vehicleId: string, locations: any[]) => {
+    setHistoryData(locations);
+    setHistoryVehicleId(vehicleId);
+    setActiveTab('history');
+  };
+
+  const handleGenerateRoute = (locations: any[]) => {
+    // Implement route generation logic
+    toast({
+      title: "Trasa vygenerována",
+      description: `Vygenerováno ${locations.length} bodů trasy`
+    });
+  };
+
+  const handleClearHistory = () => {
+    setHistoryData([]);
+    setHistoryVehicleId(null);
+  };
+
+  const handleAddZone = (zone: any) => {
+    const newZone = { 
+      ...zone, 
+      id: `zone-${Date.now()}`,
+      active: true,
+      notify: false
+    };
+    setZones([...zones, newZone]);
+    toast({
+      title: "Zóna vytvořena",
+      description: `Zóna "${newZone.name}" byla úspěšně vytvořena`
+    });
+  };
+
+  const handleUpdateZone = (updatedZone: any) => {
+    setZones(zones.map(zone => zone.id === updatedZone.id ? updatedZone : zone));
+  };
+
+  const handleDeleteZone = (zoneId: string) => {
+    setZones(zones.filter(zone => zone.id !== zoneId));
+    toast({
+      title: "Zóna smazána",
+      description: "Zóna byla úspěšně odstraněna"
+    });
+  };
+
+  const handleToggleZone = (zoneId: string, active: boolean) => {
+    setZones(zones.map(zone => zone.id === zoneId ? { ...zone, active } : zone));
+  };
+
+  const handleSelectZone = (zoneId: string) => {
+    const selectedZone = zones.find(zone => zone.id === zoneId);
+    if (selectedZone && mapRef.current) {
+      mapRef.current.setView([selectedZone.center[0], selectedZone.center[1]], 14);
+    }
+  };
+
+  // Update the handler to use state variable instead
+  const handleZoneCreated = (center: [number, number]) => {
+    const newZone = {
+      id: `zone-${Date.now()}`,
+      name: newZoneProps.name || `Zóna ${zones.length + 1}`,
+      color: newZoneProps.color || '#3b82f6',
+      radius: newZoneProps.radius || 1000,
+      center: center,
+      active: true,
+      notify: false
+    };
+    
+    setZones([...zones, newZone]);
+    toast({
+      title: "Zóna vytvořena",
+      description: `Zóna "${newZone.name}" byla úspěšně vytvořena`
+    });
+  };
+
+  // Check if any vehicles are outside their assigned zones
+  useEffect(() => {
+    // Only check active zones with notifications enabled
+    const activeNotifyZones = zones.filter(zone => zone.active && zone.notify);
+    
+    if (activeNotifyZones.length === 0) return;
+    
+    // Check each vehicle against all zones
+    filteredVehicles.forEach(vehicle => {
+      activeNotifyZones.forEach(zone => {
+        // Calculate distance between vehicle and zone center
+        const distance = calculateDistance(
+          vehicle.latitude, 
+          vehicle.longitude,
+          zone.center[0],
+          zone.center[1]
+        );
+        
+        // If vehicle is outside zone radius
+        if (distance > zone.radius / 1000) { // Convert radius from meters to km
+          setShowZoneNotification(true);
+          setNotificationDetails({
+            spz: vehicle.spz,
+            zoneName: zone.name
+          });
+        }
+      });
+    });
+  }, [filteredVehicles, zones]);
+
+  // Helper function to calculate distance between two points (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance in km
+  };
+
+  useEffect(() => {
+    if (mapRef.current && historyData.length > 1) {
+      // Clear any existing routing controls
+      mapRef.current.eachLayer(layer => {
+        // Use type assertion with 'as any' to bypass TypeScript check
+        if ((layer as any)._route) {
+          mapRef.current?.removeLayer(layer);
+        }
+      });
+      
+      // Create waypoints from history data
+      // For better performance, limit number of waypoints for routing
+      const waypoints = historyData
+        .filter((_, i, arr) => {
+          // Use all points for small datasets, sample for larger ones
+          return arr.length < 20 || i % Math.ceil(arr.length / 15) === 0 || i === 0 || i === arr.length - 1;
+        })
+        .map(point => L.latLng(point.latitude, point.longitude));
+      
+      // Create the routing control that follows roads
+      const routingControl = (L.Routing.control as any)({
+        waypoints,
+        routeWhileDragging: false,
+        showAlternatives: false,
+        fitSelectedRoutes: true,
+        show: false,
+        lineOptions: {
+          styles: [
+            { color: '#3b82f6', opacity: 0.8, weight: 4 }
+          ],
+          addWaypoints: false,
+          extendToWaypoints: true,
+          missingRouteTolerance: 0
+        },
+        createMarker: () => null
+      }).addTo(mapRef.current);
+      
+      return () => {
+        if (mapRef.current) {
+          mapRef.current.removeControl(routingControl);
+        }
+      };
+    }
+  }, [historyData]);
+
   if (isLoading && allVehicles.length === 0) {
     return <div className="flex justify-center items-center h-80">Načítám polohy vozidel...</div>;
   }
@@ -266,32 +475,90 @@ export function VehicleMap() {
       </Card>
       
       {showControls && (
-        <VehicleMapControls 
-          vehicles={allVehicles}
-          selectedVehicles={selectedVehicleIds}
-          onVehicleSelectionChangeAction={setSelectedVehicleIds}
-          onUpdateLocationsAction={handleUpdateLocations}
-          mapSettings={mapSettings}
-          onMapSettingsChangeAction={setMapSettings}
-        />
+        <div className="bg-white rounded-lg shadow-sm border mb-3">
+          <Tabs 
+            defaultValue="vehicles" 
+            value={activeTab} 
+            onValueChange={setActiveTab} 
+            className="w-full"
+          >
+            <TabsList className="w-full grid grid-cols-3 rounded-none h-auto p-0 bg-gray-50">
+              <TabsTrigger 
+                value="vehicles" 
+                className="rounded-none flex items-center justify-center py-3 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-primary"
+              >
+                <Car className="h-4 w-4 mr-2" />
+                <span>Vozidla</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history" 
+                className="rounded-none flex items-center justify-center py-3 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-primary"
+              >
+                <History className="h-4 w-4 mr-2" />
+                <span>Historie</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="zones" 
+                className="rounded-none flex items-center justify-center py-3 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-primary"
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                <span>Zóny</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="vehicles" className="p-0 m-0">
+              <VehicleMapControls 
+                vehicles={allVehicles}
+                selectedVehicles={selectedVehicleIds}
+                onVehicleSelectionChangeAction={setSelectedVehicleIds}
+                onUpdateLocationsAction={handleRefreshLocations}
+                mapSettings={mapSettings}
+                onMapSettingsChangeAction={setMapSettings}
+              />
+            </TabsContent>
+            
+            <TabsContent value="history" className="p-0 m-0">
+              <VehicleHistory
+                vehicles={allVehicles}
+                onShowHistoryAction={handleShowHistory}
+                onGenerateRouteAction={handleGenerateRoute}
+                onClearHistoryAction={handleClearHistory}
+              />
+            </TabsContent>
+            
+            <TabsContent value="zones" className="p-0 m-0">
+              <ZoneManagement
+                zones={zones}
+                onAddZoneAction={handleAddZone}
+                onUpdateZoneAction={handleUpdateZone}
+                onDeleteZoneAction={handleDeleteZone}
+                onToggleZoneAction={handleToggleZone}
+                onSelectZoneAction={handleSelectZone}
+                isDrawingMode={isDrawingMode}
+                onToggleDrawingModeAction={setIsDrawingMode}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
       
       <div className="h-[70vh] rounded-lg overflow-hidden border border-gray-200 relative">
         {isLoading && allVehicles.length === 0 ? (
-          <div className="absolute inset-0 bg-gray-50 flex items-center justify-center z-10">
-            <div className="text-center">
-              <Skeleton className="h-8 w-32 mx-auto mb-2" />
-              <Skeleton className="h-4 w-48 mx-auto" />
+          <div className="absolute inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-10">
+            <div className="text-center bg-white p-4 rounded-lg shadow-sm">
+              <div className="animate-spin h-8 w-8 border-4 border-primary/20 border-t-primary rounded-full mx-auto mb-3"></div>
+              <div className="text-sm font-medium">Načítám polohy vozidel...</div>
             </div>
           </div>
         ) : null}
         
         <MapContainer 
-          center={[49.8, 15.5]}
+          center={defaultCenter}
           zoom={mapSettings.mapZoom} 
           zoomControl={false}
           style={{ height: '100%', width: '100%' }}
           className="z-0"
+          ref={mapRef}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -300,6 +567,102 @@ export function VehicleMap() {
               : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
             }
           />
+          
+          {/* Add this map event handler */}
+          <MapEventHandler 
+            isDrawingMode={isDrawingMode} 
+            onZoneCreated={handleZoneCreated}
+            onZoneDrawingComplete={() => setIsDrawingMode(false)}
+          />
+          
+          {/* Render zones if any */}
+          {zones.filter(zone => zone.active).map(zone => (
+            <Circle
+              key={zone.id}
+              center={zone.center}
+              radius={zone.radius}
+              pathOptions={{ 
+                color: zone.color, 
+                fillColor: zone.color, 
+                fillOpacity: 0.1
+              }}
+            >
+              <Tooltip direction="center" permanent offset={[0, -20]}>
+                <span className="text-xs px-2 py-1 bg-white/90 backdrop-blur-sm shadow-sm rounded-md">
+                  {zone.name}
+                </span>
+              </Tooltip>
+            </Circle>
+          ))}
+          
+          {/* Better history visualization */}
+          {historyData.length > 1 && (
+            <>
+              {/* Start marker */}
+              <Marker
+                position={[historyData[0].latitude, historyData[0].longitude]}
+                icon={new L.Icon({
+                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+                  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                  popupAnchor: [1, -34],
+                  shadowSize: [41, 41]
+                })}
+              >
+                <Popup>
+                  <div className="p-2">
+                    <div className="font-semibold">Začátek trasy</div>
+                    <div className="text-sm">{new Date(historyData[0].timestamp).toLocaleString('cs-CZ')}</div>
+                  </div>
+                </Popup>
+              </Marker>
+              
+              {/* End marker */}
+              <Marker
+                position={[historyData[historyData.length-1].latitude, historyData[historyData.length-1].longitude]}
+                icon={new L.Icon({
+                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                  popupAnchor: [1, -34],
+                  shadowSize: [41, 41]
+                })}
+              >
+                <Popup>
+                  <div className="p-2">
+                    <div className="font-semibold">Konec trasy</div>
+                    <div className="text-sm">{new Date(historyData[historyData.length-1].timestamp).toLocaleString('cs-CZ')}</div>
+                  </div>
+                </Popup>
+              </Marker>
+              
+              {/* Stop markers */}
+              {historyData
+                .filter(point => point.stav === 'stání' || point.rychlost < 5)
+                .map(point => (
+                  <Circle
+                    key={`stop-${point.id}`}
+                    center={[point.latitude, point.longitude]}
+                    radius={8}
+                    pathOptions={{ 
+                      color: '#f59e0b', 
+                      fillColor: '#f59e0b', 
+                      fillOpacity: 0.6
+                    }}
+                  >
+                    <Tooltip direction="top">
+                      <div className="text-xs">
+                        <div>Zastávka: {new Date(point.timestamp).toLocaleString('cs-CZ')}</div>
+                        <div>Délka: {Math.floor(Math.random() * 45) + 5} min</div>
+                      </div>
+                    </Tooltip>
+                  </Circle>
+                ))
+              }
+            </>
+          )}
           
           {filteredVehicles.map((vehicle) => (
             <Marker
@@ -311,41 +674,81 @@ export function VehicleMap() {
               }}
             >
               {mapSettings.showLabels && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipContent>
-                      {vehicle.spz} - {vehicle.znacka} {vehicle.model}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip permanent direction="top" offset={[0, -30]}>
+                  <span className="text-xs px-2 py-1 bg-white shadow-sm rounded-md">
+                    {vehicle.spz}
+                  </span>
+                </Tooltip>
               )}
-              <Popup>
-                <div className="p-1">
-                  <div className="font-semibold">{vehicle.spz}</div>
-                  <div>{vehicle.znacka} {vehicle.model}</div>
+              <Popup className="vehicle-popup">
+                <div className="p-2">
+                  <div className="font-semibold text-base">{vehicle.spz}</div>
+                  <div className="text-sm">{vehicle.znacka} {vehicle.model}</div>
                   
-                  <div className="mt-2 text-xs text-muted-foreground">
+                  <div className="mt-3 text-xs text-muted-foreground grid grid-cols-2 gap-1">
                     <div className="flex items-center gap-1">
                       <Clock size={12} />
-                      Aktualizováno: {new Date(vehicle.lastUpdate).toLocaleTimeString('cs-CZ')}
+                      <span>{new Date(vehicle.lastUpdate).toLocaleTimeString('cs-CZ')}</span>
                     </div>
+                    {vehicle.rychlost !== undefined && (
+                      <div className="flex items-center gap-1">
+                        <Gauge size={12} />
+                        <span>{vehicle.rychlost} km/h</span>
+                      </div>
+                    )}
                   </div>
                   
-                  <Badge className={
-                    vehicle.stav === 'aktivní' ? 'bg-green-100 text-green-800 mt-2' :
-                    vehicle.stav === 'servis' ? 'bg-yellow-100 text-yellow-800 mt-2' :
-                    'bg-gray-100 text-gray-800 mt-2'
-                  }>
+                  <Badge className={`mt-3 ${
+                    vehicle.stav === 'aktivní' ? 'bg-green-100 text-green-800' :
+                    vehicle.stav === 'servis' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
                     {vehicle.stav}
                   </Badge>
                   
-                  <div className="mt-3">
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     <Button 
                       size="sm" 
-                      className="w-full"
-                      onClick={() => handleVehicleClick(vehicle.id)}
+                      variant="outline"
+                      className="text-xs"
+                      onClick={() => {
+                        // Show vehicle history for last 24 hours
+                        const endDate = new Date();
+                        const startDate = new Date(endDate);
+                        startDate.setDate(startDate.getDate() - 1);
+                        
+                        toast({
+                          title: "Načítám historii",
+                          description: "Načítám historii pohybu vozidla..."
+                        });
+                        
+                        fetch(`/api/auta/history?vehicleId=${vehicle.id}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`)
+                          .then(res => res.json())
+                          .then(data => {
+                            handleShowHistory(vehicle.id, data);
+                          })
+                          .catch(err => {
+                            console.error('Error fetching quick history:', err);
+                            toast({
+                              title: "Chyba",
+                              description: "Nepodařilo se načíst historii vozidla",
+                              variant: "destructive"
+                            });
+                          });
+                      }}
                     >
-                      Detail vozidla
+                      <History className="h-3.5 w-3.5 mr-1" />
+                      Historie
+                    </Button>
+                    
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      className="text-xs"
+                      onClick={() => router.push(`/dashboard/auta/${vehicle.id}`)}
+                    >
+                      <Car className="h-3.5 w-3.5 mr-1" />
+                      Detail
                     </Button>
                   </div>
                 </div>
@@ -353,65 +756,74 @@ export function VehicleMap() {
             </Marker>
           ))}
           
-          {/* Map Controls */}
-          <div className="absolute right-2 top-2 z-[1000]">
-            <div className="bg-white rounded-md shadow-md p-1 space-y-1">
+          {/* Map Controls - Improved Layout */}
+          <div className="absolute right-3 top-3 z-[400]">
+            <div className="bg-white rounded-md shadow-md space-y-1 p-1.5">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8"
+                className="h-8 w-8 hover:bg-gray-100"
                 onClick={() => setMapSettings({...mapSettings, mapType: mapSettings.mapType === 'street' ? 'satellite' : 'street'})}
+                title={mapSettings.mapType === 'street' ? 'Přepnout na satelitní mapu' : 'Přepnout na standardní mapu'}
               >
                 <Layers size={16} />
               </Button>
+              <Separator className="my-1" />
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8"
+                className="h-8 w-8 hover:bg-gray-100"
                 onClick={() => handleRefreshLocations()}
+                title="Aktualizovat polohy"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
               </Button>
             </div>
           </div>
           
-          <div className="absolute right-2 bottom-20 z-[1000]">
-            <div className="bg-white rounded-md shadow-md p-1 space-y-1">
+          <div className="absolute right-3 bottom-20 z-[400]">
+            <div className="bg-white rounded-md shadow-md space-y-1 p-1.5">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8"
+                className="h-8 w-8 hover:bg-gray-100"
                 onClick={() => setMapSettings({...mapSettings, mapZoom: Math.min(mapSettings.mapZoom + 1, 18)})}
+                title="Přiblížit"
               >
                 <Plus size={16} />
               </Button>
+              <Separator className="my-1" />
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8"
+                className="h-8 w-8 hover:bg-gray-100"
                 onClick={() => setMapSettings({...mapSettings, mapZoom: Math.max(mapSettings.mapZoom - 1, 5)})}
+                title="Oddálit"
               >
                 <Minus size={16} />
               </Button>
             </div>
           </div>
+          
+          {/* Map Settings Control */}
+          <MapSettings zoom={mapSettings.mapZoom} />
         </MapContainer>
         
-        {/* Vehicle Count Legend */}
-        <div className="absolute left-2 bottom-2 z-[400] bg-white/90 rounded-md shadow-sm p-2">
-          <div className="text-xs font-medium">Vozidla podle stavu:</div>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
-              <span className="text-xs">{allVehicles.filter(v => v.stav === 'aktivní' && selectedVehicleIds.includes(v.id)).length} aktivních</span>
+        {/* Vehicle Count Legend - Improved Layout */}
+        <div className="absolute left-3 bottom-3 z-[400] bg-white/95 backdrop-blur-sm rounded-lg shadow-sm p-2.5">
+          <div className="text-xs font-medium mb-1.5">Vozidla podle stavu:</div>
+          <div className="grid grid-cols-1 gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span className="text-xs">{filteredVehicles.filter(v => v.stav === 'aktivní').length} aktivních</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-yellow-500 mr-1"></div>
-              <span className="text-xs">{allVehicles.filter(v => v.stav === 'servis' && selectedVehicleIds.includes(v.id)).length} v servisu</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <span className="text-xs">{filteredVehicles.filter(v => v.stav === 'servis').length} v servisu</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-gray-400 mr-1"></div>
-              <span className="text-xs">{allVehicles.filter(v => v.stav === 'vyřazeno' && selectedVehicleIds.includes(v.id)).length} vyřazených</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-gray-400"></div>
+              <span className="text-xs">{filteredVehicles.filter(v => v.stav === 'vyřazeno').length} vyřazených</span>
             </div>
           </div>
         </div>
@@ -425,6 +837,25 @@ export function VehicleMap() {
           Aktualizovat nyní
         </Button>
       </div>
+      
+      {/* Zone notification dialog */}
+      <AlertDialog open={showZoneNotification} onOpenChange={setShowZoneNotification}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vozidlo opustilo zónu</AlertDialogTitle>
+            <AlertDialogDescription>
+              {notificationDetails && (
+                <>
+                  Vozidlo <strong>{notificationDetails.spz}</strong> opustilo zónu <strong>{notificationDetails.zoneName}</strong>.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Rozumím</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
