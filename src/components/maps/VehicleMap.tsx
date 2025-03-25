@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp, Layers, RefreshCw, Plus, Minus, Car, Clock, Gauge, History, MapPin } from 'lucide-react';
+import { ChevronDown, ChevronUp, Layers, RefreshCw, Plus, Minus, Car, Clock, Gauge, History, MapPin, Newspaper } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { toast } from '@/components/ui/use-toast';
@@ -19,6 +19,7 @@ import { ZoneManagement } from './ZoneManagement';
 import { Separator } from '@/components/ui/separator';
 import 'leaflet-routing-machine';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
+import { NewspaperDistribution } from './NewspaperDistribution';
 
 // Fix Leaflet default icon issues
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -136,6 +137,8 @@ export function VehicleMap() {
     color: '#3b82f6',
     radius: 1000
   });
+
+  const [highlightedZoneId, setHighlightedZoneId] = useState<string | null>(null);
 
   const fetchVehicleLocations = async () => {
     try {
@@ -432,6 +435,25 @@ export function VehicleMap() {
     }
   }, [historyData]);
 
+  const handleHighlightZone = (zoneId: string) => {
+    setHighlightedZoneId(zoneId);
+    
+    // Find the zone
+    const zone = zones.find(z => z.id === zoneId);
+    if (zone && mapRef.current) {
+      // Center map on the zone
+      mapRef.current.setView([zone.center[0], zone.center[1]], 14);
+      
+      // Make the zone "pulse" to highlight it
+      // You could add animation or different style here
+      
+      // After 2 seconds, remove the highlight
+      setTimeout(() => {
+        setHighlightedZoneId(null);
+      }, 2000);
+    }
+  };
+
   if (isLoading && allVehicles.length === 0) {
     return <div className="flex justify-center items-center h-80">Načítám polohy vozidel...</div>;
   }
@@ -504,6 +526,13 @@ export function VehicleMap() {
                 <MapPin className="h-4 w-4 mr-2" />
                 <span>Zóny</span>
               </TabsTrigger>
+              <TabsTrigger 
+                value="newspaper" 
+                className="rounded-none flex items-center justify-center py-3 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-primary"
+              >
+                <Newspaper className="h-4 w-4 mr-2" />
+                <span>Distribuce novin</span>
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="vehicles" className="p-0 m-0">
@@ -536,6 +565,26 @@ export function VehicleMap() {
                 onSelectZoneAction={handleSelectZone}
                 isDrawingMode={isDrawingMode}
                 onToggleDrawingModeAction={setIsDrawingMode}
+              />
+            </TabsContent>
+            
+            <TabsContent value="newspaper" className="p-0 m-0">
+              <NewspaperDistribution
+                vehicles={allVehicles}
+                onSelectVehicleAction={(vehicleId) => {
+                  setSelectedVehicleIds([vehicleId]);
+                  const vehicle = allVehicles.find(v => v.id === vehicleId);
+                  if (vehicle && mapRef.current) {
+                    mapRef.current.setView([vehicle.latitude, vehicle.longitude], 15);
+                  }
+                }}
+                onAssignRouteAction={(vehicleId, routeId) => {
+                  toast({
+                    title: "Trasa přiřazena",
+                    description: `Trasa ${routeId} byla přiřazena vozidlu ${vehicleId}`
+                  });
+                }}
+                onHighlightZoneAction={handleHighlightZone}
               />
             </TabsContent>
           </Tabs>
@@ -582,9 +631,11 @@ export function VehicleMap() {
               center={zone.center}
               radius={zone.radius}
               pathOptions={{ 
-                color: zone.color, 
+                color: highlightedZoneId === zone.id ? '#ff3b30' : zone.color, 
                 fillColor: zone.color, 
-                fillOpacity: 0.1
+                fillOpacity: highlightedZoneId === zone.id ? 0.3 : 0.1,
+                weight: highlightedZoneId === zone.id ? 3 : 1,
+                dashArray: highlightedZoneId === zone.id ? '5, 5' : undefined
               }}
             >
               <Tooltip direction="center" permanent offset={[0, -20]}>
