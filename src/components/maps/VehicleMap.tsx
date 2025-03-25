@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, Circle, Polyline, Tooltip, useMapEvents } from 'react-leaflet';
 import { VehicleMapControls } from './VehicleMapControls';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import 'leaflet/dist/leaflet.css';
@@ -20,6 +20,8 @@ import { Separator } from '@/components/ui/separator';
 import 'leaflet-routing-machine';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 import { NewspaperDistribution } from './NewspaperDistribution';
+import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
+import 'leaflet-defaulticon-compatibility';
 
 // Fix Leaflet default icon issues
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -61,7 +63,7 @@ L.Icon.Default.mergeOptions({
 // Create custom icons for different vehicle statuses
 const createCustomIcon = (status: 'aktivní' | 'servis' | 'vyřazeno') => {
   // Use Leaflet's default icon with different colors
-  return new L.Icon.Default({
+  return new L.Icon({
     iconUrl: status === 'servis'
       ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png'
       : status === 'vyřazeno'
@@ -130,6 +132,19 @@ export function VehicleMap() {
   const [notificationDetails, setNotificationDetails] = useState<{spz: string, zoneName: string} | null>(null);
 
   const mapRef = useRef<L.Map | null>(null);
+
+  // Remove the mapContainerRef and use a simpler approach
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Initialize Leaflet icons
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: markerIcon2x.src,
+        iconUrl: markerIcon.src,
+        shadowUrl: markerShadow.src,
+      });
+    }
+  }, []);
 
   // Add state for new zone properties
   const [newZoneProps, setNewZoneProps] = useState({
@@ -473,313 +488,165 @@ export function VehicleMap() {
   }
 
   return (
-    <div className="space-y-2">
-      <Card className="p-2 flex justify-between items-center border-b">
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setShowControls(!showControls)}
-            className="h-8 px-2"
-          >
-            {showControls ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            <span className="ml-2">{showControls ? 'Skrýt ovládání' : 'Zobrazit ovládání'}</span>
-          </Button>
-          
-          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-            {filteredVehicles.length} vozidel
-          </Badge>
-        </div>
-        
-        <div className="text-xs text-muted-foreground">
-          Poslední aktualizace: {currentTime.toLocaleTimeString('cs-CZ')}
-        </div>
-      </Card>
-      
+    <div className="relative h-full w-full">
+      {/* Vehicle control sidebar */}
       {showControls && (
-        <div className="bg-white rounded-lg shadow-sm border mb-3">
-          <Tabs 
-            defaultValue="vehicles" 
-            value={activeTab} 
-            onValueChange={setActiveTab} 
-            className="w-full"
-          >
-            <TabsList className="w-full grid grid-cols-3 rounded-none h-auto p-0 bg-gray-50">
-              <TabsTrigger 
-                value="vehicles" 
-                className="rounded-none flex items-center justify-center py-3 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-primary"
-              >
-                <Car className="h-4 w-4 mr-2" />
-                <span>Vozidla</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="history" 
-                className="rounded-none flex items-center justify-center py-3 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-primary"
-              >
-                <History className="h-4 w-4 mr-2" />
-                <span>Historie</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="zones" 
-                className="rounded-none flex items-center justify-center py-3 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-primary"
-              >
-                <MapPin className="h-4 w-4 mr-2" />
-                <span>Zóny</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="newspaper" 
-                className="rounded-none flex items-center justify-center py-3 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-primary"
-              >
-                <Newspaper className="h-4 w-4 mr-2" />
-                <span>Distribuce novin</span>
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="vehicles" className="p-0 m-0">
-              <VehicleMapControls 
-                vehicles={allVehicles}
-                selectedVehicles={selectedVehicleIds}
-                onVehicleSelectionChangeAction={setSelectedVehicleIds}
-                onUpdateLocationsAction={handleRefreshLocations}
-                mapSettings={mapSettings}
-                onMapSettingsChangeAction={setMapSettings}
-              />
-            </TabsContent>
-            
-            <TabsContent value="history" className="p-0 m-0">
-              <VehicleHistory
-                vehicles={allVehicles}
-                onShowHistoryAction={handleShowHistory}
-                onGenerateRouteAction={handleGenerateRoute}
-                onClearHistoryAction={handleClearHistory}
-              />
-            </TabsContent>
-            
-            <TabsContent value="zones" className="p-0 m-0">
-              <ZoneManagement
-                zones={zones}
-                onAddZoneAction={handleAddZone}
-                onUpdateZoneAction={handleUpdateZone}
-                onDeleteZoneAction={handleDeleteZone}
-                onToggleZoneAction={handleToggleZone}
-                onSelectZoneAction={handleSelectZone}
-                isDrawingMode={isDrawingMode}
-                onToggleDrawingModeAction={setIsDrawingMode}
-              />
-            </TabsContent>
-            
-            <TabsContent value="newspaper" className="p-0 m-0">
-              <NewspaperDistribution
-                vehicles={allVehicles}
-                onSelectVehicleAction={(vehicleId) => {
-                  setSelectedVehicleIds([vehicleId]);
-                  const vehicle = allVehicles.find(v => v.id === vehicleId);
-                  if (vehicle && mapRef.current) {
-                    mapRef.current.setView([vehicle.latitude, vehicle.longitude], 15);
-                  }
-                }}
-                onAssignRouteAction={(vehicleId, routeId) => {
-                  toast({
-                    title: "Trasa přiřazena",
-                    description: `Trasa ${routeId} byla přiřazena vozidlu ${vehicleId}`
-                  });
-                }}
-                onHighlightZoneAction={handleHighlightZone}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+        <VehicleMapControls 
+          vehicles={allVehicles}
+          selectedVehicles={selectedVehicleIds}
+          onVehicleSelectionChangeAction={setSelectedVehicleIds}
+          onUpdateLocationsAction={handleRefreshLocations}
+          mapSettings={mapSettings}
+          onMapSettingsChangeAction={setMapSettings}
+        />
       )}
       
-      <div className="h-[70vh] rounded-lg overflow-hidden border border-gray-200 relative">
-        {isLoading && allVehicles.length === 0 ? (
-          <div className="absolute inset-0 bg-gray-50/80 backdrop-blur-sm flex items-center justify-center z-10">
-            <div className="text-center bg-white p-4 rounded-lg shadow-sm">
-              <div className="animate-spin h-8 w-8 border-4 border-primary/20 border-t-primary rounded-full mx-auto mb-3"></div>
-              <div className="text-sm font-medium">Načítám polohy vozidel...</div>
-            </div>
-          </div>
-        ) : null}
-        
-        <MapContainer 
+      {!showControls && (
+        <Button
+          variant="outline"
+          className="absolute left-4 top-4 z-[1000] bg-white"
+          onClick={() => setShowControls(true)}
+        >
+          <ChevronDown className="h-4 w-4 mr-2" />
+          Vozidla
+        </Button>
+      )}
+      
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-50">
+          <Card className="w-96">
+            <CardHeader>
+              <CardTitle>Chyba při načítání dat</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{error}</p>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={() => fetchVehicleLocations()}>Zkusit znovu</Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
+
+      {typeof window !== 'undefined' && (
+        <MapContainer
           center={defaultCenter}
-          zoom={mapSettings.mapZoom} 
+          zoom={mapSettings.mapZoom}
+          style={{ height: "100%", width: "100%" }}
           zoomControl={false}
-          style={{ height: '100%', width: '100%' }}
-          className="z-0"
           ref={mapRef}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url={mapSettings.mapType === 'satellite' 
-              ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-              : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-            }
-          />
+          {/* Map Tiles */}
+          {mapSettings.mapType === 'satellite' ? (
+            <TileLayer
+              url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+              maxZoom={20}
+              subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+              attribution="&copy; Google Maps"
+            />
+          ) : (
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+          )}
           
-          {/* Add this map event handler */}
-          <MapEventHandler 
-            isDrawingMode={isDrawingMode} 
-            onZoneCreated={handleZoneCreated}
-            onZoneDrawingComplete={() => setIsDrawingMode(false)}
-          />
-          
-          {/* Render zones if any */}
-          {zones.filter(zone => zone.active).map(zone => (
+          {/* Zones */}
+          {zones.map((zone) => (
             <Circle
               key={zone.id}
               center={zone.center}
               radius={zone.radius}
-              pathOptions={{ 
-                color: highlightedZoneId === zone.id ? '#ff3b30' : zone.color, 
-                fillColor: zone.color, 
-                fillOpacity: highlightedZoneId === zone.id ? 0.3 : 0.1,
-                weight: highlightedZoneId === zone.id ? 3 : 1,
-                dashArray: highlightedZoneId === zone.id ? '5, 5' : undefined
+              pathOptions={{
+                color: zone.color,
+                fillColor: zone.color,
+                fillOpacity: 0.2,
+                weight: highlightedZoneId === zone.id ? 4 : 2,
+                dashArray: highlightedZoneId === zone.id ? '5, 5' : undefined,
+              }}
+              eventHandlers={{
+                click: () => handleSelectZone(zone.id),
+                mouseover: () => handleHighlightZone(zone.id),
+                mouseout: () => setHighlightedZoneId(null),
               }}
             >
-              <Tooltip direction="center" permanent offset={[0, -20]}>
-                <span className="text-xs px-2 py-1 bg-white/90 backdrop-blur-sm shadow-sm rounded-md">
-                  {zone.name}
-                </span>
-              </Tooltip>
+              {zone.name && (
+                <Tooltip direction="center" permanent>
+                  <span>{zone.name}</span>
+                </Tooltip>
+              )}
             </Circle>
           ))}
-          
-          {/* Better history visualization */}
-          {historyData.length > 1 && (
-            <>
-              {/* Start marker */}
-              <Marker
-                position={[historyData[0].latitude, historyData[0].longitude]}
-                icon={new L.Icon({
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-                  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowSize: [41, 41]
-                })}
-              >
-                <Popup>
-                  <div className="p-2">
-                    <div className="font-semibold">Začátek trasy</div>
-                    <div className="text-sm">{new Date(historyData[0].timestamp).toLocaleString('cs-CZ')}</div>
-                  </div>
-                </Popup>
-              </Marker>
-              
-              {/* End marker */}
-              <Marker
-                position={[historyData[historyData.length-1].latitude, historyData[historyData.length-1].longitude]}
-                icon={new L.Icon({
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-                  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowSize: [41, 41]
-                })}
-              >
-                <Popup>
-                  <div className="p-2">
-                    <div className="font-semibold">Konec trasy</div>
-                    <div className="text-sm">{new Date(historyData[historyData.length-1].timestamp).toLocaleString('cs-CZ')}</div>
-                  </div>
-                </Popup>
-              </Marker>
-              
-              {/* Stop markers */}
-              {historyData
-                .filter(point => point.stav === 'stání' || point.rychlost < 5)
-                .map(point => (
-                  <Circle
-                    key={`stop-${point.id}`}
-                    center={[point.latitude, point.longitude]}
-                    radius={8}
-                    pathOptions={{ 
-                      color: '#f59e0b', 
-                      fillColor: '#f59e0b', 
-                      fillOpacity: 0.6
-                    }}
-                  >
-                    <Tooltip direction="top">
-                      <div className="text-xs">
-                        <div>Zastávka: {new Date(point.timestamp).toLocaleString('cs-CZ')}</div>
-                        <div>Délka: {Math.floor(Math.random() * 45) + 5} min</div>
-                      </div>
-                    </Tooltip>
-                  </Circle>
-                ))
-              }
-            </>
-          )}
-          
+
+          {/* Map Settings */}
+          <MapSettings zoom={mapSettings.mapZoom} />
+          <ZoomControl position="bottomright" />
+
+          {/* Vehicle markers */}
           {filteredVehicles.map((vehicle) => (
             <Marker
               key={vehicle.id}
               position={[vehicle.latitude, vehicle.longitude]}
               icon={getMarkerIcon(vehicle)}
               eventHandlers={{
-                click: () => handleVehicleClick(vehicle.id)
+                click: () => handleVehicleClick(vehicle.id),
               }}
             >
-              {mapSettings.showLabels && (
-                <Tooltip permanent direction="top" offset={[0, -30]}>
-                  <span className="text-xs px-2 py-1 bg-white shadow-sm rounded-md">
-                    {vehicle.spz}
-                  </span>
+              {/* Only show tooltip if map is initialized and showLabels is enabled */}
+              {mapSettings.showLabels && typeof window !== 'undefined' && (
+                <Tooltip
+                  direction="top"
+                  offset={[0, -20]}
+                  opacity={0.9}
+                  permanent
+                >
+                  <span className="font-medium">{vehicle.spz}</span>
                 </Tooltip>
               )}
-              <Popup className="vehicle-popup">
-                <div className="p-2">
-                  <div className="font-semibold text-base">{vehicle.spz}</div>
-                  <div className="text-sm">{vehicle.znacka} {vehicle.model}</div>
-                  
-                  <div className="mt-3 text-xs text-muted-foreground grid grid-cols-2 gap-1">
-                    <div className="flex items-center gap-1">
-                      <Clock size={12} />
-                      <span>{new Date(vehicle.lastUpdate).toLocaleTimeString('cs-CZ')}</span>
-                    </div>
+              <Popup>
+                <div className="py-1">
+                  <h3 className="font-bold text-lg mb-2">{vehicle.znacka} {vehicle.model}</h3>
+                  <div className="flex items-center mb-2">
+                    <Badge
+                      variant={
+                        vehicle.stav === 'aktivní' ? 'success' :
+                        vehicle.stav === 'servis' ? 'warning' : 'secondary'
+                      }
+                      className="mr-2"
+                    >
+                      {vehicle.stav}
+                    </Badge>
+                    <span className="text-sm text-gray-500">{vehicle.spz}</span>
+                  </div>
+                  <div className="mb-3 space-y-1">
                     {vehicle.rychlost !== undefined && (
-                      <div className="flex items-center gap-1">
-                        <Gauge size={12} />
-                        <span>{vehicle.rychlost} km/h</span>
+                      <div className="flex items-center text-sm">
+                        <Gauge className="h-4 w-4 mr-1 text-gray-500" />
+                        <span>{Math.round(vehicle.rychlost)} km/h</span>
                       </div>
                     )}
+                    <div className="flex items-center text-sm">
+                      <Clock className="h-4 w-4 mr-1 text-gray-500" />
+                      <span>{new Date(vehicle.lastUpdate).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <MapPin className="h-4 w-4 mr-1 text-gray-500" />
+                      <span>{vehicle.latitude.toFixed(5)}, {vehicle.longitude.toFixed(5)}</span>
+                    </div>
                   </div>
-                  
-                  <Badge className={`mt-3 ${
-                    vehicle.stav === 'aktivní' ? 'bg-green-100 text-green-800' :
-                    vehicle.stav === 'servis' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {vehicle.stav}
-                  </Badge>
-                  
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="flex space-x-2">
                     <Button 
                       size="sm" 
                       variant="outline"
                       className="text-xs"
                       onClick={() => {
-                        // Show vehicle history for last 24 hours
-                        const endDate = new Date();
-                        const startDate = new Date(endDate);
-                        startDate.setDate(startDate.getDate() - 1);
-                        
-                        toast({
-                          title: "Načítám historii",
-                          description: "Načítám historii pohybu vozidla..."
-                        });
-                        
-                        fetch(`/api/auta/history?vehicleId=${vehicle.id}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`)
+                        fetch(`/api/auta/${vehicle.id}/history`)
                           .then(res => res.json())
                           .then(data => {
                             handleShowHistory(vehicle.id, data);
                           })
                           .catch(err => {
-                            console.error('Error fetching quick history:', err);
+                            console.error("Failed to fetch history:", err);
                             toast({
                               title: "Chyba",
                               description: "Nepodařilo se načíst historii vozidla",
@@ -791,7 +658,6 @@ export function VehicleMap() {
                       <History className="h-3.5 w-3.5 mr-1" />
                       Historie
                     </Button>
-                    
                     <Button 
                       size="sm" 
                       variant="default"
@@ -814,7 +680,7 @@ export function VehicleMap() {
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8 hover:bg-gray-100"
-                onClick={() => setMapSettings({...mapSettings, mapType: mapSettings.mapType === 'street' ? 'satellite' : 'street'})}
+                onClick={() => setMapSettings({...mapSettings, mapType: (mapSettings.mapType as 'street' | 'satellite') === 'street' ? 'satellite' : 'street'})}
                 title={mapSettings.mapType === 'street' ? 'Přepnout na satelitní mapu' : 'Přepnout na standardní mapu'}
               >
                 <Layers size={16} />
@@ -832,81 +698,30 @@ export function VehicleMap() {
             </div>
           </div>
           
-          <div className="absolute right-3 bottom-20 z-[400]">
-            <div className="bg-white rounded-md shadow-md space-y-1 p-1.5">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 hover:bg-gray-100"
-                onClick={() => setMapSettings({...mapSettings, mapZoom: Math.min(mapSettings.mapZoom + 1, 18)})}
-                title="Přiblížit"
-              >
-                <Plus size={16} />
-              </Button>
-              <Separator className="my-1" />
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 hover:bg-gray-100"
-                onClick={() => setMapSettings({...mapSettings, mapZoom: Math.max(mapSettings.mapZoom - 1, 5)})}
-                title="Oddálit"
-              >
-                <Minus size={16} />
-              </Button>
-            </div>
-          </div>
-          
-          {/* Map Settings Control */}
-          <MapSettings zoom={mapSettings.mapZoom} />
+          {/* Map event handler for zone creation */}
+          <MapEventHandler 
+            isDrawingMode={isDrawingMode} 
+            onZoneCreated={handleZoneCreated}
+            onZoneDrawingComplete={() => setIsDrawingMode(false)}
+          />
         </MapContainer>
-        
-        {/* Vehicle Count Legend - Improved Layout */}
-        <div className="absolute left-3 bottom-3 z-[400] bg-white/95 backdrop-blur-sm rounded-lg shadow-sm p-2.5">
-          <div className="text-xs font-medium mb-1.5">Vozidla podle stavu:</div>
-          <div className="grid grid-cols-1 gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span className="text-xs">{filteredVehicles.filter(v => v.stav === 'aktivní').length} aktivních</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-              <span className="text-xs">{filteredVehicles.filter(v => v.stav === 'servis').length} v servisu</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-              <span className="text-xs">{filteredVehicles.filter(v => v.stav === 'vyřazeno').length} vyřazených</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Refresh status footer */}
-      <div className="text-xs text-muted-foreground flex items-center justify-between">
-        <span>Automatická aktualizace každých {mapSettings.refreshInterval} sekund</span>
-        <Button variant="ghost" size="sm" className="h-6" onClick={handleRefreshLocations}>
-          <RefreshCw size={12} className="mr-1" />
-          Aktualizovat nyní
-        </Button>
-      </div>
-      
-      {/* Zone notification dialog */}
-      <AlertDialog open={showZoneNotification} onOpenChange={setShowZoneNotification}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Vozidlo opustilo zónu</AlertDialogTitle>
-            <AlertDialogDescription>
-              {notificationDetails && (
-                <>
-                  Vozidlo <strong>{notificationDetails.spz}</strong> opustilo zónu <strong>{notificationDetails.zoneName}</strong>.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction>Rozumím</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      )}
+
+      {showZoneNotification && notificationDetails && (
+        <AlertDialog open={showZoneNotification} onOpenChange={setShowZoneNotification}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Vozidlo vstoupilo do zóny</AlertDialogTitle>
+              <AlertDialogDescription>
+                Vozidlo {notificationDetails.spz} právě vstoupilo do zóny {notificationDetails.zoneName}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction>Rozumím</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
