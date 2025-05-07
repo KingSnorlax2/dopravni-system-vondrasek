@@ -80,6 +80,7 @@ export async function PATCH(
     }
     
     const data = await request.json();
+    console.log('Received update data for vehicle ID:', id, data);
     
     // Check if SPZ already exists for another car
     if (data.spz) {
@@ -93,6 +94,7 @@ export async function PATCH(
       });
       
       if (existingCar) {
+        console.log('Duplicate SPZ found:', data.spz, 'for existing car ID:', existingCar.id);
         return NextResponse.json(
           { 
             error: 'SPZ již existuje',
@@ -106,6 +108,9 @@ export async function PATCH(
     // Format the data properly
     const updateData = {
       ...data,
+      // Ensure numeric fields are numbers
+      rokVyroby: typeof data.rokVyroby === 'string' ? parseInt(data.rokVyroby) : data.rokVyroby,
+      najezd: typeof data.najezd === 'string' ? parseInt(data.najezd) : data.najezd,
       // Convert datumSTK from Date object to ISO string if it exists
       datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
     }
@@ -114,10 +119,14 @@ export async function PATCH(
     delete updateData.id
     delete updateData.fotky
     
+    console.log('Updating vehicle with data:', updateData);
+    
     const updatedAuto = await prisma.auto.update({
       where: { id },
       data: updateData
     })
+    
+    console.log('Vehicle updated successfully:', updatedAuto);
     
     return NextResponse.json(updatedAuto)
   } catch (error) {

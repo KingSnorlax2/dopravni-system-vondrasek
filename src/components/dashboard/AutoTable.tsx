@@ -679,7 +679,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         ...autoClone,
         // Make sure ID is properly formatted as string
         id: String(auto.id),
-        datumSTK: auto.datumSTK ? new Date(auto.datumSTK).toISOString() : undefined
+        datumSTK: auto.datumSTK ? new Date(auto.datumSTK).toISOString().split('T')[0] : undefined
       });
       setIsEditOpen(true);
     }, 50);
@@ -693,6 +693,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       }
       
       console.log('Original form data:', data);
+      console.log('Current editing auto:', editingAuto);
       
       // Format the data for the API with proper type handling
       const formattedData = {
@@ -703,24 +704,24 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         najezd: typeof data.najezd === 'string' ? parseInt(data.najezd) : data.najezd,
         // Ensure datumSTK is properly formatted
         datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
-        // Preserve existing data that isn't part of the form
-        thumbnailFotoId: editingAuto.thumbnailFotoId,
-        thumbnailUrl: editingAuto.thumbnailUrl,
       };
       
       console.log('Submitting updated vehicle data:', formattedData);
+      console.log('API endpoint:', `/api/auta/${editingAuto.id}`);
       
       const response = await fetch(`/api/auta/${editingAuto.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formattedData)
+        body: JSON.stringify(formattedData),
+        cache: 'no-store'
       });
 
+      const responseData = await response.json();
+      console.log('API response:', responseData);
+
       if (!response.ok) {
-        const responseData = await response.json();
-        
         // Handle specific error cases
         if (response.status === 409 && responseData.error === 'SPZ již existuje') {
           toast({
@@ -742,10 +743,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
       // Reset state and close the form
       setEditingAuto(null);
-      setIsEditModalOpen(false);
+      setIsEditOpen(false);
       
-      // Force page reload like in the detail view
-      window.location.reload();
+      // Refresh data
+      onRefresh();
     } catch (error) {
       console.error('Error updating vehicle:', error);
       toast({
@@ -1026,7 +1027,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   >
                     <option value="aktivní">Aktivní</option>
                     <option value="servis">V servisu</option>
-                    <option value="vyřazeno">Vyřazeno</option>
+                    <option value="vyřazeno">Vyřazené</option>
                   </select>
                 </div>
                 <div>
