@@ -71,8 +71,37 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id
-    const data = await request.json()
+    const id = parseInt(params.id);
+    if (isNaN(id)) {
+      return NextResponse.json(
+        { error: 'Neplatné ID vozidla' },
+        { status: 400 }
+      );
+    }
+    
+    const data = await request.json();
+    
+    // Check if SPZ already exists for another car
+    if (data.spz) {
+      const existingCar = await prisma.auto.findFirst({
+        where: {
+          spz: data.spz,
+          id: {
+            not: id
+          }
+        }
+      });
+      
+      if (existingCar) {
+        return NextResponse.json(
+          { 
+            error: 'SPZ již existuje',
+            message: `SPZ ${data.spz} je již použita u jiného vozidla.`
+          },
+          { status: 409 }
+        );
+      }
+    }
     
     // Format the data properly
     const updateData = {
@@ -84,8 +113,9 @@ export async function PATCH(
     // Remove any fields that shouldn't be updated
     delete updateData.id
     delete updateData.fotky
+    
     const updatedAuto = await prisma.auto.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: updateData
     })
     

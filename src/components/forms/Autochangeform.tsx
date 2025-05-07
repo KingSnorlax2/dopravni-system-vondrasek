@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
-import { useTransition } from 'react'
+import { useTransition, useEffect } from 'react'
 
 const autoDetailSchema = z.object({
   spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -70,6 +70,11 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
     resolver: zodResolver(autoDetailSchema),
     defaultValues: initialData
   })
+
+  useEffect(() => {
+    console.log('Form initialData changed:', initialData);
+    form.reset(initialData);
+  }, [initialData, form]);
 
   const handleSubmit = async (data: AutoDetailValues) => {
     try {

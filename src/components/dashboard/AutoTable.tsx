@@ -604,6 +604,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     if (!editedAuto) return;
 
     try {
+      // Ensure the datumSTK is properly formatted if it exists
+      const datumSTKFormatted = editedAuto.datumSTK ? 
+        new Date(editedAuto.datumSTK).toISOString() : null;
+      
       const response = await fetch(`/api/auta/${editedAuto.id}?_t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
@@ -616,14 +620,26 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           rokVyroby: editedAuto.rokVyroby,
           najezd: editedAuto.najezd,
           stav: editedAuto.stav,
-          datumSTK: editedAuto.datumSTK,  
+          datumSTK: datumSTKFormatted,  
           poznamka: editedAuto.poznamka
         }),
         cache: 'no-store'
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update vehicle');
+        const responseData = await response.json();
+        
+        // Handle specific error cases
+        if (response.status === 409 && responseData.error === 'SPZ již existuje') {
+          toast({
+            title: "Chyba při aktualizaci",
+            description: responseData.message || "SPZ je již použita u jiného vozidla.",
+            variant: "destructive"
+          });
+          return; // Don't close the modal so the user can fix the SPZ
+        }
+        
+        throw new Error(responseData.error || 'Failed to update vehicle');
       }
 
       onRefresh();
@@ -637,7 +653,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       console.error('Error updating vehicle:', error);
       toast({
         title: "Chyba při aktualizaci",
-        description: "Nepodařilo se aktualizovat vozidlo",
+        description: error instanceof Error ? error.message : "Nepodařilo se aktualizovat vozidlo",
         variant: "destructive"
       });
     }
@@ -650,12 +666,23 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   const handleEdit = (auto: Auto) => {
     console.log('Editing auto:', auto);
-    setEditingAuto({
-      ...auto,
-      id: auto.id,
-      datumSTK: auto.datumSTK ? auto.datumSTK.toString() : undefined
-    });
-    setIsEditOpen(true);
+    
+    // Make sure we reset any existing state first
+    setEditingAuto(null);
+    
+    // Use setTimeout to ensure state is updated before setting new state
+    setTimeout(() => {
+      // Deep clone the auto object to avoid reference issues
+      const autoClone = JSON.parse(JSON.stringify(auto));
+      
+      setEditingAuto({
+        ...autoClone,
+        // Make sure ID is properly formatted as string
+        id: String(auto.id),
+        datumSTK: auto.datumSTK ? new Date(auto.datumSTK).toISOString() : undefined
+      });
+      setIsEditOpen(true);
+    }, 50);
   }
 
   const handleEditSubmit = async (data: AutoDetailValues) => {
@@ -693,6 +720,17 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
       if (!response.ok) {
         const responseData = await response.json();
+        
+        // Handle specific error cases
+        if (response.status === 409 && responseData.error === 'SPZ již existuje') {
+          toast({
+            title: "Chyba při aktualizaci",
+            description: responseData.message || "SPZ je již použita u jiného vozidla.",
+            variant: "destructive"
+          });
+          return; // Exit early, don't close the form
+        }
+        
         throw new Error(responseData.error || 'Failed to update vehicle');
       }
 
@@ -704,7 +742,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
       // Reset state and close the form
       setEditingAuto(null);
-      setIsEditOpen(false);
+      setIsEditModalOpen(false);
       
       // Force page reload like in the detail view
       window.location.reload();
@@ -712,8 +750,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       console.error('Error updating vehicle:', error);
       toast({
         title: "Chyba při aktualizaci",
-        description: error instanceof Error ? error.message : "Nepodařilo se aktualizovat údaje o vozidle",
-        variant: "destructive",
+        description: error instanceof Error ? error.message : "Nepodařilo se aktualizovat vozidlo",
+        variant: "destructive"
       });
     }
   };
@@ -966,7 +1004,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   <input 
                     type="number" 
                     value={editedAuto.rokVyroby}
-                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, rokVyroby: Number(e.target.value)} : null)}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, rokVyroby: Number(e.target.value) || new Date().getFullYear()} : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                   />
                 </div>
@@ -975,7 +1013,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   <input 
                     type="number" 
                     value={editedAuto.najezd}
-                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, najezd: Number(e.target.value)} : null)}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, najezd: Number(e.target.value) || 0} : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                   />
                 </div>
@@ -987,7 +1025,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                   >
                     <option value="aktivní">Aktivní</option>
-                    <option value="servis">Servis</option>
+                    <option value="servis">V servisu</option>
                     <option value="vyřazeno">Vyřazeno</option>
                   </select>
                 </div>
@@ -995,7 +1033,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   <label className="block text-sm font-medium text-gray-700">Datum STK</label>
                   <input 
                     type="date" 
-                    value={editedAuto.datumSTK || ''}
+                    value={editedAuto.datumSTK ? new Date(editedAuto.datumSTK).toISOString().split('T')[0] : ''}
                     onChange={(e) => setEditedAuto(prev => prev ? {...prev, datumSTK: e.target.value || undefined} : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                   />
@@ -1553,6 +1591,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         </div>
       )}
 
+      {/* Add back the AutoDetailForm component */}
       {editingAuto && (
         <AutoDetailForm
           open={isEditOpen}
