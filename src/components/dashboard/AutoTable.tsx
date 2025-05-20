@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Pencil, ImageIcon, X } from "lucide-react"
+import { Pencil, ImageIcon, X, CalendarIcon } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
 import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +12,15 @@ import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { loadSettings, saveSettings } from '@/utils/settings'
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { format } from "date-fns"
+import { cs } from "date-fns/locale"
+import { cn } from "@/lib/utils"
 
 interface Auto {
   id: string;
@@ -1032,12 +1041,46 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Datum STK</label>
-                  <input 
-                    type="date" 
-                    value={editedAuto.datumSTK ? new Date(editedAuto.datumSTK).toISOString().split('T')[0] : ''}
-                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, datumSTK: e.target.value || undefined} : null)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex w-full justify-between rounded-md border border-input bg-background px-3 py-2 text-sm mt-1 shadow-sm",
+                          !editedAuto.datumSTK && "text-muted-foreground"
+                        )}
+                      >
+                        {editedAuto.datumSTK ? (
+                          format(new Date(editedAuto.datumSTK), "d. MMMM yyyy", { locale: cs })
+                        ) : (
+                          <span>Vyberte datum STK</span>
+                        )}
+                        <CalendarIcon className="h-4 w-4 opacity-50" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <div className="p-2 bg-white rounded-md">
+                        <Calendar
+                          mode="single"
+                          selected={editedAuto.datumSTK ? new Date(editedAuto.datumSTK) : undefined}
+                          onSelect={(date) => setEditedAuto(prev => prev ? {...prev, datumSTK: date ? date.toISOString() : undefined} : null)}
+                          initialFocus
+                          className="rounded-md"
+                          locale={cs}
+                          showOutsideDays={false}
+                          classNames={{
+                            head_row: "flex justify-between",
+                            head_cell: "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem] mx-0.5",
+                            row: "flex w-full mt-2 justify-between",
+                            cell: "h-10 w-10 text-center p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
+                            day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100 rounded-md transition-colors hover:bg-primary hover:text-primary-foreground",
+                            caption: "flex justify-center pt-2 pb-3 relative items-center",
+                            caption_label: "text-base font-medium capitalize"
+                          }}
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <div className="flex justify-between">
@@ -1385,12 +1428,48 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
             <h2 className="text-2xl font-bold mb-4">Změnit datum STK</h2>
             <p className="mb-4">Vyberte nové datum STK pro {selectedRows.size} vozidel:</p>
-            <input
-              type="date"
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-              className="w-full border rounded-lg px-4 py-2 mb-6"
-            />
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex w-full justify-between rounded-md border border-input bg-background px-3 py-2 text-sm mb-6 shadow-sm",
+                    !newDate && "text-muted-foreground"
+                  )}
+                >
+                  {newDate ? (
+                    format(new Date(newDate), "d. MMMM yyyy", { locale: cs })
+                  ) : (
+                    <span>Vyberte datum STK</span>
+                  )}
+                  <CalendarIcon className="h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="p-2 bg-white rounded-md">
+                  <Calendar
+                    mode="single"
+                    selected={newDate ? new Date(newDate) : undefined}
+                    onSelect={(date) => setNewDate(date ? date.toISOString().split('T')[0] : '')}
+                    initialFocus
+                    className="rounded-md"
+                    locale={cs}
+                    showOutsideDays={false}
+                    classNames={{
+                      head_row: "flex justify-between",
+                      head_cell: "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem] mx-0.5",
+                      row: "flex w-full mt-2 justify-between",
+                      cell: "h-10 w-10 text-center p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
+                      day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100 rounded-md transition-colors hover:bg-primary hover:text-primary-foreground",
+                      caption: "flex justify-center pt-2 pb-3 relative items-center",
+                      caption_label: "text-base font-medium capitalize"
+                    }}
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
+            
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowSTKChangeModal(false)}

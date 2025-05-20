@@ -37,7 +37,8 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import { CalendarIcon } from "lucide-react"
+import { cs } from "date-fns/locale"
+import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { useTransition, useEffect } from 'react'
 
@@ -241,7 +242,7 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
                 control={form.control}
                 name="datumSTK"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col space-y-1">
                     <FormLabel>Datum STK</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -249,28 +250,43 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full pl-3 text-left font-normal",
+                              "pl-3 pr-2 py-2 w-full text-left font-normal flex justify-between items-center border border-input bg-background hover:bg-accent hover:text-accent-foreground",
                               !field.value && "text-muted-foreground"
                             )}
                           >
                             {field.value ? (
-                              format(new Date(field.value), "dd.MM.yyyy")
+                              format(new Date(field.value), "d. MMMM yyyy", { locale: cs })
                             ) : (
-                              <span>dd.mm.rrrr</span>
+                              <span>Vyberte datum STK</span>
                             )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            <CalendarIcon className="h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
+                      <PopoverContent className="w-auto p-0 bg-white rounded-md shadow-lg border border-gray-200" align="start">
+                        <div className="p-2 bg-white rounded-md">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={field.onChange}
+                            initialFocus
+                            className="rounded-md"
+                            locale={cs}
+                            showOutsideDays={false}
+                            classNames={{
+                              head_row: "flex justify-between",
+                              head_cell: "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem] mx-0.5",
+                              row: "flex w-full mt-2 justify-between",
+                              cell: "h-10 w-10 text-center p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
+                              day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100 rounded-md transition-colors hover:bg-primary hover:text-primary-foreground",
+                              caption: "flex justify-center pt-2 pb-3 relative items-center",
+                              caption_label: "text-base font-medium capitalize"
+                            }}
+                          />
+                        </div>
                       </PopoverContent>
                     </Popover>
+                    <FormMessage className="text-xs text-red-500" />
                   </FormItem>
                 )}
               />
