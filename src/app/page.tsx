@@ -115,6 +115,14 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
+            <div className="flex justify-end">
+              <a 
+                href="/reset-password" 
+                className="text-sm text-purple-600 hover:text-purple-800 hover:underline"
+              >
+                Zapomenuté heslo?
+              </a>
+            </div>
             <div className="flex items-center space-x-2">
               <Checkbox 
                 id="rememberMe" 

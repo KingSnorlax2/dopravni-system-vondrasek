@@ -213,28 +213,58 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   // Define filteredAuta first
   const filteredAuta = useMemo(() => {
-    console.log('Filtering cars with criteria:', {
-      filterStav,
-      filterSTK,
-      dateFrom,
-      dateTo,
-      searchTerm
-    });
-    
     return auta.filter(auto => {
-      // Default to showing the car
-      let shouldShow = true;
+      // Search term filter
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm || 
+        auto.spz.toLowerCase().includes(searchLower) ||
+        auto.znacka.toLowerCase().includes(searchLower) ||
+        auto.model.toLowerCase().includes(searchLower);
+
+      // Status filter
+      const matchesStatus = filterStav === 'vse' || auto.stav === filterStav;
+
+      // Date range filter
+      const matchesDate = (!dateFrom || !dateTo) || 
+        (auto.datumSTK && new Date(auto.datumSTK) >= new Date(dateFrom) && 
+         new Date(auto.datumSTK) <= new Date(dateTo));
+
+      // Mileage range filter
+      const matchesMileage = (!mileageFrom || !mileageTo) ||
+        (auto.najezd >= Number(mileageFrom) && auto.najezd <= Number(mileageTo));
+
+      return matchesSearch && matchesStatus && matchesDate && matchesMileage;
+    }).sort((a, b) => {
+      // Sorting logic
+      const order = sortOrder === 'asc' ? 1 : -1;
       
-      // Apply each filter
-      if (filterStav !== 'vse') {
-        shouldShow = shouldShow && auto.stav === filterStav;
+      switch (sortField) {
+        case 'spz':
+          return order * a.spz.localeCompare(b.spz);
+        case 'znacka':
+          return order * a.znacka.localeCompare(b.znacka);
+        case 'model':
+          return order * a.model.localeCompare(b.model);
+        case 'rokVyroby':
+          return order * (a.rokVyroby - b.rokVyroby);
+        case 'najezd':
+          return order * (a.najezd - b.najezd);
+        case 'stav':
+          return order * a.stav.localeCompare(b.stav);
+        case 'datumSTK':
+          if (!a.datumSTK && !b.datumSTK) return 0;
+          if (!a.datumSTK) return order;
+          if (!b.datumSTK) return -order;
+          return order * (new Date(a.datumSTK).getTime() - new Date(b.datumSTK).getTime());
+        case 'poznamka':
+          const aNote = a.poznamka || '';
+          const bNote = b.poznamka || '';
+          return order * aNote.localeCompare(bNote);
+        default:
+          return 0;
       }
-      
-      // Add similar logic for other filters
-      
-      return shouldShow;
     });
-  }, [auta, filterStav, filterSTK, dateFrom, dateTo, searchTerm]);
+  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder]);
 
   // Then use it in the useEffect
   useEffect(() => {
@@ -533,43 +563,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       console.error('Chyba:', error);
       setNotification({
         message: 'Chyba při ukládání poznámky',
-        type: 'error'
-      });
-    }
-  };
-
-  const sortedAndFilteredAuta = useMemo(() => {
-    return [...filteredAuta].sort((a, b) => {
-      return 0;
-    });
-  }, [filteredAuta]);
-
-  const handlePoznamkaSubmit = async (e: React.FormEvent, autoId: number) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`/api/auta/${autoId}/poznamka`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: novaPoznamka })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Chyba při přidávání poznámky');
-      }
-
-      setNovaPoznamka('');
-      onRefresh();
-      setNotification({
-        message: 'Poznámka byla úspěšně přidána',
-        type: 'success'
-      });
-    } catch (error) {
-      console.error('Chyba:', error);
-      setNotification({
-        message: 'Chyba při přidávání poznámky',
         type: 'error'
       });
     }
@@ -1489,50 +1482,104 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Přidat nové vozidlo</h2>
-                <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-700">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div
+            className="bg-white rounded-lg shadow-2xl max-w-xs w-full p-2 relative overflow-y-auto max-h-[70vh]"
+            role="dialog"
+            aria-modal="true"
+          >
+            <h2 className="text-sm font-bold mb-2 text-center">Přidat nové vozidlo</h2>
+            <form className="space-y-1">
+              {/* SPZ */}
+              <div>
+                <label className="block text-[11px] font-medium mb-0.5">SPZ</label>
+                <input
+                  type="text"
+                  maxLength={8}
+                  placeholder="Zadejte SPZ"
+                  className="w-full border rounded px-1 py-0.5 text-xs"
+                />
+              </div>
+              {/* Značka */}
+              <div>
+                <label className="block text-[11px] font-medium mb-0.5">Značka</label>
+                <input
+                  type="text"
+                  maxLength={20}
+                  placeholder="Zadejte značku"
+                  className="w-full border rounded px-1 py-0.5 text-xs"
+                />
+              </div>
+              {/* Model */}
+              <div>
+                <label className="block text-[11px] font-medium mb-0.5">Model</label>
+                <input
+                  type="text"
+                  maxLength={20}
+                  placeholder="Zadejte model"
+                  className="w-full border rounded px-1 py-0.5 text-xs"
+                />
+              </div>
+              {/* Rok výroby & Najezd */}
+              <div className="flex gap-1">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-medium mb-0.5">Rok výroby</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded px-1 py-0.5 text-xs"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[11px] font-medium mb-0.5">Nájezd (km)</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded px-1 py-0.5 text-xs"
+                  />
+                </div>
+              </div>
+              {/* Stav */}
+              <div>
+                <label className="block text-[11px] font-medium mb-0.5">Stav</label>
+                <select className="w-full border rounded px-1 py-0.5 text-xs">
+                  <option value="aktivní">Aktivní</option>
+                  <option value="servis">V servisu</option>
+                  <option value="vyřazeno">Vyřazené</option>
+                </select>
+              </div>
+              {/* Datum STK */}
+              <div>
+                <label className="block text-[11px] font-medium mb-0.5">Datum STK</label>
+                <input
+                  type="date"
+                  className="w-full border rounded px-1 py-0.5 text-xs"
+                />
+              </div>
+              {/* Poznámka */}
+              <div>
+                <label className="block text-[11px] font-medium mb-0.5">Poznámka</label>
+                <textarea
+                  maxLength={300}
+                  className="w-full border rounded px-1 py-0.5 text-xs"
+                  rows={1}
+                  placeholder="Poznámka..."
+                />
+              </div>
+              {/* Buttons */}
+              <div className="flex justify-end gap-1 pt-1">
+                <button
+                  type="button"
+                  className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 text-xs"
+                >
+                  Zrušit
+                </button>
+                <button
+                  type="submit"
+                  className="px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-700 text-xs"
+                >
+                  Přidat
                 </button>
               </div>
-              <AutoForm 
-                {...({
-                  onClose: () => setShowForm(false),
-                  onSubmit: async (formData: any) => {
-                    try {
-                      const response = await fetch('/api/auta', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(formData)
-                      });
-
-                      if (!response.ok) {
-                        throw new Error('Chyba při ukládání vozidla');
-                      }
-
-                      setShowForm(false);
-                      setNotification({
-                        type: 'success',
-                        message: 'Vozidlo bylo úspěšně přidáno'
-                      });
-                      onRefresh();
-                    } catch (error) {
-                      setNotification({
-                        type: 'error',
-                        message: error instanceof Error ? error.message : 'Neznámá chyba'
-                      });
-                    }
-                  }
-                } as any)}
-              />
-            </div>
+            </form>
           </div>
         </div>
       )}

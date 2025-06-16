@@ -69,11 +69,14 @@ export default function AutoPage() {
   const autaBliziciSeSTK = auta.filter(auto => isSTKExpiring(auto.datumSTK))
 
   const handleAutoSubmit = async (newAuto: any) => {
-    console.log("New auto submitted:", newAuto)
     await refreshData() // Refetch the data to update the list
+    const znacka = newAuto.znacka || 'Vozidlo';
+    const model = newAuto.model || '';
+    const spz = newAuto.spz || '';
+    const rokVyroby = newAuto.rokVyroby || '';
     toast({
       title: "Vozidlo přidáno",
-      description: `${newAuto.znacka} ${newAuto.model} (${newAuto.spz}) bylo úspěšně přidáno.`,
+      description: `${znacka} ${model} ${rokVyroby ? `(${rokVyroby})` : ''} ${spz ? `- ${spz}` : ''} bylo úspěšně přidáno.`.replace(/\s+/g, ' ').trim(),
     })
   }
 

@@ -175,11 +175,15 @@ model Settings {
 }
 
 model User {
-  id       String    @id @default(cuid())
-  email    String    @unique
-  password String
-  name     String?
-  role     String    @default("USER")
+  id              String    @id @default(cuid())
+  name            String?
+  email           String    @unique
+  password        String
+  role            String    @default("USER")
+  resetToken      String?   @unique
+  resetTokenExpiry DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model VehicleLocation {
