@@ -1263,10 +1263,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     className="rounded border-gray-300 w-5 h-5 cursor-pointer"
                   />
                 </TableHead>
-                <TableHead className="w-[80px]">Foto</TableHead>
-                <TableHead className="w-[20px]"></TableHead>
+                <TableHead className="w-[80px] text-left">Foto</TableHead>
+                <TableHead className="w-[20px] text-left"></TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-100 transition-colors px-4"
+                  className="text-left cursor-pointer hover:bg-gray-100 transition-colors px-4"
                   onClick={() => handleSortChange('spz')}
                 >
                   <div className="flex items-center gap-1">
@@ -1276,13 +1276,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     )}
                   </div>
                 </TableHead>
-                <TableHead>Značka</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Rok výroby</TableHead>
-                <TableHead>Nájezd</TableHead>
-                <TableHead>Stav</TableHead>
-                <TableHead>STK</TableHead>
-                <TableHead className="text-right">Akce</TableHead>
+                <TableHead className="text-left">Značka</TableHead>
+                <TableHead className="text-left">Model</TableHead>
+                <TableHead className="text-left">Rok výroby</TableHead>
+                <TableHead className="text-left">Nájezd</TableHead>
+                <TableHead className="text-left">Stav</TableHead>
+                <TableHead className="text-left">STK</TableHead>
+                <TableHead className="text-left">Akce</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1299,7 +1299,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       className="rounded border-gray-300 w-5 h-5 cursor-pointer"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-left">
                     {(() => {
                       // Get the thumbnail URL with a timestamp to prevent caching
                       const timestamp = new Date().getTime();
@@ -1368,21 +1368,21 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       );
                     })()}
                   </TableCell>
-                  <TableCell></TableCell>
-                  <TableCell className="font-medium">{auto.spz}</TableCell>
-                  <TableCell>{auto.znacka}</TableCell>
-                  <TableCell>{auto.model}</TableCell>
-                  <TableCell>{auto.rokVyroby}</TableCell>
-                  <TableCell>{formatNumber(auto.najezd)}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-left"></TableCell>
+                  <TableCell className="text-left font-medium">{auto.spz}</TableCell>
+                  <TableCell className="text-left">{auto.znacka}</TableCell>
+                  <TableCell className="text-left">{auto.model}</TableCell>
+                  <TableCell className="text-left">{auto.rokVyroby}</TableCell>
+                  <TableCell className="text-left">{formatNumber(auto.najezd)}</TableCell>
+                  <TableCell className="text-left">
                     <Badge className={getStatusColor(auto.stav)}>
                       {auto.stav}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-left">
                     {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-left">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
