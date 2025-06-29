@@ -1952,10 +1952,40 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                               >
                                 <div className="flex items-center gap-2">
                                   {stkStatus === 'expired' && (
-                                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="flex items-center">
+                                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">STK vypršela</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   )}
                                   {stkStatus === 'upcoming' && (
-                                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="flex items-center">
+                                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">STK brzy vyprší</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  {stkStatus === 'normal' && auto.datumSTK && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="flex items-center">
+                                            <Check className="h-4 w-4 text-green-600" />
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">STK platná</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   )}
                                   {auto.datumSTK ? (
                                     <span className={cn(
@@ -1966,9 +1996,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                                       {new Date(auto.datumSTK).toLocaleDateString('cs-CZ')}
                                     </span>
                                   ) : (
-                                    <Badge className="bg-amber-100 text-amber-800 border-amber-200">
-                                      Není zadáno
-                                    </Badge>
+                                    <Badge className="bg-amber-100 text-amber-800 border-amber-200">Není zadáno</Badge>
                                   )}
                                 </div>
                                 <Edit3 className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200" />
