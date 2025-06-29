@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Pencil, ImageIcon, X, CalendarIcon } from "lucide-react"
+import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2 } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
 import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +18,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { format } from "date-fns"
 import { cs } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -29,7 +36,7 @@ interface Auto {
   model: string;
   rokVyroby: number;
   najezd: number;
-  stav: 'aktivní' | 'servis' | 'vyřazeno';
+  stav: 'Aktivní' | 'Neaktivní' | 'V servisu';
   datumSTK?: string | null;
   thumbnailUrl?: string;
   thumbnailFotoId?: string;
@@ -56,12 +63,12 @@ const formatNumber = (num: number): string => {
 
 const getStatusColor = (stav: string): string => {
   switch (stav) {
-    case 'aktivní':
+    case 'Aktivní':
       return 'bg-green-100 text-green-800'
-    case 'servis':
+    case 'Neaktivní':
+      return 'bg-gray-100 text-gray-800'
+    case 'V servisu':
       return 'bg-orange-100 text-orange-800'
-    case 'vyřazeno':
-      return 'bg-red-100 text-red-800'
     default:
       return 'bg-gray-100 text-black'
   }
@@ -136,7 +143,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [editedNote, setEditedNote] = useState<{ id: string; note: string } | null>(null)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [showBulkStateChangeModal, setShowBulkStateChangeModal] = useState(false)
-  const [newBulkState, setNewBulkState] = useState('aktivní')
+  const [newBulkState, setNewBulkState] = useState('Aktivní')
   const [showPoznamky, setShowPoznamky] = useState(false)
   const [novaPoznamka, setNovaPoznamka] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -1031,12 +1038,12 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   <label className="block text-sm font-medium text-gray-700">Stav</label>
                   <select 
                     value={editedAuto.stav}
-                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, stav: e.target.value as "aktivní" | "servis" | "vyřazeno"} : null)}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, stav: e.target.value as "Aktivní" | "Neaktivní" | "V servisu"} : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                   >
-                    <option value="aktivní">Aktivní</option>
-                    <option value="servis">V servisu</option>
-                    <option value="vyřazeno">Vyřazené</option>
+                    <option value="Aktivní">Aktivní</option>
+                    <option value="Neaktivní">Neaktivní</option>
+                    <option value="V servisu">V servisu</option>
                   </select>
                 </div>
                 <div>
@@ -1132,9 +1139,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               className="border rounded-lg px-4 py-3 w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
             >
               <option value="vse">Všechny stavy</option>
-              <option value="aktivní">Aktivní</option>
-              <option value="servis">V servisu</option>
-              <option value="vyřazeno">Vyřazené</option>
+              <option value="Aktivní">Aktivní</option>
+              <option value="Neaktivní">Neaktivní</option>
+              <option value="V servisu">V servisu</option>
             </select>
           </div>
 
@@ -1376,25 +1383,42 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(auto)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <button
-                      onClick={() => setDeleteModalData({ auto, isOpen: true })}
-                      className="text-red-600 hover:text-red-800 font-medium text-sm"
-                    >
-                      Vyřadit
-                    </button>
-                    <button 
-                      onClick={() => handleCarDetail(auto.id)}
-                      className="text-green-600 hover:text-green-900 hover:underline font-medium text-sm"
-                    >
-                      Detail
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          aria-label="Otevřít menu akcí"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={() => handleEdit(auto)}
+                          className="cursor-pointer"
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Upravit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleCarDetail(auto.id)}
+                          className="cursor-pointer"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Detail
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setDeleteModalData({ auto, isOpen: true })}
+                          className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Vyřadit
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1577,9 +1601,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               onChange={(e) => setNewBulkState(e.target.value)}
               className="w-full border rounded-lg px-4 py-2 mb-6 bg-white"
             >
-              <option value="aktivní">Aktivní</option>
-              <option value="servis">V servisu</option>
-              <option value="vyřazeno">Vyřazené</option>
+              <option value="Aktivní">Aktivní</option>
+              <option value="Neaktivní">Neaktivní</option>
+              <option value="V servisu">V servisu</option>
             </select>
             <div className="flex justify-end space-x-4">
               <button
