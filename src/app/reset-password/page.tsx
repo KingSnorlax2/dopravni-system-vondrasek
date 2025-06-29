@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [isValidToken, setIsValidToken] = useState(true)
   const token = searchParams.get('token')
 
   const handleRequestReset = async (e: React.FormEvent) => {
@@ -66,6 +68,15 @@ export default function ResetPasswordPage() {
       return
     }
 
+    if (password.length < 6) {
+      toast({
+        title: 'Chyba',
+        description: 'Heslo musí mít alespoň 6 znaků.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -78,7 +89,8 @@ export default function ResetPasswordPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to reset password')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reset password')
       }
 
       toast({
@@ -87,10 +99,10 @@ export default function ResetPasswordPage() {
       })
 
       router.push('/')
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Chyba',
-        description: 'Nepodařilo se změnit heslo.',
+        description: error.message || 'Nepodařilo se změnit heslo.',
         variant: 'destructive',
       })
     } finally {
@@ -102,7 +114,12 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-900 to-purple-800">
       <Card className="w-[350px] shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Reset hesla</CardTitle>
+          <div className="flex items-center gap-2 mb-2">
+            <Link href="/" className="text-purple-600 hover:text-purple-800">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <CardTitle className="text-2xl text-center flex-1">Reset hesla</CardTitle>
+          </div>
           <CardDescription className="text-center">
             {token ? 'Zadejte nové heslo' : 'Zadejte svůj email pro reset hesla'}
           </CardDescription>
@@ -120,6 +137,7 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={6}
+                    placeholder="••••••••"
                   />
                   <button
                     type="button"
@@ -139,6 +157,7 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={6}
+                  placeholder="••••••••"
                 />
               </div>
               <Button

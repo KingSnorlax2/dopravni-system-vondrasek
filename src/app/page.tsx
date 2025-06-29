@@ -9,13 +9,23 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/components/ui/use-toast'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Mail } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 export default function HomePage() {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
   const [formValues, setFormValues] = useState({
     email: '',
     password: '',
@@ -69,6 +79,43 @@ export default function HomePage() {
     }
   }
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotPasswordLoading(true)
+
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: forgotPasswordEmail }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to request password reset')
+      }
+
+      toast({
+        title: 'Email odeslán',
+        description: 'Pokud účet existuje, byl odeslán email s instrukcemi pro reset hesla.',
+      })
+
+      setForgotPasswordEmail('')
+      setShowForgotPassword(false)
+    } catch (error: any) {
+      toast({
+        title: 'Chyba',
+        description: error.message || 'Nepodařilo se odeslat email pro reset hesla.',
+        variant: 'destructive',
+      })
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
   }
@@ -116,12 +163,13 @@ export default function HomePage() {
               </div>
             </div>
             <div className="flex justify-end">
-              <a 
-                href="/reset-password" 
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
                 className="text-sm text-purple-600 hover:text-purple-800 hover:underline"
               >
                 Zapomenuté heslo?
-              </a>
+              </button>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox 
@@ -182,6 +230,47 @@ export default function HomePage() {
           )}
         </CardFooter>
       </Card>
+
+      {/* Forgot Password Modal */}
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Zapomenuté heslo
+            </DialogTitle>
+            <DialogDescription>
+              Zadejte svůj email a my vám pošleme instrukce pro reset hesla.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                placeholder="vas@email.cz"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowForgotPassword(false)}
+                disabled={forgotPasswordLoading}
+              >
+                Zrušit
+              </Button>
+              <Button type="submit" disabled={forgotPasswordLoading}>
+                {forgotPasswordLoading ? "Odesílání..." : "Odeslat email"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
