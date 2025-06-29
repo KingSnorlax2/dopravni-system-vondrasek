@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle, Check, Edit3 } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
+import { BulkActionToolbar } from "@/components/dashboard/BulkActionToolbar"
 import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table"
@@ -527,18 +528,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
-  const [showStateChangeModal, setShowStateChangeModal] = useState(false)
-  const [showSTKChangeModal, setShowSTKChangeModal] = useState(false)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [editedNote, setEditedNote] = useState<{ id: string; note: string } | null>(null)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [showBulkStateChangeModal, setShowBulkStateChangeModal] = useState(false)
-  const [newBulkState, setNewBulkState] = useState('Aktivní')
   const [showPoznamky, setShowPoznamky] = useState(false)
   const [novaPoznamka, setNovaPoznamka] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [newDate, setNewDate] = useState<string>('');
   const [selectedToArchive, setSelectedToArchive] = useState<Auto[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -773,7 +769,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     setSelectedRows(newSelected);
   };
 
+  // Improved checkbox state management
   const isAllSelected = paginatedAuta.length > 0 && paginatedAuta.every(auto => selectedRows.has(auto.id.toString()));
+  const isIndeterminate = selectedRows.size > 0 && selectedRows.size < paginatedAuta.length;
 
   const handleBulkDelete = async () => {
     try {
@@ -814,14 +812,14 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
   };
 
-  const handleBulkStateChange = async () => {
+  const handleBulkStateChange = async (newState: string) => {
     try {
       const response = await fetch('/api/auta/bulk-update', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ids: Array.from(selectedRows),
-          stav: newBulkState,
+          stav: newState,
           datumSTK: 'N/A'  // Set STK date to 'N/A' when changing status
         })
       });
@@ -832,7 +830,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         throw new Error(errorText || 'Chyba při změně stavu vozidel');
       }
 
-      setShowBulkStateChangeModal(false);
       setSelectedRows(new Set());
       onRefresh();
       setNotification({ type: 'success', message: 'Stav vozidel byl úspěšně změněn' });
@@ -842,10 +839,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         type: 'error', 
         message: error instanceof Error ? error.message : 'Chyba při změně stavu vozidel' 
       });
+      throw error; // Re-throw to let the toolbar handle the error
     }
   };
 
-  const handleBulkSTKChange = async () => {
+  const handleBulkSTKChange = async (newDate: Date | null) => {
     try {
       const response = await fetch('/api/auta/bulk-update', {
         method: 'PUT',
@@ -854,7 +852,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         },
         body: JSON.stringify({
           ids: Array.from(selectedRows),
-          datumSTK: newDate ? new Date(newDate) : 'N/A',
+          datumSTK: newDate ? newDate.toISOString() : 'N/A',
         }),
       });
 
@@ -864,7 +862,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         throw new Error(errorText || 'Chyba při aktualizaci STK');
       }
 
-      setShowSTKChangeModal(false);
       setSelectedRows(new Set());
       onRefresh();
       setNotification({
@@ -877,6 +874,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         type: 'error', 
         message: error instanceof Error ? error.message : 'Chyba při aktualizaci STK'
       });
+      throw error; // Re-throw to let the toolbar handle the error
     }
   };
 
@@ -978,32 +976,60 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   };
 
   const handleArchive = async () => {
+    if (selectedRows.size === 0) {
+      toast({
+        title: "Chyba",
+        description: "Nebyla vybrána žádná vozidla k archivaci",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      // Get the selected vehicle IDs
+      const selectedIds = Array.from(selectedRows);
+      
+      // Optimistic update - remove selected vehicles from the local state
+      const originalAuta = [...auta];
+      const updatedAuta = auta.filter(auto => !selectedIds.includes(auto.id.toString()));
+      
+      // Store original state for rollback in case of error
+      const originalSelectedRows = new Set(selectedRows);
+      
+      // Optimistically clear selection
+      setSelectedRows(new Set());
+      
       const response = await fetch('/api/auta/bulk-archivovat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ ids: selectedToArchive.map(auto => auto.id) })
+        body: JSON.stringify({ ids: selectedIds })
       });
 
       const data = await response.json();
+      
       if (!response.ok) {
+        // Rollback optimistic update on error
+        setSelectedRows(originalSelectedRows);
         throw new Error(data.error || 'Chyba při archivaci vozidel');
       }
 
-      setSelectedToArchive([]);
-      setSelectedRows(new Set());
+      // Success - refresh data to get updated state from server
       onRefresh();
-      setNotification({ 
-        type: 'success', 
-        message: 'Vozidla byla úspěšně archivována' 
+      
+      toast({
+        title: "Archivace úspěšná",
+        description: `${selectedIds.length} vozidel bylo úspěšně archivováno`,
       });
     } catch (error) {
-      setNotification({ 
-        type: 'error', 
-        message: error instanceof Error ? error.message : 'Chyba při archivaci vozidel'
+      console.error('Chyba při archivaci vozidel:', error);
+      toast({
+        title: "Chyba při archivaci",
+        description: error instanceof Error ? error.message : 'Nepodařilo se archivovat vybraná vozidla',
+        variant: "destructive",
       });
+      throw error; // Re-throw to let the toolbar handle the error
     }
   }
 
@@ -1665,54 +1691,32 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           </div>
         </div>
 
-        <div className="bg-gray-200 border-b border-gray-200 px-4 py-2 shadow-sm sticky top-0 z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Vybráno položek: {selectedRows.size}
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowSTKChangeModal(true)}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Změnit STK
-              </button>
-              <button
-                onClick={() => setShowStateChangeModal(true)}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Změnit stav
-              </button>
-              <button
-                onClick={handleBulkExport}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Exportovat
-              </button>
-              <button
-                onClick={handlePrint}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Vytisknout
-              </button>
-              <button
-                onClick={() => {
-                  const selectedAutoIds = Array.from(selectedRows)
-                  const selectedAuta = auta.filter(auto => selectedAutoIds.includes(auto.id.toString()))
-                  
-                  if (selectedAuta.length > 0) {
-                    setSelectedToArchive(selectedAuta)
-                  }
-                }}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Archivovat
-              </button>
+        {/* Selection Indicator - only show when items are selected */}
+        {selectedRows.size > 0 && (
+          <div className="bg-purple-50 border-b border-purple-200 px-4 py-2 shadow-sm sticky top-0 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Badge variant="secondary" className="text-sm">
+                  {selectedRows.size} vybráno
+                </Badge>
+                <span className="text-sm text-gray-600">
+                  z {filteredAuta.length} vozidel
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedRows(new Set())}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Zrušit výběr
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="overflow-auto max-h-[calc(100vh-16rem)]">
           <Table className="w-full table-fixed divide-y divide-gray-200
@@ -1723,8 +1727,14 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   <input
                     type="checkbox"
                     checked={isAllSelected}
+                    ref={(input) => {
+                      if (input) {
+                        input.indeterminate = isIndeterminate;
+                      }
+                    }}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-gray-300 w-5 h-5 cursor-pointer"
+                    className="rounded border-gray-300 w-5 h-5 cursor-pointer focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                    aria-label={isAllSelected ? "Odznačit vše" : "Označit vše"}
                   />
                 </TableHead>
                 <TableHead className="w-[80px] text-left">Foto</TableHead>
@@ -1773,7 +1783,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                         type="checkbox"
                         checked={selectedRows.has(auto.id.toString())}
                         onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
-                        className="rounded border-gray-300 w-5 h-5 cursor-pointer"
+                        className="rounded border-gray-300 w-5 h-5 cursor-pointer focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                        aria-label={`Označit vozidlo ${auto.spz}`}
                       />
                     </TableCell>
                     <TableCell className="text-left">
@@ -2111,71 +2122,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         </div>
       </div>
 
-      {showSTKChangeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">Změnit datum STK</h2>
-            <p className="mb-4">Vyberte nové datum STK pro {selectedRows.size} vozidel:</p>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex w-full justify-between rounded-md border border-input bg-background px-3 py-2 text-sm mb-6 shadow-sm",
-                    !newDate && "text-muted-foreground"
-                  )}
-                >
-                  {newDate ? (
-                    format(new Date(newDate), "d. MMMM yyyy", { locale: cs })
-                  ) : (
-                    <span>Vyberte datum STK</span>
-                  )}
-                  <CalendarIcon className="h-4 w-4 opacity-50" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <div className="p-2 bg-white rounded-md">
-                  <Calendar
-                    mode="single"
-                    selected={newDate ? new Date(newDate) : undefined}
-                    onSelect={(date) => setNewDate(date ? date.toISOString().split('T')[0] : '')}
-                    initialFocus
-                    className="rounded-md"
-                    locale={cs}
-                    showOutsideDays={false}
-                    classNames={{
-                      head_row: "flex justify-between",
-                      head_cell: "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem] mx-0.5",
-                      row: "flex w-full mt-2 justify-between",
-                      cell: "h-10 w-10 text-center p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
-                      day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100 rounded-md transition-colors hover:bg-primary hover:text-primary-foreground",
-                      caption: "flex justify-center pt-2 pb-3 relative items-center",
-                      caption_label: "text-base font-medium capitalize"
-                    }}
-                  />
-                </div>
-              </PopoverContent>
-            </Popover>
-            
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowSTKChangeModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 w-full"
-              >
-                Zrušit
-              </button>
-              <button
-                onClick={handleBulkSTKChange}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full"
-              >
-                Uložit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showForm && (
         <AutoForm 
           open={showForm}
@@ -2238,39 +2184,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         </div>
       )}
 
-      {/* Bulk State Change Modal */}
-      {showStateChangeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-10">
-          <div className="bg-gray-200 rounded-lg shadow-xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">Změnit stav vozidel</h2>
-            <p className="mb-4">Vyberte nový stav pro {selectedRows.size} vozidel:</p>
-            <select
-              value={newBulkState}
-              onChange={(e) => setNewBulkState(e.target.value)}
-              className="w-full border rounded-lg px-4 py-2 mb-6 bg-white"
-            >
-              <option value="Aktivní">Aktivní</option>
-              <option value="Neaktivní">Neaktivní</option>
-              <option value="V servisu">V servisu</option>
-            </select>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowStateChangeModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 w-full"
-              >
-                Zrušit
-              </button>
-              <button
-                onClick={handleBulkStateChange}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full"
-              >
-                Uložit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Old archive modal - removed since we now use bulk toolbar */}
       {selectedToArchive.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto">
           <div className="relative w-full max-w-xl max-h-full">
@@ -2390,6 +2304,20 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           </div>
         </div>
       </div>
+
+      {/* Bulk Action Toolbar */}
+      <BulkActionToolbar
+        selectedCount={selectedRows.size}
+        totalCount={filteredAuta.length}
+        onClearSelectionAction={() => setSelectedRows(new Set())}
+        onBulkDelete={handleBulkDelete}
+        onBulkStateChange={handleBulkStateChange}
+        onBulkSTKChange={handleBulkSTKChange}
+        onBulkExport={handleBulkExport}
+        onBulkPrint={handlePrint}
+        onBulkArchive={handleArchive}
+        isLoading={isSaving}
+      />
     </div>
   )
 }
