@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle } from "lucide-react"
+import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle, Check, Edit3 } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
 import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +13,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { loadSettings, saveSettings } from '@/utils/settings'
 import { Calendar } from "@/components/ui/calendar"
+import { Input } from "@/components/ui/input"
 import {
   Popover,
   PopoverContent,
@@ -25,9 +26,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { format } from "date-fns"
 import { cs } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 
 interface Auto {
   id: string;
@@ -143,6 +153,364 @@ function isSTKExpiring(datumSTK: string | undefined) {
   return stk <= oneMonthFromNow
 }
 
+// Validation schema for inline editing
+const inlineEditSchema = z.object({
+  najezd: z.coerce.number()
+    .int("Nájezd musí být celé číslo")
+    .min(0, "Nájezd nemůže být záporný")
+    .max(999999, "Nájezd je příliš vysoký (max. 999 999 km)"),
+  datumSTK: z.string().optional().nullable(),
+})
+
+type InlineEditValues = z.infer<typeof inlineEditSchema>
+
+// Inline editing components
+const InlineMileageEditor = ({ 
+  auto, 
+  onSave, 
+  onCancel 
+}: { 
+  auto: Auto; 
+  onSave: (value: number) => Promise<void>; 
+  onCancel: () => void; 
+}) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasChanged, setHasChanged] = useState(false);
+  const [localValue, setLocalValue] = useState(auto.najezd);
+  
+  const form = useForm<{ najezd: number }>({
+    resolver: zodResolver(z.object({ 
+      najezd: z.coerce.number()
+        .int("Nájezd musí být celé číslo")
+        .min(0, "Nájezd nemůže být záporný")
+        .max(999999, "Nájezd je příliš vysoký (max. 999 999 km)")
+    })),
+    defaultValues: { najezd: auto.najezd },
+    mode: "onChange"
+  });
+
+  // Reset form when auto changes to ensure proper isolation
+  useEffect(() => {
+    form.reset({ najezd: auto.najezd });
+    setLocalValue(auto.najezd);
+    setHasChanged(false);
+  }, [auto.id, auto.najezd, form]);
+
+  const onSubmit = async (data: { najezd: number }) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onSave(data.najezd);
+    } catch (error) {
+      console.error('Error saving mileage:', error);
+      // Revert local value on error
+      setLocalValue(auto.najezd);
+      form.reset({ najezd: auto.najezd });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBlur = () => {
+    // Only save on blur if the form is valid and has changed
+    if (form.formState.isValid && hasChanged) {
+      form.handleSubmit(onSubmit)();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      // Revert to original value on cancel
+      setLocalValue(auto.najezd);
+      form.reset({ najezd: auto.najezd });
+      setHasChanged(false);
+      onCancel();
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (form.formState.isValid) {
+        form.handleSubmit(onSubmit)();
+      }
+    }
+  };
+
+  // Use useEffect to handle outside clicks
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const formElement = document.querySelector(`[data-mileage-editor="${auto.id}"]`);
+      if (formElement && !formElement.contains(target)) {
+        // Revert to original value on outside click
+        setLocalValue(auto.najezd);
+        form.reset({ najezd: auto.najezd });
+        setHasChanged(false);
+        onCancel();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onCancel, auto.id, auto.najezd, form]);
+
+  return (
+    <div data-mileage-editor={auto.id} className="flex items-center gap-2">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-2">
+        <Controller
+          name="najezd"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <div className="relative">
+              <Input
+                {...field}
+                type="number"
+                min="0"
+                max="999999"
+                step="100"
+                className={cn(
+                  "w-28 h-8 text-sm transition-all duration-200",
+                  "focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+                  fieldState.error && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                )}
+                autoFocus
+                onKeyDown={handleKeyDown}
+                onBlur={handleBlur}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? 0 : Number(e.target.value);
+                  field.onChange(value);
+                  setLocalValue(value);
+                  setHasChanged(true);
+                }}
+                disabled={isSubmitting}
+                aria-label="Nájezd vozidla v kilometrech"
+                placeholder="0"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                km
+              </div>
+              {fieldState.error && (
+                <div className="absolute -bottom-6 left-0 text-xs text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 z-10 shadow-sm">
+                  {fieldState.error.message}
+                </div>
+              )}
+            </div>
+          )}
+        />
+        <div className="flex gap-1">
+          <Button
+            type="submit"
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0 hover:bg-green-50 transition-colors"
+            disabled={isSubmitting || !form.formState.isValid || !hasChanged}
+            aria-label="Uložit nájezd"
+          >
+            {isSubmitting ? (
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
+            ) : (
+              <Check className="h-3 w-3 text-green-600" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0 hover:bg-red-50 transition-colors"
+            onClick={() => {
+              setLocalValue(auto.najezd);
+              form.reset({ najezd: auto.najezd });
+              setHasChanged(false);
+              onCancel();
+            }}
+            disabled={isSubmitting}
+            aria-label="Zrušit úpravu"
+          >
+            <X className="h-3 w-3 text-red-600" />
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const InlineSTKEditor = ({ 
+  auto, 
+  onSave, 
+  onCancel 
+}: { 
+  auto: Auto; 
+  onSave: (value: string | null) => Promise<void>; 
+  onCancel: () => void; 
+}) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasChanged, setHasChanged] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [localDate, setLocalDate] = useState<Date | null>(
+    auto.datumSTK ? new Date(auto.datumSTK) : null
+  );
+  
+  // Use form for STK date management to ensure proper isolation
+  const form = useForm<{ datumSTK?: Date | null }>({
+    resolver: zodResolver(z.object({
+      datumSTK: z.date().optional().nullable()
+    })),
+    defaultValues: { 
+      datumSTK: auto.datumSTK ? new Date(auto.datumSTK) : null 
+    },
+    mode: "onChange"
+  });
+
+  // Reset form when auto changes to ensure proper isolation
+  useEffect(() => {
+    const newDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+    form.reset({ datumSTK: newDate });
+    setLocalDate(newDate);
+    setHasChanged(false);
+  }, [auto.id, auto.datumSTK, form]);
+
+  // Get today's date for minimum validation
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const handleSave = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const currentDate = form.getValues("datumSTK");
+      await onSave(currentDate ? currentDate.toISOString() : null);
+    } catch (error) {
+      console.error('Error saving STK date:', error);
+      // Revert local value on error
+      const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+      setLocalDate(originalDate);
+      form.reset({ datumSTK: originalDate });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (isOpen) {
+        setIsOpen(false);
+      } else {
+        // Revert to original value on cancel
+        const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+        setLocalDate(originalDate);
+        form.reset({ datumSTK: originalDate });
+        setHasChanged(false);
+        onCancel();
+      }
+    }
+    if (e.key === 'Enter' && !isOpen) {
+      handleSave();
+    }
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    form.setValue("datumSTK", date || null, { shouldDirty: true, shouldValidate: true });
+    setLocalDate(date || null);
+    setIsOpen(false);
+    setHasChanged(true);
+  };
+
+  // Use useEffect to handle outside clicks
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const formElement = document.querySelector(`[data-stk-editor="${auto.id}"]`);
+      if (formElement && !formElement.contains(target) && !isOpen) {
+        // Revert to original value on outside click
+        const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+        setLocalDate(originalDate);
+        form.reset({ datumSTK: originalDate });
+        setHasChanged(false);
+        onCancel();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onCancel, isOpen, auto.id, auto.datumSTK, form]);
+
+  const selectedDate = form.watch("datumSTK");
+
+  return (
+    <div data-stk-editor={auto.id} className="flex items-center gap-2">
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              "h-8 w-36 justify-start text-left font-normal transition-all duration-200",
+              "focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+              "hover:bg-gray-50"
+            )}
+            onKeyDown={handleKeyDown}
+            disabled={isSubmitting}
+            aria-label="Vybrat datum STK"
+          >
+            {selectedDate ? (
+              format(selectedDate, "d.M.yyyy", { locale: cs })
+            ) : (
+              <span className="text-muted-foreground">Vyberte datum</span>
+            )}
+            <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate || undefined}
+            onSelect={handleDateSelect}
+            disabled={(date) => date < today}
+            initialFocus
+            locale={cs}
+            className="rounded-md"
+            fromDate={today}
+          />
+        </PopoverContent>
+      </Popover>
+      <div className="flex gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 w-6 p-0 hover:bg-green-50 transition-colors"
+          onClick={handleSave}
+          disabled={isSubmitting || !hasChanged}
+          aria-label="Uložit datum STK"
+        >
+          {isSubmitting ? (
+            <div className="h-3 w-3 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
+          ) : (
+            <Check className="h-3 w-3 text-green-600" />
+          )}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 w-6 p-0 hover:bg-red-50 transition-colors"
+          onClick={() => {
+            const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+            setLocalDate(originalDate);
+            form.reset({ datumSTK: originalDate });
+            setHasChanged(false);
+            onCancel();
+          }}
+          disabled={isSubmitting}
+          aria-label="Zrušit úpravu"
+        >
+          <X className="h-3 w-3 text-red-600" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const router = useRouter()
   const [editedAuto, setEditedAuto] = useState<Auto | null | undefined>(null)
@@ -189,6 +557,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   // Add a state to track thumbnail updates
   const [thumbnailVersion, setThumbnailVersion] = useState(0);
+
+  // Inline editing state
+  const [editingCell, setEditingCell] = useState<{ id: string; field: 'najezd' | 'datumSTK' } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load saved settings on component mount
   const savedSettings = useMemo(() => loadSettings(), []);
@@ -983,6 +1355,75 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
   };
 
+  // Inline editing handlers
+  const handleInlineSave = async (autoId: string, field: 'najezd' | 'datumSTK', value: number | string | null) => {
+    setIsSaving(true);
+    try {
+      // Find the current auto to preserve all existing data
+      const currentAuto = auta.find(a => a.id === autoId);
+      if (!currentAuto) {
+        throw new Error('Vehicle not found');
+      }
+
+      // Create update payload with all existing data plus the updated field
+      const updatePayload = {
+        spz: currentAuto.spz,
+        znacka: currentAuto.znacka,
+        model: currentAuto.model,
+        rokVyroby: currentAuto.rokVyroby,
+        najezd: currentAuto.najezd,
+        stav: currentAuto.stav,
+        datumSTK: currentAuto.datumSTK,
+        poznamka: currentAuto.poznamka,
+        // Override only the specific field being updated
+        [field]: value
+      };
+
+      const response = await fetch(`/api/auta/${autoId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update vehicle');
+      }
+
+      // Optimistic update - update only the specific field in the local data
+      const updatedAuto = auta.find(a => a.id === autoId);
+      if (updatedAuto) {
+        if (field === 'najezd') {
+          updatedAuto.najezd = value as number;
+        } else if (field === 'datumSTK') {
+          updatedAuto.datumSTK = value as string | null;
+        }
+      }
+
+      setEditingCell(null);
+      onRefresh();
+      
+      toast({
+        title: "Úspěšně aktualizováno",
+        description: `${field === 'najezd' ? 'Nájezd' : 'Datum STK'} bylo úspěšně změněno`,
+      });
+    } catch (error) {
+      console.error('Error updating vehicle:', error);
+      toast({
+        title: "Chyba při aktualizaci",
+        description: "Nepodařilo se aktualizovat vozidlo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInlineCancel = () => {
+    setEditingCell(null);
+  };
+
   return (
     <div className="w-full h-full p-2">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -1409,33 +1850,156 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     <TableCell className="text-left">{auto.znacka}</TableCell>
                     <TableCell className="text-left">{auto.model}</TableCell>
                     <TableCell className="text-left">{auto.rokVyroby}</TableCell>
-                    <TableCell className="text-left">{formatNumber(auto.najezd)}</TableCell>
+                    <TableCell className="text-left">
+                      {editingCell?.id === auto.id && editingCell?.field === 'najezd' ? (
+                        <InlineMileageEditor
+                          auto={auto}
+                          onSave={async (value) => {
+                            await handleInlineSave(auto.id, 'najezd', value);
+                          }}
+                          onCancel={handleInlineCancel}
+                        />
+                      ) : (
+                        <TooltipProvider>
+                          <Tooltip delayDuration={300}>
+                            <TooltipTrigger asChild>
+                              <div 
+                                className={cn(
+                                  "group flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded transition-all duration-200 focus-within:bg-gray-50 focus-within:ring-2 focus-within:ring-purple-500 focus-within:ring-opacity-50",
+                                  editingCell && editingCell.id === auto.id && editingCell.field === 'najezd' && "bg-purple-50 ring-2 ring-purple-200"
+                                )}
+                                onClick={() => {
+                                  if (editingCell && editingCell.id !== auto.id) {
+                                    handleInlineCancel();
+                                  }
+                                  setEditingCell({ id: auto.id, field: 'najezd' });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    if (editingCell && editingCell.id !== auto.id) {
+                                      handleInlineCancel();
+                                    }
+                                    setEditingCell({ id: auto.id, field: 'najezd' });
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label="Klikněte pro úpravu nájezdu"
+                              >
+                                <span className="font-medium">{formatNumber(auto.najezd)}</span>
+                                <Edit3 className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <div className="space-y-1">
+                                <p className="font-medium">Upravit nájezd</p>
+                                <p className="text-xs text-gray-400">
+                                  Klikněte pro úpravu nájezdu vozidla
+                                </p>
+                                <div className="text-xs text-gray-400 space-y-1">
+                                  <p>• Enter = uložit změny</p>
+                                  <p>• Esc = zrušit úpravu</p>
+                                  <p>• Tab = přepnout na další pole</p>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </TableCell>
                     <TableCell className="text-left">
                       <Badge className={getStatusColor(auto.stav)}>
                         {auto.stav}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-left">
-                      <div className="flex items-center gap-2">
-                        {stkStatus === 'expired' && (
-                          <AlertTriangle className="h-4 w-4 text-red-600" />
-                        )}
-                        {stkStatus === 'upcoming' && (
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        )}
-                        {auto.datumSTK ? (
-                          <span className={cn(
-                            stkStatus === 'expired' && 'text-red-600 font-medium',
-                            stkStatus === 'upcoming' && 'text-yellow-700 font-medium'
-                          )}>
-                            {new Date(auto.datumSTK).toLocaleDateString('cs-CZ')}
-                          </span>
-                        ) : (
-                          <Badge className="bg-amber-100 text-amber-800 border-amber-200">
-                            Není zadáno
-                          </Badge>
-                        )}
-                      </div>
+                      {editingCell?.id === auto.id && editingCell?.field === 'datumSTK' ? (
+                        <InlineSTKEditor
+                          auto={auto}
+                          onSave={async (value) => {
+                            await handleInlineSave(auto.id, 'datumSTK', value);
+                          }}
+                          onCancel={handleInlineCancel}
+                        />
+                      ) : (
+                        <TooltipProvider>
+                          <Tooltip delayDuration={300}>
+                            <TooltipTrigger asChild>
+                              <div 
+                                className={cn(
+                                  "group flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded transition-all duration-200 focus-within:bg-gray-50 focus-within:ring-2 focus-within:ring-purple-500 focus-within:ring-opacity-50",
+                                  editingCell && editingCell.id === auto.id && editingCell.field === 'datumSTK' && "bg-purple-50 ring-2 ring-purple-200"
+                                )}
+                                onClick={() => {
+                                  if (editingCell && editingCell.id !== auto.id) {
+                                    handleInlineCancel();
+                                  }
+                                  setEditingCell({ id: auto.id, field: 'datumSTK' });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    if (editingCell && editingCell.id !== auto.id) {
+                                      handleInlineCancel();
+                                    }
+                                    setEditingCell({ id: auto.id, field: 'datumSTK' });
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label="Klikněte pro úpravu data STK"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {stkStatus === 'expired' && (
+                                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                                  )}
+                                  {stkStatus === 'upcoming' && (
+                                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                  )}
+                                  {auto.datumSTK ? (
+                                    <span className={cn(
+                                      "font-medium",
+                                      stkStatus === 'expired' && 'text-red-600',
+                                      stkStatus === 'upcoming' && 'text-yellow-700'
+                                    )}>
+                                      {new Date(auto.datumSTK).toLocaleDateString('cs-CZ')}
+                                    </span>
+                                  ) : (
+                                    <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                                      Není zadáno
+                                    </Badge>
+                                  )}
+                                </div>
+                                <Edit3 className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <div className="space-y-1">
+                                <p className="font-medium">Upravit datum STK</p>
+                                <p className="text-xs text-gray-400">
+                                  Klikněte pro úpravu data technické kontroly
+                                </p>
+                                {stkStatus === 'expired' && (
+                                  <p className="text-xs text-red-600 font-medium">
+                                    ⚠️ STK vypršelo
+                                  </p>
+                                )}
+                                {stkStatus === 'upcoming' && (
+                                  <p className="text-xs text-yellow-600 font-medium">
+                                    ⚠️ STK brzy vyprší
+                                  </p>
+                                )}
+                                <div className="text-xs text-gray-400 space-y-1">
+                                  <p>• Enter = uložit změny</p>
+                                  <p>• Esc = zrušit úpravu</p>
+                                  <p>• Tab = přepnout na další pole</p>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </TableCell>
                     <TableCell className="text-left">
                       <DropdownMenu>
@@ -1768,6 +2332,36 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           onSubmit={handleEditSubmit}
         />
       )}
+
+      {/* Inline Editing Legend */}
+      <div className="mt-3 pt-3 border-t border-gray-200">
+        <div className="flex flex-wrap items-center gap-6 text-xs text-gray-600">
+          <div className="flex items-center gap-2">
+            <Edit3 className="h-3 w-3 text-gray-400" />
+            <span>Klikněte na nájezd nebo datum STK pro úpravu</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono bg-gray-100 px-1 rounded">Enter</span>
+            <span>uložit změny</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono bg-gray-100 px-1 rounded">Esc</span>
+            <span>zrušit úpravu</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono bg-gray-100 px-1 rounded">Tab</span>
+            <span>přepínat mezi poli</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-3 w-3 text-red-500" />
+            <span>STK vypršelo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-3 w-3 text-yellow-500" />
+            <span>STK brzy vyprší</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
