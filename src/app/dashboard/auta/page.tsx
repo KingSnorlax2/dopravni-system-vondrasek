@@ -1,17 +1,37 @@
 'use client'
 
-import { useState, useEffect, useTransition, useCallback } from 'react'
+import { useState, useEffect, useTransition, useCallback, useMemo } from 'react'
 import AutoTable from '@/components/dashboard/AutoTable'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { Button } from "@/components/ui/button"
-import { Plus, AlertTriangle } from "lucide-react"
+import { Plus, AlertTriangle, Calendar, Save, X, Check } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
 import { cs } from "date-fns/locale"
 import { generateRandomVehicleData } from "@/lib/mock-data"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { cn } from "@/lib/utils"
+
+// Validation schema for STK date updates
+const stkUpdateSchema = z.object({
+  vehicles: z.array(z.object({
+    id: z.string(),
+    spz: z.string(),
+    znacka: z.string(),
+    model: z.string(),
+    currentSTK: z.string().nullable(),
+    newSTK: z.date().nullable().optional(),
+  }))
+})
+
+type STKUpdateFormData = z.infer<typeof stkUpdateSchema>
 
 function isSTKExpiring(datumSTK: string | null) {
   if (!datumSTK) return false
@@ -30,7 +50,44 @@ export default function AutoPage() {
   const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(true)
   const [showExpiringSTKDialog, setShowExpiringSTKDialog] = useState(false)
+  const [isSavingSTK, setIsSavingSTK] = useState(false)
+  const [savingVehicleId, setSavingVehicleId] = useState<string | null>(null)
+
   const expiringSTKVehicles = auta.filter(auto => isSTKExpiring(auto.datumSTK))
+
+  // Form for STK updates
+  const stkForm = useForm<STKUpdateFormData>({
+    resolver: zodResolver(stkUpdateSchema),
+    defaultValues: {
+      vehicles: []
+    }
+  })
+
+  // Memoize the form data to prevent unnecessary resets
+  const formVehiclesData = useMemo(() => {
+    return expiringSTKVehicles.map(auto => ({
+      id: auto.id,
+      spz: auto.spz,
+      znacka: auto.znacka,
+      model: auto.model,
+      currentSTK: auto.datumSTK,
+      newSTK: auto.datumSTK ? new Date(auto.datumSTK) : null
+    }))
+  }, [expiringSTKVehicles])
+
+  // Update form when vehicles change, but only if the data actually changed
+  useEffect(() => {
+    if (formVehiclesData.length > 0) {
+      const currentFormData = stkForm.getValues('vehicles')
+      const hasChanged = JSON.stringify(currentFormData) !== JSON.stringify(formVehiclesData)
+      
+      if (hasChanged) {
+        stkForm.reset({
+          vehicles: formVehiclesData
+        })
+      }
+    }
+  }, [formVehiclesData, stkForm])
 
   const handleSuccess = () => {
     setRefresh(prev => prev + 1)
@@ -69,8 +126,6 @@ export default function AutoPage() {
   useEffect(() => {
     refreshData();
   }, [refreshData]);
-
-  const autaBliziciSeSTK = auta.filter(auto => isSTKExpiring(auto.datumSTK))
 
   const handleAutoSubmit = async (newAuto: any) => {
     await refreshData() // Refetch the data to update the list
@@ -119,6 +174,73 @@ export default function AutoPage() {
     }
   }
 
+  // Handle individual STK date save
+  const handleIndividualSTKSave = async (vehicleId: string, newDate: Date | null) => {
+    setSavingVehicleId(vehicleId);
+    try {
+      const response = await fetch(`/api/auta/${vehicleId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          datumSTK: newDate?.toISOString() || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update STK date');
+      }
+
+      // Optimistically update local state
+      const updatedAuta = auta.map(auto => {
+        if (auto.id === vehicleId) {
+          return { ...auto, datumSTK: newDate?.toISOString() || null };
+        }
+        return auto;
+      });
+      setAuta(updatedAuta);
+
+      toast({
+        title: "STK aktualizováno",
+        description: "Datum STK bylo úspěšně změněno",
+      });
+
+      // Refresh data to ensure consistency
+      await refreshData();
+    } catch (error) {
+      console.error('Error updating STK date:', error);
+      toast({
+        title: "Chyba při aktualizaci",
+        description: "Nepodařilo se aktualizovat datum STK",
+        variant: "destructive",
+      });
+      
+      // Revert the form value on error
+      const vehicle = expiringSTKVehicles.find(v => v.id === vehicleId);
+      if (vehicle) {
+        stkForm.setValue(`vehicles.${expiringSTKVehicles.findIndex(v => v.id === vehicleId)}.newSTK`, 
+          vehicle.datumSTK ? new Date(vehicle.datumSTK) : null
+        );
+      }
+    } finally {
+      setSavingVehicleId(null);
+    }
+  };
+
+  // Handle date selection with immediate save
+  const handleDateSelect = async (vehicleId: string, newDate: Date | null) => {
+    const vehicle = expiringSTKVehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return;
+
+    const currentDate = vehicle.datumSTK ? new Date(vehicle.datumSTK) : null;
+    
+    // Only save if the date actually changed
+    if (newDate?.getTime() !== currentDate?.getTime()) {
+      await handleIndividualSTKSave(vehicleId, newDate);
+    }
+  };
+
   return (
     <div className="container mx-auto py-10">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -154,6 +276,17 @@ export default function AutoPage() {
         </div>
       </div>
 
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Správa vozidel</h1>
+        <Button onClick={() => setShowForm(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Přidat auto
+        </Button>
+        <Button onClick={addRandomVehicles} variant="outline" size="sm" className="ml-2">
+          Přidat náhodná vozidla
+        </Button>
+      </div>
+
       <div className="flex items-center gap-2 mb-4">
         <TooltipProvider>
           <Tooltip>
@@ -176,47 +309,110 @@ export default function AutoPage() {
         </TooltipProvider>
 
         <Dialog open={showExpiringSTKDialog} onOpenChange={setShowExpiringSTKDialog}>
-          <DialogContent className="max-w-lg w-full">
-            <DialogHeader>
+          <DialogContent className="max-w-4xl w-full max-h-[70vh] flex flex-col p-0">
+            <DialogHeader className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-yellow-600" />
                 Vozidla s blížícím se STK
               </DialogTitle>
               <DialogDescription>
-                Seznam vozidel, kterým vyprší STK během 30 dnů.
+                Seznam vozidel, kterým vyprší STK během 30 dnů. Změny se ukládají automaticky.
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-4 space-y-2">
+            
+            <div className="flex-1 overflow-y-auto px-6 py-4">
               {expiringSTKVehicles.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">Žádná vozidla s blížícím se STK</div>
               ) : (
-                <ul className="divide-y divide-yellow-100">
-                  {expiringSTKVehicles.map(auto => (
-                    <li key={auto.id} className="flex items-center gap-3 py-2">
-                      <AlertTriangle className="h-4 w-4 text-yellow-600 flex-shrink-0" aria-hidden="true" />
-                      <span className="font-mono text-sm text-gray-800">{auto.spz}</span>
-                      <span className="text-gray-700 text-sm">{auto.znacka} {auto.model}</span>
-                      <span className="ml-auto text-xs text-yellow-700 font-medium">
-                        {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 rounded-lg font-medium text-sm text-gray-600 sticky top-0 z-10">
+                    <div className="col-span-2">SPZ</div>
+                    <div className="col-span-4">Vozidlo</div>
+                    <div className="col-span-3">Aktuální STK</div>
+                    <div className="col-span-3">Nové STK</div>
+                  </div>
+                  
+                  <Controller
+                    name="vehicles"
+                    control={stkForm.control}
+                    render={({ field }) => (
+                      <div className="space-y-2">
+                        {field.value.map((vehicle, index) => (
+                          <div key={vehicle.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="col-span-2">
+                              <span className="font-mono text-sm text-gray-800">{vehicle.spz}</span>
+                            </div>
+                            <div className="col-span-4">
+                              <span className="text-gray-700 text-sm">{vehicle.znacka} {vehicle.model}</span>
+                            </div>
+                            <div className="col-span-3">
+                              <span className="text-sm text-gray-600">
+                                {vehicle.currentSTK ? format(new Date(vehicle.currentSTK), "d.M.yyyy", { locale: cs }) : 'Není zadáno'}
+                              </span>
+                            </div>
+                            <div className="col-span-3">
+                              <Controller
+                                name={`vehicles.${index}.newSTK`}
+                                control={stkForm.control}
+                                render={({ field: dateField }) => (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={savingVehicleId === vehicle.id}
+                                        className={cn(
+                                          "w-full justify-start text-left font-normal h-8",
+                                          !dateField.value && "text-muted-foreground",
+                                          savingVehicleId === vehicle.id && "opacity-50 cursor-not-allowed"
+                                        )}
+                                      >
+                                        {savingVehicleId === vehicle.id ? (
+                                          <>
+                                            <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
+                                            Ukládám...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Calendar className="mr-2 h-3 w-3" />
+                                            {dateField.value ? (
+                                              format(dateField.value, "d.M.yyyy", { locale: cs })
+                                            ) : (
+                                              <span>Vyberte datum</span>
+                                            )}
+                                          </>
+                                        )}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <CalendarComponent
+                                        mode="single"
+                                        selected={dateField.value || undefined}
+                                        onSelect={(date) => {
+                                          dateField.onChange(date);
+                                          if (date !== undefined) {
+                                            handleDateSelect(vehicle.id, date);
+                                          }
+                                        }}
+                                        initialFocus
+                                        locale={cs}
+                                        className="rounded-md"
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </div>
               )}
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Správa vozidel</h1>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Přidat auto
-        </Button>
-        <Button onClick={addRandomVehicles} variant="outline" size="sm" className="ml-2">
-          Přidat náhodná vozidla
-        </Button>
       </div>
       
       {error && (
