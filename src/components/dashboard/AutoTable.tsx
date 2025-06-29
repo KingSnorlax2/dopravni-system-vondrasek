@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2 } from "lucide-react"
+import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
 import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
@@ -111,6 +111,29 @@ const exportToCSV = (auta: Auto[]) => {
 }
 
 const MAX_POZNAMKA_LENGTH = 300;
+
+type STKStatus = 'expired' | 'upcoming' | 'normal' | 'missing';
+
+function getSTKStatus(datumSTK: string | null | undefined): STKStatus {
+  if (!datumSTK) return 'missing';
+  
+  const stk = new Date(datumSTK);
+  const today = new Date();
+  const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+  
+  // Reset time to compare only dates
+  const stkDate = new Date(stk.getFullYear(), stk.getMonth(), stk.getDate());
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const thirtyDaysDate = new Date(thirtyDaysFromNow.getFullYear(), thirtyDaysFromNow.getMonth(), thirtyDaysFromNow.getDate());
+  
+  if (stkDate < todayDate) {
+    return 'expired';
+  } else if (stkDate <= thirtyDaysDate) {
+    return 'upcoming';
+  } else {
+    return 'normal';
+  }
+}
 
 function isSTKExpiring(datumSTK: string | undefined) {
   if (!datumSTK) return false
@@ -1286,142 +1309,175 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedAuta.map((auto) => (
-                <TableRow 
-                  key={auto.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <TableCell className="text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.has(auto.id.toString())}
-                      onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
-                      className="rounded border-gray-300 w-5 h-5 cursor-pointer"
-                    />
-                  </TableCell>
-                  <TableCell className="text-left">
-                    {(() => {
-                      // Get the thumbnail URL with a timestamp to prevent caching
-                      const timestamp = new Date().getTime();
-                      const thumbnailUrl = auto.thumbnailUrl 
-                        ? `${auto.thumbnailUrl}?t=${timestamp}` 
-                        : auto.thumbnailFotoId 
-                          ? `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`
-                          : null;
-                      
-                      return thumbnailUrl ? (
-                        <>
-                          <div 
-                            className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md"
-                            onClick={() => setFullscreenPhoto(thumbnailUrl)}
-                          >
-                            <img 
-                              src={thumbnailUrl}
-                              alt={`${auto.znacka} ${auto.model}`}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                              onError={(e) => {
-                                console.error('Image failed to load:', thumbnailUrl);
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
-                          </div>
-                          
-                          {/* Fullscreen Photo Dialog */}
-                          <Dialog open={!!fullscreenPhoto} onOpenChange={(open) => !open && setFullscreenPhoto(null)}>
-                            <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none">
-                              <div className="relative w-full h-full flex items-center justify-center">
-                                <button 
-                                  onClick={() => setFullscreenPhoto(null)}
-                                  className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-white/20 z-10 transition-all duration-200 backdrop-blur-sm"
-                                  aria-label="Close"
-                                >
-                                  <X className="h-6 w-6" />
-                                </button>
-                                
-                                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
-                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
-                                
-                                {fullscreenPhoto && (
-                                  <div className="transition-all duration-300 ease-out transform scale-100">
-                                    <img 
-                                      src={fullscreenPhoto}
-                                      alt={`${auto.znacka} ${auto.model}`}
-                                      className="max-w-full max-h-[80vh] object-contain shadow-2xl"
-                                    />
-                                    <div className="mt-4 text-center text-white/80 text-sm">
-                                      {auto.znacka} {auto.model} • {auto.spz}
+              {paginatedAuta.map((auto) => {
+                const stkStatus = getSTKStatus(auto.datumSTK);
+                const getRowBackgroundClass = () => {
+                  switch (stkStatus) {
+                    case 'expired':
+                      return 'bg-red-50 hover:bg-red-100';
+                    case 'upcoming':
+                      return 'bg-yellow-50 hover:bg-yellow-100';
+                    default:
+                      return 'hover:bg-gray-50';
+                  }
+                };
+
+                return (
+                  <TableRow 
+                    key={auto.id}
+                    className={`transition-colors ${getRowBackgroundClass()}`}
+                  >
+                    <TableCell className="text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(auto.id.toString())}
+                        onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
+                        className="rounded border-gray-300 w-5 h-5 cursor-pointer"
+                      />
+                    </TableCell>
+                    <TableCell className="text-left">
+                      {(() => {
+                        // Get the thumbnail URL with a timestamp to prevent caching
+                        const timestamp = new Date().getTime();
+                        const thumbnailUrl = auto.thumbnailUrl 
+                          ? `${auto.thumbnailUrl}?t=${timestamp}` 
+                          : auto.thumbnailFotoId 
+                            ? `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`
+                            : null;
+                        
+                        return thumbnailUrl ? (
+                          <>
+                            <div 
+                              className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md"
+                              onClick={() => setFullscreenPhoto(thumbnailUrl)}
+                            >
+                              <img 
+                                src={thumbnailUrl}
+                                alt={`${auto.znacka} ${auto.model}`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  console.error('Image failed to load:', thumbnailUrl);
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
+                            </div>
+                            
+                            {/* Fullscreen Photo Dialog */}
+                            <Dialog open={!!fullscreenPhoto} onOpenChange={(open) => !open && setFullscreenPhoto(null)}>
+                              <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none">
+                                <div className="relative w-full h-full flex items-center justify-center">
+                                  <button 
+                                    onClick={() => setFullscreenPhoto(null)}
+                                    className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-white/20 z-10 transition-all duration-200 backdrop-blur-sm"
+                                    aria-label="Close"
+                                  >
+                                    <X className="h-6 w-6" />
+                                  </button>
+                                  
+                                  <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
+                                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
+                                  
+                                  {fullscreenPhoto && (
+                                    <div className="transition-all duration-300 ease-out transform scale-100">
+                                      <img 
+                                        src={fullscreenPhoto}
+                                        alt={`${auto.znacka} ${auto.model}`}
+                                        className="max-w-full max-h-[80vh] object-contain shadow-2xl"
+                                      />
+                                      <div className="mt-4 text-center text-white/80 text-sm">
+                                        {auto.znacka} {auto.model} • {auto.spz}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </>
-                      ) : (
-                        <div 
-                          className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 shadow-sm"
-                        >
-                          <ImageIcon className="h-8 w-8 text-gray-400" />
-                        </div>
-                      );
-                    })()}
-                  </TableCell>
-                  <TableCell className="text-left"></TableCell>
-                  <TableCell className="text-left font-medium">{auto.spz}</TableCell>
-                  <TableCell className="text-left">{auto.znacka}</TableCell>
-                  <TableCell className="text-left">{auto.model}</TableCell>
-                  <TableCell className="text-left">{auto.rokVyroby}</TableCell>
-                  <TableCell className="text-left">{formatNumber(auto.najezd)}</TableCell>
-                  <TableCell className="text-left">
-                    <Badge className={getStatusColor(auto.stav)}>
-                      {auto.stav}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-left">
-                    {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}
-                  </TableCell>
-                  <TableCell className="text-left">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          aria-label="Otevřít menu akcí"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem
-                          onClick={() => handleEdit(auto)}
-                          className="cursor-pointer"
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Upravit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleCarDetail(auto.id)}
-                          className="cursor-pointer"
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          Detail
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setDeleteModalData({ auto, isOpen: true })}
-                          className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Vyřadit
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </>
+                        ) : (
+                          <div 
+                            className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 shadow-sm"
+                          >
+                            <ImageIcon className="h-8 w-8 text-gray-400" />
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell className="text-left"></TableCell>
+                    <TableCell className="text-left font-medium">{auto.spz}</TableCell>
+                    <TableCell className="text-left">{auto.znacka}</TableCell>
+                    <TableCell className="text-left">{auto.model}</TableCell>
+                    <TableCell className="text-left">{auto.rokVyroby}</TableCell>
+                    <TableCell className="text-left">{formatNumber(auto.najezd)}</TableCell>
+                    <TableCell className="text-left">
+                      <Badge className={getStatusColor(auto.stav)}>
+                        {auto.stav}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-left">
+                      <div className="flex items-center gap-2">
+                        {stkStatus === 'expired' && (
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                        )}
+                        {stkStatus === 'upcoming' && (
+                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        )}
+                        {auto.datumSTK ? (
+                          <span className={cn(
+                            stkStatus === 'expired' && 'text-red-600 font-medium',
+                            stkStatus === 'upcoming' && 'text-yellow-700 font-medium'
+                          )}>
+                            {new Date(auto.datumSTK).toLocaleDateString('cs-CZ')}
+                          </span>
+                        ) : (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                            Není zadáno
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-left">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label="Otevřít menu akcí"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(auto)}
+                            className="cursor-pointer"
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Upravit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleCarDetail(auto.id)}
+                            className="cursor-pointer"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Detail
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDeleteModalData({ auto, isOpen: true })}
+                            className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Vyřadit
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
