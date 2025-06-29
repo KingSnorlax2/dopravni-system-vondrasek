@@ -4,12 +4,14 @@ import { useState, useEffect, useTransition, useCallback } from 'react'
 import AutoTable from '@/components/dashboard/AutoTable'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { Plus, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
 import { cs } from "date-fns/locale"
 import { generateRandomVehicleData } from "@/lib/mock-data"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 function isSTKExpiring(datumSTK: string | null) {
   if (!datumSTK) return false
@@ -27,6 +29,8 @@ export default function AutoPage() {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(true)
+  const [showExpiringSTKDialog, setShowExpiringSTKDialog] = useState(false)
+  const expiringSTKVehicles = auta.filter(auto => isSTKExpiring(auto.datumSTK))
 
   const handleSuccess = () => {
     setRefresh(prev => prev + 1)
@@ -150,28 +154,59 @@ export default function AutoPage() {
         </div>
       </div>
 
-      {autaBliziciSeSTK.length > 0 && (
-        <div className="mb-6">
-          {autaBliziciSeSTK.map(auto => (
-            <div 
-              key={auto.id}
-              className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-2"
-            >
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  ⚠️
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-yellow-700">
-                    Blíží se STK u vozidla {auto.spz} ({auto.znacka} {auto.model}) - 
-                    datum STK: {new Date(auto.datumSTK).toLocaleDateString('cs-CZ')}
-                  </p>
-                </div>
-              </div>
+      <div className="flex items-center gap-2 mb-4">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Expiring STK"
+                tabIndex={0}
+                className="rounded-full p-2 border border-yellow-300 bg-yellow-50 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition text-yellow-700"
+                onClick={() => setShowExpiringSTKDialog(true)}
+              >
+                <AlertTriangle className="h-5 w-5" />
+                {expiringSTKVehicles.length > 0 && (
+                  <span className="ml-1 text-xs font-semibold">{expiringSTKVehicles.length}</span>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Expiring STK</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <Dialog open={showExpiringSTKDialog} onOpenChange={setShowExpiringSTKDialog}>
+          <DialogContent className="max-w-lg w-full">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                Vozidla s blížícím se STK
+              </DialogTitle>
+              <DialogDescription>
+                Seznam vozidel, kterým vyprší STK během 30 dnů.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 space-y-2">
+              {expiringSTKVehicles.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">Žádná vozidla s blížícím se STK</div>
+              ) : (
+                <ul className="divide-y divide-yellow-100">
+                  {expiringSTKVehicles.map(auto => (
+                    <li key={auto.id} className="flex items-center gap-3 py-2">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600 flex-shrink-0" aria-hidden="true" />
+                      <span className="font-mono text-sm text-gray-800">{auto.spz}</span>
+                      <span className="text-gray-700 text-sm">{auto.znacka} {auto.model}</span>
+                      <span className="ml-auto text-xs text-yellow-700 font-medium">
+                        {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Správa vozidel</h1>

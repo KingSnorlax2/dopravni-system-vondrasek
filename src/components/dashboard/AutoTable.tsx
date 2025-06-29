@@ -4,13 +4,13 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle, Check, Edit3 } from "lucide-react"
+import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle, Check, Edit3, CircleDot } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
 import { BulkActionToolbar } from "@/components/dashboard/BulkActionToolbar"
 import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { loadSettings, saveSettings } from '@/utils/settings'
 import { Calendar } from "@/components/ui/calendar"
@@ -558,6 +558,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [editingCell, setEditingCell] = useState<{ id: string; field: 'najezd' | 'datumSTK' } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // STK warning filter state
+  const [showSTKWarningFilter, setShowSTKWarningFilter] = useState(false);
+
   // Load saved settings on component mount
   const savedSettings = useMemo(() => loadSettings(), []);
   
@@ -615,6 +618,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   // Generate unique model options only
   const modelOptions = useMemo(() => Array.from(new Set(auta.map(a => a.model))).sort(), [auta])
 
+  // Count vehicles with expiring STK
+  const expiringSTKCount = useMemo(() => {
+    return auta.filter(auto => auto.datumSTK && getSTKStatus(auto.datumSTK) === 'upcoming').length;
+  }, [auta]);
+
   const filteredAuta = useMemo(() => {
     return auta.filter(auto => {
       // Search term filter
@@ -638,7 +646,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       // Model filter
       const matchesModel = selectedModels.length === 0 || selectedModels.includes(auto.model);
 
-      return matchesSearch && matchesStatus && matchesDate && matchesMileage && matchesModel;
+      // STK warning filter
+      const matchesSTKWarning = !showSTKWarningFilter || 
+        (auto.datumSTK && getSTKStatus(auto.datumSTK) === 'upcoming');
+
+      return matchesSearch && matchesStatus && matchesDate && matchesMileage && matchesModel && matchesSTKWarning;
     }).sort((a, b) => {
       // Sorting logic
       const order = sortOrder === 'asc' ? 1 : -1;
@@ -669,7 +681,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           return 0;
       }
     });
-  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder, selectedModels]);
+  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder, selectedModels, showSTKWarningFilter]);
 
   // Then use it in the useEffect
   useEffect(() => {
@@ -1635,6 +1647,66 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             </select>
           </div>
 
+          {/* STK Warning Indicator */}
+          {expiringSTKCount > 0 && (
+            <div className="flex items-center gap-4 mb-4">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={showSTKWarningFilter ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowSTKWarningFilter(!showSTKWarningFilter)}
+                      className={cn(
+                        "flex items-center gap-2 transition-all duration-200",
+                        showSTKWarningFilter 
+                          ? "bg-orange-500 hover:bg-orange-600 text-white" 
+                          : "border-orange-300 text-orange-700 hover:bg-orange-50"
+                      )}
+                      aria-label={showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s vypršelým STK"}
+                    >
+                      <CircleDot className="h-4 w-4 mr-2" aria-hidden="true" />
+                      <span className="font-medium">
+                        STK vyprší ({expiringSTKCount})
+                      </span>
+                      {showSTKWarningFilter && (
+                        <Badge variant="secondary" className="ml-1 bg-white/20 text-white">
+                          Aktivní
+                        </Badge>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <div className="space-y-1">
+                      <p className="font-medium">
+                        {showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s vypršelým STK"}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {showSTKWarningFilter 
+                          ? "Klikněte pro zobrazení všech vozidel" 
+                          : `Klikněte pro zobrazení ${expiringSTKCount} vozidel s STK vypršelým do 30 dnů`
+                        }
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              {showSTKWarningFilter && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSTKWarningFilter(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                  aria-label="Zrušit filtr STK"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Zrušit filtr
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-gray-600 text-lg whitespace-nowrap">Datum:</span>
@@ -1967,7 +2039,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <span className="flex items-center">
-                                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                                            <CircleDot className="h-4 w-4 text-red-600 mr-2" aria-hidden="true" />
                                           </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top">STK vypršela</TooltipContent>
@@ -1979,7 +2051,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <span className="flex items-center">
-                                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                            <CircleDot className="h-4 w-4 text-yellow-600 mr-2" aria-hidden="true" />
                                           </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top">STK brzy vyprší</TooltipContent>
