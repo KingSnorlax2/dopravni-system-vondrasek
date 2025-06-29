@@ -212,12 +212,16 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   }, [notification])
 
   // Define filteredAuta first
+  const [selectedModels, setSelectedModels] = useState<string[]>([])
+
+  // Generate unique model options only
+  const modelOptions = useMemo(() => Array.from(new Set(auta.map(a => a.model))).sort(), [auta])
+
   const filteredAuta = useMemo(() => {
     return auta.filter(auto => {
       // Search term filter
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = !searchTerm || 
-        auto.spz.toLowerCase().includes(searchLower) ||
         auto.znacka.toLowerCase().includes(searchLower) ||
         auto.model.toLowerCase().includes(searchLower);
 
@@ -233,7 +237,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       const matchesMileage = (!mileageFrom || !mileageTo) ||
         (auto.najezd >= Number(mileageFrom) && auto.najezd <= Number(mileageTo));
 
-      return matchesSearch && matchesStatus && matchesDate && matchesMileage;
+      // Model filter
+      const matchesModel = selectedModels.length === 0 || selectedModels.includes(auto.model);
+
+      return matchesSearch && matchesStatus && matchesDate && matchesMileage && matchesModel;
     }).sort((a, b) => {
       // Sorting logic
       const order = sortOrder === 'asc' ? 1 : -1;
@@ -264,7 +271,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           return 0;
       }
     });
-  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder]);
+  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder, selectedModels]);
 
   // Then use it in the useEffect
   useEffect(() => {
@@ -1169,6 +1176,22 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               <span className="text-gray-600 ml-1">km</span>
             </div>
           </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-sm text-gray-600 mr-2">Model:</span>
+              {modelOptions.map(m => (
+                <Badge
+                  key={m}
+                  variant={selectedModels.includes(m) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedModels(selectedModels.includes(m) ? selectedModels.filter(val => val !== m) : [...selectedModels, m])}
+                >
+                  {m}
+                </Badge>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="bg-gray-200 border-b border-gray-200 px-4 py-2 shadow-sm sticky top-0 z-10">
@@ -1482,106 +1505,41 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-          <div
-            className="bg-white rounded-lg shadow-2xl max-w-xs w-full p-2 relative overflow-y-auto max-h-[70vh]"
-            role="dialog"
-            aria-modal="true"
-          >
-            <h2 className="text-sm font-bold mb-2 text-center">Přidat nové vozidlo</h2>
-            <form className="space-y-1">
-              {/* SPZ */}
-              <div>
-                <label className="block text-[11px] font-medium mb-0.5">SPZ</label>
-                <input
-                  type="text"
-                  maxLength={8}
-                  placeholder="Zadejte SPZ"
-                  className="w-full border rounded px-1 py-0.5 text-xs"
-                />
-              </div>
-              {/* Značka */}
-              <div>
-                <label className="block text-[11px] font-medium mb-0.5">Značka</label>
-                <input
-                  type="text"
-                  maxLength={20}
-                  placeholder="Zadejte značku"
-                  className="w-full border rounded px-1 py-0.5 text-xs"
-                />
-              </div>
-              {/* Model */}
-              <div>
-                <label className="block text-[11px] font-medium mb-0.5">Model</label>
-                <input
-                  type="text"
-                  maxLength={20}
-                  placeholder="Zadejte model"
-                  className="w-full border rounded px-1 py-0.5 text-xs"
-                />
-              </div>
-              {/* Rok výroby & Najezd */}
-              <div className="flex gap-1">
-                <div className="flex-1">
-                  <label className="block text-[11px] font-medium mb-0.5">Rok výroby</label>
-                  <input
-                    type="number"
-                    className="w-full border rounded px-1 py-0.5 text-xs"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-[11px] font-medium mb-0.5">Nájezd (km)</label>
-                  <input
-                    type="number"
-                    className="w-full border rounded px-1 py-0.5 text-xs"
-                  />
-                </div>
-              </div>
-              {/* Stav */}
-              <div>
-                <label className="block text-[11px] font-medium mb-0.5">Stav</label>
-                <select className="w-full border rounded px-1 py-0.5 text-xs">
-                  <option value="aktivní">Aktivní</option>
-                  <option value="servis">V servisu</option>
-                  <option value="vyřazeno">Vyřazené</option>
-                </select>
-              </div>
-              {/* Datum STK */}
-              <div>
-                <label className="block text-[11px] font-medium mb-0.5">Datum STK</label>
-                <input
-                  type="date"
-                  className="w-full border rounded px-1 py-0.5 text-xs"
-                />
-              </div>
-              {/* Poznámka */}
-              <div>
-                <label className="block text-[11px] font-medium mb-0.5">Poznámka</label>
-                <textarea
-                  maxLength={300}
-                  className="w-full border rounded px-1 py-0.5 text-xs"
-                  rows={1}
-                  placeholder="Poznámka..."
-                />
-              </div>
-              {/* Buttons */}
-              <div className="flex justify-end gap-1 pt-1">
-                <button
-                  type="button"
-                  className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 text-xs"
-                >
-                  Zrušit
-                </button>
-                <button
-                  type="submit"
-                  className="px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-700 text-xs"
-                >
-                  Přidat
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AutoForm 
+          open={showForm}
+          onOpenChangeClientAction={async (open: boolean) => {
+            setShowForm(open);
+            return Promise.resolve();
+          }}
+          onSubmit={async (data) => {
+            // Handle form submission
+            try {
+              const response = await fetch('/api/auta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+              });
+              
+              if (!response.ok) {
+                throw new Error('Failed to add vehicle');
+              }
+              
+              setShowForm(false);
+              onRefresh();
+              toast({
+                title: "Vozidlo přidáno",
+                description: `${data.znacka} ${data.model} (${data.spz}) bylo úspěšně přidáno.`,
+              });
+            } catch (error) {
+              console.error('Error adding vehicle:', error);
+              toast({
+                title: "Chyba",
+                description: "Nepodařilo se přidat vozidlo",
+                variant: "destructive",
+              });
+            }
+          }}
+        />
       )}
 
       {/* Bulk Delete Modal */}

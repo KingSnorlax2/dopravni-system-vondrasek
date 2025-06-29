@@ -52,6 +52,12 @@ interface AutoFormProps {
   initialData?: Partial<AutoFormData> & { id?: string }
 }
 
+const STATUS_OPTIONS = [
+  { value: "aktivní", label: "Aktivní" },
+  { value: "servis", label: "V servisu" },
+  { value: "vyřazeno", label: "Vyřazeno" }
+];
+
 export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData }: AutoFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,7 +72,7 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
       model: initialData?.model || '',
       rokVyroby: initialData?.rokVyroby || new Date().getFullYear(),
       najezd: initialData?.najezd || 0,
-      stav: initialData?.stav || 'aktivní' as const,
+      stav: initialData?.stav || 'aktivní',
       poznamka: initialData?.poznamka || '',
       datumSTK: initialData?.datumSTK || ''
     }
@@ -255,14 +261,16 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm mb-2">Stav</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="text-sm" />
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="aktivní">Aktivní</SelectItem>
-                          <SelectItem value="servis">V servisu</SelectItem>
-                          <SelectItem value="vyřazeno">Vyřazeno</SelectItem>
+                          {STATUS_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
