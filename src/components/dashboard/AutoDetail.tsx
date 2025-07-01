@@ -1039,7 +1039,7 @@ export function AutoDetail({ auto }: AutoDetailProps) {
       {isEditOpen && (
         <AutoDetailForm
           open={isEditOpen}
-          onOpenChange={setIsEditOpen}
+          onOpenChangeAction={(open) => { if (!open) setIsEditOpen(false); }}
           initialData={{
             ...auto,
             datumSTK: auto.datumSTK ? new Date(auto.datumSTK) : undefined,

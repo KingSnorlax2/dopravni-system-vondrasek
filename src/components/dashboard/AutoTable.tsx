@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
@@ -537,6 +537,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [showForm, setShowForm] = useState(false)
   const [selectedToArchive, setSelectedToArchive] = useState<Auto[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Auto | null>(null);
 
   const [showPictureUploadModal, setShowPictureUploadModal] = useState(false)
   const [selectedAuto, setSelectedAuto] = useState<Auto | null>(null)
@@ -547,7 +548,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [currentPictures, setCurrentPictures] = useState<{ id: string }[]>([])
 
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [editingAuto, setEditingAuto] = useState<Auto | null>(null)
 
   const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
 
@@ -1110,44 +1110,26 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
-    setEditedAuto(null);
+    setSelectedVehicle(null);
   };
 
-  const handleEdit = (auto: Auto) => {
-    console.log('Editing auto:', auto);
-    
-    // Make sure we reset any existing state first
-    setEditingAuto(null);
-    
-    // Use setTimeout to ensure state is updated before setting new state
-    setTimeout(() => {
-      // Deep clone the auto object to avoid reference issues
-      const autoClone = JSON.parse(JSON.stringify(auto));
-      
-      setEditingAuto({
-        ...autoClone,
-        // Make sure ID is properly formatted as string
-        id: String(auto.id),
-        datumSTK: auto.datumSTK ? new Date(auto.datumSTK).toISOString().split('T')[0] : undefined
-      });
-      setIsEditOpen(true);
-    }, 50);
-  }
+  // Defensive: debounce handleEdit to prevent race conditions
+  const handleEdit = useCallback((auto: Auto) => {
+    setSelectedVehicle({ ...JSON.parse(JSON.stringify(auto)), id: String(auto.id), datumSTK: auto.datumSTK ? new Date(auto.datumSTK).toISOString().split('T')[0] : undefined });
+    setIsEditModalOpen(true);
+  }, []);
 
   const handleEditSubmit = async (data: AutoDetailValues) => {
+    if (!selectedVehicle) return;
+    
     try {
-      if (!editingAuto) {
-        console.error('No auto being edited');
-        return;
-      }
-      
       console.log('Original form data:', data);
-      console.log('Current editing auto:', editingAuto);
+      console.log('Current editing auto:', selectedVehicle);
       
       // Format the data for the API with proper type handling
       const formattedData = {
         ...data,
-        id: editingAuto.id,
+        id: selectedVehicle.id,
         // Convert string values to numbers where needed
         rokVyroby: typeof data.rokVyroby === 'string' ? parseInt(data.rokVyroby) : data.rokVyroby,
         najezd: typeof data.najezd === 'string' ? parseInt(data.najezd) : data.najezd,
@@ -1156,9 +1138,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       };
       
       console.log('Submitting updated vehicle data:', formattedData);
-      console.log('API endpoint:', `/api/auta/${editingAuto.id}`);
+      console.log('API endpoint:', `/api/auta/${selectedVehicle.id}`);
       
-      const response = await fetch(`/api/auta/${editingAuto.id}`, {
+      const response = await fetch(`/api/auta/${selectedVehicle.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -1191,8 +1173,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       });
 
       // Reset state and close the form
-      setEditingAuto(null);
-      setIsEditOpen(false);
+      setIsEditModalOpen(false);
+      setSelectedVehicle(null);
       
       // Refresh data
       onRefresh();
@@ -1461,6 +1443,16 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const handleInlineCancel = () => {
     setEditingCell(null);
   };
+
+  console.log('Modal open:', isEditModalOpen, selectedVehicle);
+  <AutoDetailForm
+    open={isEditModalOpen}
+    onOpenChangeAction={(open: boolean) => {
+      if (!open) handleCloseEditModal();
+    }}
+    initialData={selectedVehicle as unknown as AutoDetailValues & { id: string }}
+    onSubmit={handleEditSubmit}
+  />
 
   return (
     <div className="w-full h-full p-2">
@@ -2335,17 +2327,14 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       )}
 
       {/* Add back the AutoDetailForm component */}
-      {editingAuto && (
-        <AutoDetailForm
-          open={isEditOpen}
-          onOpenChangeAction={async (open: boolean) => {
-            setIsEditOpen(open)
-            return Promise.resolve()
-          }}
-          initialData={editingAuto as unknown as AutoDetailValues & { id: string }}
-          onSubmit={handleEditSubmit}
-        />
-      )}
+      <AutoDetailForm
+        open={isEditModalOpen}
+        onOpenChangeAction={(open: boolean) => {
+          if (!open) handleCloseEditModal();
+        }}
+        initialData={selectedVehicle as unknown as AutoDetailValues & { id: string }}
+        onSubmit={handleEditSubmit}
+      />
 
       {/* Inline Editing Legend */}
       <div className="mt-3 pt-3 border-t border-gray-200">

@@ -49,7 +49,12 @@ interface AutoDetailFormProps {
   onSubmit: (data: z.infer<typeof formSchema>) => Promise<void>
 }
 
-export function AutoDetailForm({ open, onOpenChangeAction, initialData, onSubmit }: AutoDetailFormProps) {
+export function AutoDetailForm({
+  open,
+  onOpenChangeAction = () => {},
+  initialData,
+  onSubmit
+}: AutoDetailFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {

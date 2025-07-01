@@ -67,8 +67,8 @@ interface AutoDetailFormProps {
 
 export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData }: AutoDetailFormProps) {
   const [isPending, startTransition] = useTransition()
-  const [localOpen, setLocalOpen] = React.useState(open)
-  
+  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false)
+
   const form = useForm<AutoDetailValues>({
     resolver: zodResolver(autoDetailSchema),
     defaultValues: initialData
@@ -114,12 +114,8 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
 
   return (
     <Sheet 
-      open={localOpen} 
-      onOpenChange={(value) => {
-        startTransition(() => {
-          void onOpenChangeAction(value);
-        });
-      }}
+      open={open}
+      onOpenChange={onOpenChangeAction}
     >
       <SheetContent 
         className="w-full sm:max-w-[540px] h-full flex flex-col"
@@ -246,7 +242,7 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
                 render={({ field }) => (
                   <FormItem className="flex flex-col space-y-1">
                     <FormLabel>Datum STK</FormLabel>
-                    <Popover open={localOpen} onOpenChange={setLocalOpen}>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -271,7 +267,7 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
                             value={field.value ? new Date(field.value) : undefined}
                             onChange={(date) => {
                               field.onChange(date);
-                              if (date) setLocalOpen(false);
+                              if (date) setIsDatePickerOpen(false);
                             }}
                           />
                         </div>
