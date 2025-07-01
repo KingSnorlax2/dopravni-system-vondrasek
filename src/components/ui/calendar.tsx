@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import { DayPicker, type DayPickerSingleProps } from "react-day-picker"
 import { cs } from 'date-fns/locale'
 
 import { cn } from "@/lib/utils"
@@ -54,23 +54,20 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      components={{
-        iconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
-        iconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
-      }}
+      components={undefined}
       {...props}
     />
   )
 }
 Calendar.displayName = "Calendar"
 
-interface CustomDatePickerProps extends CalendarProps {
+type CustomDatePickerProps = Omit<CalendarProps, 'selected' | 'onSelect'> & {
   value: Date | undefined;
   onChange: (date: Date | undefined) => void;
   showClear?: boolean;
   showToday?: boolean;
   className?: string;
-}
+};
 
 export function CustomDatePicker({
   value,
@@ -82,7 +79,7 @@ export function CustomDatePicker({
 }: CustomDatePickerProps) {
   const today = new Date();
   return (
-    <div className={cn("flex flex-col items-center", className)}>
+    <div className={cn("calendar-box w-[300px] border border-gray-300 p-3 font-sans bg-white rounded-md", className)}>
       <DayPicker
         mode="single"
         selected={value}
@@ -91,42 +88,39 @@ export function CustomDatePicker({
         weekStartsOn={1}
         showOutsideDays
         captionLayout="dropdown"
-        className="p-3"
+        className=""
         classNames={{
-          months: "flex flex-col space-y-2",
-          month: "space-y-2",
-          caption: "flex justify-between items-center px-2 pt-2 pb-1",
-          caption_label: "text-base font-semibold capitalize",
+          months: "",
+          month: "",
+          caption: "calendar-header flex justify-between items-center mb-2 px-1",
+          caption_label: "text-base font-semibold text-gray-800",
           dropdown: "mx-1 px-1 py-0.5 rounded border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
           nav: "flex items-center gap-2",
-          nav_button: cn(
-            buttonVariants({ variant: "ghost" }),
-            "h-7 w-7 p-0 text-lg text-gray-700 hover:bg-gray-100"
-          ),
+          nav_button: "nav-button bg-none border-none cursor-pointer text-lg px-2 py-1 text-gray-700 hover:text-blue-600",
           table: "w-full border-collapse",
-          head_row: "flex w-full mb-1",
-          head_cell: "w-8 text-center text-xs font-semibold text-gray-700 px-0.5 py-0.5",
-          row: "flex w-full",
-          cell: "w-8 h-8 text-center text-sm p-0 relative",
+          head_row: "calendar-weekdays grid grid-cols-7 font-bold text-center mb-1 gap-1 text-xs uppercase text-gray-600",
+          head_cell: "py-1",
+          row: "calendar-days grid grid-cols-7 gap-2 text-center",
+          cell: "",
           day: cn(
-            buttonVariants({ variant: "ghost" }),
-            "w-8 h-8 p-0 font-normal rounded-full aria-selected:opacity-100"
+            "calendar-day p-2 rounded cursor-pointer transition-colors duration-100 text-sm",
+            "hover:bg-gray-100"
           ),
           day_selected:
-            "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-700 focus:text-white",
-          day_today: "border border-blue-600",
+            "bg-blue-600 text-white font-bold rounded",
+          day_today: "today bg-blue-500 text-white font-bold rounded-full",
           day_outside:
-            "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-          day_disabled: "text-muted-foreground opacity-50",
+            "outside-month text-gray-400 text-xs opacity-80",
+          day_disabled: "text-gray-300 opacity-50 cursor-not-allowed",
           day_hidden: "invisible",
         }}
-        {...props}
+        {...(props as Partial<DayPickerSingleProps>)}
       />
       <div className="flex justify-between w-full mt-2 gap-2 px-2">
         {showClear && (
           <button
             type="button"
-            className="flex-1 py-1 rounded bg-gray-100 hover:bg-gray-200 text-sm font-medium text-blue-600 transition"
+            className="flex-1 py-1 rounded bg-gray-100 hover:bg-gray-200 text-xs font-medium text-blue-600 transition"
             onClick={() => onChange(undefined)}
           >
             Vymazat
@@ -135,7 +129,7 @@ export function CustomDatePicker({
         {showToday && (
           <button
             type="button"
-            className="flex-1 py-1 rounded bg-blue-100 hover:bg-blue-200 text-sm font-medium text-blue-700 transition"
+            className="flex-1 py-1 rounded bg-blue-100 hover:bg-blue-200 text-xs font-medium text-blue-700 transition"
             onClick={() => onChange(today)}
           >
             Dnes

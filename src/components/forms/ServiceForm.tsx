@@ -42,6 +42,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { toast } from '@/components/ui/use-toast'
+import { CustomDatePicker } from '@/components/ui/calendar'
 
 // Form schema validation
 const serviceFormSchema = z.object({
@@ -192,11 +193,9 @@ export function ServiceForm({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
+                        <CustomDatePicker
+                          value={field.value || undefined}
+                          onChange={field.onChange}
                         />
                       </PopoverContent>
                     </Popover>

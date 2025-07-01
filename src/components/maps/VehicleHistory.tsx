@@ -20,6 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { CustomDatePicker } from '@/components/ui/calendar';
 
 interface VehicleHistoryProps {
   vehicles: any[];
@@ -207,16 +208,14 @@ export function VehicleHistory({ vehicles, onShowHistoryAction, onGenerateRouteA
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <Calendar 
-                      mode="single" 
-                      selected={dateFrom} 
-                      onSelect={(date) => {
+                    <CustomDatePicker
+                      value={dateFrom}
+                      onChange={(date) => {
                         if (date) {
                           setDateFrom(date);
                           setPresetPeriod('custom');
                         }
-                      }} 
-                      initialFocus 
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
@@ -232,16 +231,14 @@ export function VehicleHistory({ vehicles, onShowHistoryAction, onGenerateRouteA
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <Calendar 
-                      mode="single" 
-                      selected={dateTo} 
-                      onSelect={(date) => {
+                    <CustomDatePicker
+                      value={dateTo}
+                      onChange={(date) => {
                         if (date) {
                           setDateTo(date);
                           setPresetPeriod('custom');
                         }
-                      }} 
-                      initialFocus 
+                      }}
                     />
                   </PopoverContent>
                 </Popover>

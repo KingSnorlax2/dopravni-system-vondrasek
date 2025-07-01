@@ -12,7 +12,7 @@ import { cs } from "date-fns/locale"
 import { generateRandomVehicleData } from "@/lib/mock-data"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { CustomDatePicker } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -427,19 +427,15 @@ export default function AutoPage() {
                                           </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0" align="start">
-                                          <CalendarComponent
-                                            mode="single"
-                                            selected={dateField.value || undefined}
-                                            onSelect={(date) => {
+                                          <CustomDatePicker
+                                            value={dateField.value || undefined}
+                                            onChange={(date) => {
                                               dateField.onChange(date);
                                               if (date !== undefined) {
                                                 handleDateSelect(vehicle.id, date);
                                                 setOpen(false);
                                               }
                                             }}
-                                            initialFocus
-                                            locale={cs}
-                                            className="rounded-md"
                                           />
                                         </PopoverContent>
                                       </Popover>

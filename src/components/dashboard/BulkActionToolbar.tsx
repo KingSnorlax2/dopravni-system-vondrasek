@@ -41,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Calendar as CalendarComponent } from '@/components/ui/calendar'
+import { CustomDatePicker } from '@/components/ui/calendar'
 import {
   Popover,
   PopoverContent,
@@ -434,17 +434,12 @@ export function BulkActionToolbar({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={newSTKDate || undefined}
-                  onSelect={(date) => {
+                <CustomDatePicker
+                  value={newSTKDate || undefined}
+                  onChange={(date) => {
                     setNewSTKDate(date || null);
                     if (date) setOpen(false);
                   }}
-                  initialFocus
-                  required={false}
-                  locale={cs}
-                  className="rounded-md border-0 shadow-lg"
                 />
               </PopoverContent>
             </Popover>

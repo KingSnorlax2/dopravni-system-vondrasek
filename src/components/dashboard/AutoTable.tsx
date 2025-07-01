@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { CustomDatePicker } from '@/components/ui/calendar';
 
 interface Auto {
   id: string;
@@ -464,15 +465,9 @@ const InlineSTKEditor = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={selectedDate || undefined}
-            onSelect={handleDateSelect}
-            disabled={(date) => date < today}
-            initialFocus
-            locale={cs}
-            className="rounded-md"
-            fromDate={today}
+          <CustomDatePicker
+            value={selectedDate || undefined}
+            onChange={handleDateSelect}
           />
         </PopoverContent>
       </Popover>
@@ -1560,26 +1555,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <div className="p-2 bg-white rounded-md">
-                        <Calendar
-                          mode="single"
-                          selected={editedAuto.datumSTK ? new Date(editedAuto.datumSTK) : undefined}
-                          onSelect={(date) => setEditedAuto(prev => prev ? {...prev, datumSTK: date ? date.toISOString() : undefined} : null)}
-                          initialFocus
-                          className="rounded-md"
-                          locale={cs}
-                          showOutsideDays={false}
-                          classNames={{
-                            head_row: "flex justify-between",
-                            head_cell: "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem] mx-0.5",
-                            row: "flex w-full mt-2 justify-between",
-                            cell: "h-10 w-10 text-center p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
-                            day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100 rounded-md transition-colors hover:bg-primary hover:text-primary-foreground",
-                            caption: "flex justify-center pt-2 pb-3 relative items-center",
-                            caption_label: "text-base font-medium capitalize"
-                          }}
-                        />
-                      </div>
+                      <CustomDatePicker
+                        value={editedAuto.datumSTK ? new Date(editedAuto.datumSTK) : undefined}
+                        onChange={(date) => setEditedAuto(prev => prev ? {...prev, datumSTK: date ? date.toISOString() : undefined} : null)}
+                      />
                     </PopoverContent>
                   </Popover>
                 </div>
