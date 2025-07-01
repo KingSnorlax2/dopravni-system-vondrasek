@@ -18,6 +18,7 @@ import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { cn } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
 
 // Validation schema for STK date updates
 const stkUpdateSchema = z.object({
@@ -52,8 +53,28 @@ export default function AutoPage() {
   const [showExpiringSTKDialog, setShowExpiringSTKDialog] = useState(false)
   const [isSavingSTK, setIsSavingSTK] = useState(false)
   const [savingVehicleId, setSavingVehicleId] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const expiringSTKVehicles = auta.filter(auto => isSTKExpiring(auto.datumSTK))
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Filter vehicles by SPZ or brand (znacka)
+  const filteredVehicles = useMemo(() => {
+    if (!debouncedSearch.trim()) return expiringSTKVehicles;
+    const term = debouncedSearch.trim().toLowerCase();
+    return expiringSTKVehicles.filter(auto =>
+      auto.spz?.toLowerCase().includes(term) ||
+      auto.znacka?.toLowerCase().includes(term)
+    );
+  }, [expiringSTKVehicles, debouncedSearch]);
 
   // Form for STK updates
   const stkForm = useForm<STKUpdateFormData>({
@@ -319,92 +340,110 @@ export default function AutoPage() {
                 Seznam vozidel, kterým vyprší STK během 30 dnů. Změny se ukládají automaticky.
               </DialogDescription>
             </DialogHeader>
-            
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              {expiringSTKVehicles.length === 0 ? (
+            {/* Search input */}
+            <div className="px-6 pt-4 pb-2 bg-white sticky top-[72px] z-10">
+              <label htmlFor="expiring-stk-search" className="block text-sm font-medium text-gray-700 mb-1">
+                Hledat podle SPZ nebo značky
+              </label>
+              <Input
+                id="expiring-stk-search"
+                placeholder="Zadejte SPZ nebo značku..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full"
+                autoFocus={showExpiringSTKDialog}
+                aria-label="Hledat vozidlo podle SPZ nebo značky"
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto px-0 py-0">
+              {filteredVehicles.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">Žádná vozidla s blížícím se STK</div>
               ) : (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 rounded-lg font-medium text-sm text-gray-600 sticky top-0 z-10">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-white sticky top-0 z-20 border-b shadow-sm font-semibold text-sm text-gray-700">
                     <div className="col-span-2">SPZ</div>
                     <div className="col-span-4">Vozidlo</div>
                     <div className="col-span-3">Aktuální STK</div>
                     <div className="col-span-3">Nové STK</div>
                   </div>
-                  
+                  {/* Table rows */}
                   <Controller
                     name="vehicles"
                     control={stkForm.control}
                     render={({ field }) => (
-                      <div className="space-y-2">
-                        {field.value.map((vehicle, index) => (
-                          <div key={vehicle.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="col-span-2">
-                              <span className="font-mono text-sm text-gray-800">{vehicle.spz}</span>
+                      <div className="space-y-2 px-6 pb-4">
+                        {field.value
+                          .filter((vehicle: any) =>
+                            filteredVehicles.some(v => v.id === vehicle.id)
+                          )
+                          .map((vehicle: any, index: number) => (
+                            <div key={vehicle.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                              <div className="col-span-2">
+                                <span className="font-mono text-sm text-gray-800">{vehicle.spz}</span>
+                              </div>
+                              <div className="col-span-4">
+                                <span className="text-gray-700 text-sm">{vehicle.znacka} {vehicle.model}</span>
+                              </div>
+                              <div className="col-span-3">
+                                <span className="text-sm text-gray-600">
+                                  {vehicle.currentSTK ? format(new Date(vehicle.currentSTK), "d.M.yyyy", { locale: cs }) : 'Není zadáno'}
+                                </span>
+                              </div>
+                              <div className="col-span-3">
+                                <Controller
+                                  name={`vehicles.${index}.newSTK`}
+                                  control={stkForm.control}
+                                  render={({ field: dateField }) => (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={savingVehicleId === vehicle.id}
+                                          className={cn(
+                                            "w-full justify-start text-left font-normal h-8",
+                                            !dateField.value && "text-muted-foreground",
+                                            savingVehicleId === vehicle.id && "opacity-50 cursor-not-allowed"
+                                          )}
+                                        >
+                                          {savingVehicleId === vehicle.id ? (
+                                            <>
+                                              <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
+                                              Ukládám...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Calendar className="mr-2 h-3 w-3" />
+                                              {dateField.value ? (
+                                                format(dateField.value, "d.M.yyyy", { locale: cs })
+                                              ) : (
+                                                <span>Vyberte datum</span>
+                                              )}
+                                            </>
+                                          )}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <CalendarComponent
+                                          mode="single"
+                                          selected={dateField.value || undefined}
+                                          onSelect={(date) => {
+                                            dateField.onChange(date);
+                                            if (date !== undefined) {
+                                              handleDateSelect(vehicle.id, date);
+                                            }
+                                          }}
+                                          initialFocus
+                                          locale={cs}
+                                          className="rounded-md"
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                />
+                              </div>
                             </div>
-                            <div className="col-span-4">
-                              <span className="text-gray-700 text-sm">{vehicle.znacka} {vehicle.model}</span>
-                            </div>
-                            <div className="col-span-3">
-                              <span className="text-sm text-gray-600">
-                                {vehicle.currentSTK ? format(new Date(vehicle.currentSTK), "d.M.yyyy", { locale: cs }) : 'Není zadáno'}
-                              </span>
-                            </div>
-                            <div className="col-span-3">
-                              <Controller
-                                name={`vehicles.${index}.newSTK`}
-                                control={stkForm.control}
-                                render={({ field: dateField }) => (
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={savingVehicleId === vehicle.id}
-                                        className={cn(
-                                          "w-full justify-start text-left font-normal h-8",
-                                          !dateField.value && "text-muted-foreground",
-                                          savingVehicleId === vehicle.id && "opacity-50 cursor-not-allowed"
-                                        )}
-                                      >
-                                        {savingVehicleId === vehicle.id ? (
-                                          <>
-                                            <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
-                                            Ukládám...
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Calendar className="mr-2 h-3 w-3" />
-                                            {dateField.value ? (
-                                              format(dateField.value, "d.M.yyyy", { locale: cs })
-                                            ) : (
-                                              <span>Vyberte datum</span>
-                                            )}
-                                          </>
-                                        )}
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <CalendarComponent
-                                        mode="single"
-                                        selected={dateField.value || undefined}
-                                        onSelect={(date) => {
-                                          dateField.onChange(date);
-                                          if (date !== undefined) {
-                                            handleDateSelect(vehicle.id, date);
-                                          }
-                                        }}
-                                        initialFocus
-                                        locale={cs}
-                                        className="rounded-md"
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                )}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     )}
                   />
