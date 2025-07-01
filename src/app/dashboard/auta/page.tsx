@@ -19,6 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
+import React from "react"
 
 // Validation schema for STK date updates
 const stkUpdateSchema = z.object({
@@ -393,53 +394,57 @@ export default function AutoPage() {
                                 <Controller
                                   name={`vehicles.${index}.newSTK`}
                                   control={stkForm.control}
-                                  render={({ field: dateField }) => (
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          disabled={savingVehicleId === vehicle.id}
-                                          className={cn(
-                                            "w-full justify-start text-left font-normal h-8",
-                                            !dateField.value && "text-muted-foreground",
-                                            savingVehicleId === vehicle.id && "opacity-50 cursor-not-allowed"
-                                          )}
-                                        >
-                                          {savingVehicleId === vehicle.id ? (
-                                            <>
-                                              <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
-                                              Ukládám...
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Calendar className="mr-2 h-3 w-3" />
-                                              {dateField.value ? (
-                                                format(dateField.value, "d.M.yyyy", { locale: cs })
-                                              ) : (
-                                                <span>Vyberte datum</span>
-                                              )}
-                                            </>
-                                          )}
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0" align="start">
-                                        <CalendarComponent
-                                          mode="single"
-                                          selected={dateField.value || undefined}
-                                          onSelect={(date) => {
-                                            dateField.onChange(date);
-                                            if (date !== undefined) {
-                                              handleDateSelect(vehicle.id, date);
-                                            }
-                                          }}
-                                          initialFocus
-                                          locale={cs}
-                                          className="rounded-md"
-                                        />
-                                      </PopoverContent>
-                                    </Popover>
-                                  )}
+                                  render={({ field: dateField }) => {
+                                    const [open, setOpen] = React.useState(false);
+                                    return (
+                                      <Popover open={open} onOpenChange={setOpen}>
+                                        <PopoverTrigger asChild>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={savingVehicleId === vehicle.id}
+                                            className={cn(
+                                              "w-full justify-start text-left font-normal h-8",
+                                              !dateField.value && "text-muted-foreground",
+                                              savingVehicleId === vehicle.id && "opacity-50 cursor-not-allowed"
+                                            )}
+                                          >
+                                            {savingVehicleId === vehicle.id ? (
+                                              <>
+                                                <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
+                                                Ukládám...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Calendar className="mr-2 h-3 w-3" />
+                                                {dateField.value ? (
+                                                  format(dateField.value, "d.M.yyyy", { locale: cs })
+                                                ) : (
+                                                  <span>Vyberte datum</span>
+                                                )}
+                                              </>
+                                            )}
+                                          </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                          <CalendarComponent
+                                            mode="single"
+                                            selected={dateField.value || undefined}
+                                            onSelect={(date) => {
+                                              dateField.onChange(date);
+                                              if (date !== undefined) {
+                                                handleDateSelect(vehicle.id, date);
+                                                setOpen(false);
+                                              }
+                                            }}
+                                            initialFocus
+                                            locale={cs}
+                                            className="rounded-md"
+                                          />
+                                        </PopoverContent>
+                                      </Popover>
+                                    );
+                                  }}
                                 />
                               </div>
                             </div>

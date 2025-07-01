@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Calendar } from '@/components/ui/calendar'
+import { CustomDatePicker } from '@/components/ui/calendar'
 import {
   Popover,
   PopoverContent,
@@ -113,6 +113,8 @@ export function MaintenanceForm({
   initialData,
 }: MaintenanceFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [open1, setOpen1] = useState(false)
+  const [open2, setOpen2] = useState(false)
 
   // Default values for the form
   const defaultValues: Partial<MaintenanceFormValues> = initialData || {
@@ -195,7 +197,7 @@ export function MaintenanceForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Datum provedení</FormLabel>
-                    <Popover>
+                    <Popover open={open1} onOpenChange={setOpen1}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -212,11 +214,12 @@ export function MaintenanceForm({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
+                        <CustomDatePicker
+                          value={field.value}
+                          onChange={(date) => {
+                            field.onChange(date);
+                            if (date) setOpen1(false);
+                          }}
                         />
                       </PopoverContent>
                     </Popover>
@@ -252,7 +255,7 @@ export function MaintenanceForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Příští datum (volitelné)</FormLabel>
-                    <Popover>
+                    <Popover open={open2} onOpenChange={setOpen2}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -269,12 +272,12 @@ export function MaintenanceForm({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value || undefined}
-                          onSelect={field.onChange}
-                          initialFocus
-                          disabled={(date) => date < new Date()}
+                        <CustomDatePicker
+                          value={field.value || undefined}
+                          onChange={(date) => {
+                            field.onChange(date);
+                            if (date) setOpen2(false);
+                          }}
                         />
                       </PopoverContent>
                     </Popover>

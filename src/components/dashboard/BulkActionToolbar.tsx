@@ -84,6 +84,7 @@ export function BulkActionToolbar({
   const [newState, setNewState] = useState('Aktivni')
   const [newSTKDate, setNewSTKDate] = useState<Date | null>(null)
   const [isActionLoading, setIsActionLoading] = useState(false)
+  const [open, setOpen] = useState(false)
 
   const handleBulkAction = async (action: () => Promise<void>) => {
     setIsActionLoading(true)
@@ -415,7 +416,7 @@ export function BulkActionToolbar({
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Popover>
+            <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -436,7 +437,10 @@ export function BulkActionToolbar({
                 <CalendarComponent
                   mode="single"
                   selected={newSTKDate || undefined}
-                  onSelect={(date) => setNewSTKDate(date || null)}
+                  onSelect={(date) => {
+                    setNewSTKDate(date || null);
+                    if (date) setOpen(false);
+                  }}
                   initialFocus
                   required={false}
                   locale={cs}

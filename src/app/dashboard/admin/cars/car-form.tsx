@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
+import { CustomDatePicker } from "@/components/ui/calendar"
 import {
   Popover,
   PopoverContent,
@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
+import React from "react"
 
 const carFormSchema = z.object({
   spz: z.string().min(1, "SPZ je povinná").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -56,6 +57,8 @@ export function CarForm() {
       photos: [],
     },
   })
+
+  const [open, setOpen] = React.useState(false);
 
   function onSubmit(data: CarFormValues) {
     console.log(data)
@@ -170,7 +173,7 @@ export function CarForm() {
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Datum STK</FormLabel>
-              <Popover>
+              <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
@@ -190,14 +193,9 @@ export function CarForm() {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date < new Date()
-                    }
-                    initialFocus
+                  <CustomDatePicker
+                    value={field.value}
+                    onChange={field.onChange}
                   />
                 </PopoverContent>
               </Popover>
