@@ -587,8 +587,19 @@ export function AutoDetail({ auto }: AutoDetailProps) {
                 <CardTitle>QR kód vozidla</CardTitle>
                 <CardDescription>Naskenujte pro rychlý přístup k vozidlu</CardDescription>
               </CardHeader>
-              <CardContent className="flex justify-center">
+              <CardContent className="flex flex-col items-center">
                 {qrUrl && <QRCodeSVG value={qrUrl} size={150} />}
+                <Button className="mt-4" variant="outline" onClick={() => {
+                  window.print();
+                }}>
+                  Vytisknout QR kód
+                </Button>
+                {/* Hidden printable QR code for print view */}
+                <div id="print-qr" style={{ display: 'none' }}>
+                  <div className="print-qr-wrapper">
+                    {qrUrl && <QRCodeSVG value={qrUrl} size={350} />}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -1069,6 +1080,53 @@ export function AutoDetail({ auto }: AutoDetailProps) {
           onSubmit={handleMaintenanceSubmit}
         />
       )}
+
+      {/* Add print styles at the end of the file */}
+      <style jsx global>{`
+        @media print {
+          html, body {
+            width: 210mm;
+            height: 297mm;
+            margin: 0;
+            padding: 0;
+            background: white !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #print-qr, #print-qr * {
+            visibility: visible !important;
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+          }
+          #print-qr {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 210mm;
+            height: 297mm;
+            background: white !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            page-break-after: avoid;
+            page-break-before: avoid;
+            page-break-inside: avoid;
+          }
+          .print-qr-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+        }
+      `}</style>
     </div>
   )
 } 
