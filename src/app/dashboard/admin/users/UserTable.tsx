@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { UserModal } from './UserModal'
+import { useAccessControl } from "@/hooks/useAccessControl";
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -10,6 +11,7 @@ const STATUS_OPTIONS = [
 ]
 
 export function UserTable() {
+  const { hasPermission } = useAccessControl();
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -173,12 +175,14 @@ export function UserTable() {
       {toast && <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow z-50">{toast}</div>}
       {/* Search & Filters */}
       <div className="flex flex-wrap gap-4 mb-4 items-end">
-        <button
-          className="px-4 py-2 rounded bg-blue-600 text-white font-semibold shadow"
-          onClick={handleAdd}
-        >
-          + Add User
-        </button>
+        {hasPermission("manage_users") && (
+          <button
+            className="px-4 py-2 rounded bg-blue-600 text-white font-semibold shadow"
+            onClick={handleAdd}
+          >
+            + Add User
+          </button>
+        )}
         <input
           type="text"
           placeholder="Search by name or email..."

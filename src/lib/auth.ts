@@ -70,11 +70,52 @@ export const authConfig: NextAuthOptions = {
 }
 
 // Role and permissions config for UI and backend
-export const ROLES = [
-  { key: 'USER', label: 'Uživatel' },
-  { key: 'ADMIN', label: 'Administrátor' },
-  { key: 'DRIVER', label: 'Řidič' },
-  { key: 'MANAGER', label: 'Manažer' },
+export interface Role {
+  id: number;
+  name: string;
+  permissions: string[];
+  allowedPages: string[]; // List of allowed page routes
+  defaultLandingPage?: string; // Default landing page for this role
+}
+
+// Example config for roles (for UI reference, not used directly by backend)
+export const EXAMPLE_ROLE_CONFIG: Role[] = [
+  {
+    id: 1,
+    name: 'ADMIN',
+    permissions: [
+      'view_dashboard',
+      'manage_users',
+      'manage_vehicles',
+      'view_reports',
+      'manage_distribution',
+      'driver_access',
+    ],
+    allowedPages: [
+      '/dashboard',
+      '/dashboard/admin/users',
+      '/dashboard/admin/settings',
+      '/dashboard/auta',
+      '/dashboard/grafy',
+      '/dashboard/settings',
+      '/logined',
+    ],
+    defaultLandingPage: '/dashboard',
+  },
+  {
+    id: 2,
+    name: 'DRIVER',
+    permissions: ['driver_access'],
+    allowedPages: ['/dashboard/noviny/distribuce/driver-route', '/logined'],
+    defaultLandingPage: '/dashboard/noviny/distribuce/driver-route',
+  },
+  {
+    id: 3,
+    name: 'USER',
+    permissions: ['view_dashboard'],
+    allowedPages: ['/dashboard', '/logined'],
+    defaultLandingPage: '/dashboard',
+  },
 ];
 
 export const PERMISSIONS = [

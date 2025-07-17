@@ -4,10 +4,17 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 
+function requireAdmin(session: any) {
+  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+    return false;
+  }
+  return true;
+}
+
 // GET: List all users with roles and status
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const users = await prisma.user.findMany({
@@ -31,7 +38,7 @@ export async function GET(req: Request) {
 // POST: Create user with multiple roles
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const body = await req.json()

@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
-import { RoleName, UserStatus } from '@prisma/client'
+import { UserStatus } from '@prisma/client'
+
+function requireAdmin(session: any) {
+  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+    return false;
+  }
+  return true;
+}
 
 // PATCH: Update user info, roles, and status
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const { id } = params
@@ -22,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       status: status as UserStatus,
       roles: roles ? {
         deleteMany: {},
-        create: roles.map((roleName: RoleName) => ({
+        create: roles.map((roleName: string) => ({
           role: { connect: { name: roleName } },
         })),
       } : undefined,
@@ -43,7 +50,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 // DELETE: Hard delete user
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const { id } = params

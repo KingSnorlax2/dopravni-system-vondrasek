@@ -12,6 +12,8 @@ export function RoleModal({ open, onClose, onSave, role, allPermissions }: {
   const [form, setForm] = useState({
     name: '',
     permissions: [] as string[],
+    allowedPages: [] as string[],
+    defaultLandingPage: '',
   })
   const [error, setError] = useState<string | null>(null)
 
@@ -20,9 +22,11 @@ export function RoleModal({ open, onClose, onSave, role, allPermissions }: {
       setForm({
         name: role.name || '',
         permissions: role.permissions || [],
+        allowedPages: role.allowedPages || [],
+        defaultLandingPage: role.defaultLandingPage || '',
       })
     } else {
-      setForm({ name: '', permissions: [] })
+      setForm({ name: '', permissions: [], allowedPages: [], defaultLandingPage: '' })
     }
     setError(null)
   }, [role, open])
@@ -36,6 +40,11 @@ export function RoleModal({ open, onClose, onSave, role, allPermissions }: {
           ? [...f.permissions, value]
           : f.permissions.filter((p: string) => p !== value),
       }))
+    } else if (name === 'allowedPages') {
+      // Split by comma or newline, trim
+      setForm(f => ({ ...f, allowedPages: value.split(/[\n,]+/).map((v: string) => v.trim()).filter(Boolean) }))
+    } else if (name === 'defaultLandingPage') {
+      setForm(f => ({ ...f, defaultLandingPage: value }))
     } else {
       setForm(f => ({ ...f, [name]: value }))
     }
@@ -86,6 +95,26 @@ export function RoleModal({ open, onClose, onSave, role, allPermissions }: {
                 </label>
               ))}
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Allowed Pages (comma or newline separated)</label>
+            <textarea
+              name="allowedPages"
+              value={form.allowedPages.join('\n')}
+              onChange={handleChange}
+              className="border rounded px-3 py-2 w-full min-h-[60px]"
+              placeholder="/dashboard, /dashboard/auta, /dashboard/settings, ..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Default Landing Page</label>
+            <input
+              name="defaultLandingPage"
+              value={form.defaultLandingPage}
+              onChange={handleChange}
+              className="border rounded px-3 py-2 w-full"
+              placeholder="/dashboard or /dashboard/noviny/distribuce/driver-route"
+            />
           </div>
           {error && <div className="text-red-600 text-sm text-center">{error}</div>}
           <div className="flex justify-end gap-2 mt-4">

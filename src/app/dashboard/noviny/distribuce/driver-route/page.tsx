@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormMessage, FormControl } from "@/components/ui/form";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useAccessControl } from "@/hooks/useAccessControl";
 
 const scanSchema = z.object({
   barcode: z.string().min(3, "Naskenujte kód trasy"),
@@ -38,12 +39,19 @@ async function fetchRouteDetails(barcode: string) {
 
 export default function DriverRoutePage() {
   const { data: session } = useSession();
+  const { hasRole, loading } = useAccessControl();
   const [route, setRoute] = useState<any>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingState, setLoadingState] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!loading && !hasRole("DRIVER")) {
+      router.replace("/403");
+    }
+  }, [loading, hasRole, router]);
 
   const form = useForm<ScanFormValues>({
     resolver: zodResolver(scanSchema),
@@ -63,10 +71,10 @@ export default function DriverRoutePage() {
   }, []);
 
   const onSubmit = async (data: ScanFormValues) => {
-    setLoading(true);
+    setLoadingState(true);
     setError("");
     const details = await fetchRouteDetails(data.barcode);
-    setLoading(false);
+    setLoadingState(false);
     if (!details) {
       setError("Trasa nenalezena");
       setRoute(null);
@@ -110,7 +118,7 @@ export default function DriverRoutePage() {
                         ref={inputRef}
                         autoFocus
                         className="text-lg py-4 tracking-widest"
-                        disabled={loading}
+                        disabled={loadingState}
                         inputMode="numeric"
                       />
                     </FormControl>
@@ -122,9 +130,9 @@ export default function DriverRoutePage() {
               <Button
                 type="submit"
                 className="w-full text-lg py-4 mt-2"
-                disabled={loading}
+                disabled={loadingState}
               >
-                {loading ? "Načítám..." : "Zobrazit trasu"}
+                {loadingState ? "Načítám..." : "Zobrazit trasu"}
               </Button>
             </form>
           </Form>

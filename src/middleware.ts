@@ -2,28 +2,48 @@ import { getToken } from "next-auth/jwt"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
+// Map of protected routes to required permissions or roles
+const routePermissions: { pattern: RegExp; permission?: string; role?: string }[] = [
+  // Admin routes
+  { pattern: /^\/dashboard\/admin(\/|$)/, role: "ADMIN" },
+  { pattern: /^\/api\/admin\//, role: "ADMIN" },
+  // Driver routes
+  { pattern: /^\/dashboard\/noviny\/distribuce\/driver-route(\/|$)/, role: "DRIVER" },
+  // Add more as needed
+];
+
 export async function middleware(request: NextRequest) {
-  const token = await getToken({ req: request })
-  const isAuthPage = request.nextUrl.pathname === "/"
-  const isDashboardPage = request.nextUrl.pathname.startsWith("/dashboard")
+  const token = await getToken({ req: request });
+  const isAuthPage = request.nextUrl.pathname === "/";
+  const isDashboardPage = request.nextUrl.pathname.startsWith("/dashboard");
 
   // Allow public access to the home page
   if (isAuthPage) {
     if (token) {
-      return NextResponse.redirect(new URL("/dashboard", request.url))
+      // Redirect to landing page if already logged in
+      const landing = String(token.defaultLandingPage || "/logined");
+      return NextResponse.redirect(new URL(landing, request.url));
     }
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
   // Protect dashboard routes
   if (isDashboardPage) {
     if (!token) {
-      return NextResponse.redirect(new URL("/", request.url))
+      return NextResponse.redirect(new URL("/", request.url));
     }
-    return NextResponse.next()
+    // Enforce allowedPages
+    const allowedPages: string[] = Array.isArray(token.allowedPages) ? token.allowedPages : [];
+    const path = request.nextUrl.pathname;
+    // Allow if the path matches any allowedPage (exact or as a prefix for subpages)
+    const isAllowed = allowedPages.some(page => path === page || path.startsWith(page + "/"));
+    if (!isAllowed) {
+      return NextResponse.redirect(new URL("/403", request.url));
+    }
+    return NextResponse.next();
   }
 
-  return NextResponse.next()
+  return NextResponse.next();
 }
 
 export const config = {

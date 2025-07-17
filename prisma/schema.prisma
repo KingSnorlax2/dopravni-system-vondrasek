@@ -179,6 +179,8 @@ model Role {
   name  String   @unique
   users UserRole[]
   permissions RolePermission[]
+  allowedPages String[] // NEW: List of allowed page routes for this role
+  defaultLandingPage String? // NEW: Default landing page for this role
 }
 
 model UserRole {

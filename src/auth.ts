@@ -4,17 +4,6 @@ import bcryptjs from 'bcryptjs'
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 
-declare module "next-auth" {
-  interface Session extends DefaultSession {
-    user: {
-      id: string
-      email: string
-      name: string | null
-      role: string
-    } & DefaultSession["user"]
-  }
-}
-
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -54,11 +43,33 @@ export const authOptions: NextAuthOptions = {
 
         // Get the highest role (ADMIN > others)
         let userRole = 'USER';
+        let allowedPages: string[] = [];
+        let defaultLandingPage = '/logined';
         if (user.roles && user.roles.length > 0) {
-          if (user.roles.some(r => r.role.name === 'ADMIN')) {
-            userRole = 'ADMIN';
+          const adminRole = user.roles.find(r => r.role.name === 'ADMIN');
+          const mainRole = adminRole || user.roles[0];
+          userRole = mainRole.role.name;
+          if (userRole === 'ADMIN') {
+            // Admin: allow everything
+            allowedPages = [
+              '/',
+              '/logined',
+              '/dashboard',
+              '/dashboard/admin',
+              '/dashboard/admin/users',
+              '/dashboard/admin/settings',
+              '/dashboard/auta',
+              '/dashboard/grafy',
+              '/dashboard/settings',
+              '/dashboard/noviny',
+              '/dashboard/noviny/distribuce',
+              '/dashboard/noviny/distribuce/driver-route',
+              // Add more as needed, or use a wildcard logic if supported
+            ];
+            defaultLandingPage = '/dashboard';
           } else {
-            userRole = user.roles[0].role.name;
+            allowedPages = (mainRole.role as any).allowedPages || [];
+            defaultLandingPage = (mainRole.role as any).defaultLandingPage || '/logined';
           }
         }
 
@@ -68,6 +79,8 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: userRole,
+          allowedPages,
+          defaultLandingPage,
         };
       },
     }),
@@ -78,7 +91,9 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
         token.email = user.email
         token.name = user.name
-        token.role = user.role
+        token.role = user.role as string;
+        (token as any).allowedPages = (user as any).allowedPages as string[];
+        (token as any).defaultLandingPage = (user as any).defaultLandingPage as string;
       }
       return token
     },
@@ -88,6 +103,8 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string
         session.user.name = token.name as string | null
         session.user.role = token.role as string
+        (session.user as any).allowedPages = (token as any).allowedPages as string[]
+        (session.user as any).defaultLandingPage = (token as any).defaultLandingPage as string
       }
       return session
     }

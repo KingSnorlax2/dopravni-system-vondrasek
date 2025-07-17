@@ -12,7 +12,23 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import { loadSettings, saveSettings, AppSettings } from '@/utils/settings'
-import { ROLES, PERMISSIONS, ROLE_PERMISSIONS } from '@/lib/auth'
+import { useAccessControl } from "@/hooks/useAccessControl";
+import { useRouter } from "next/navigation";
+
+const ROLES = [
+  { key: 'USER', label: 'Uživatel' },
+  { key: 'ADMIN', label: 'Administrátor' },
+  { key: 'DRIVER', label: 'Řidič' },
+  { key: 'MANAGER', label: 'Manažer' },
+];
+const PERMISSIONS = [
+  { key: 'view_dashboard', label: 'Zobrazit dashboard' },
+  { key: 'manage_users', label: 'Spravovat uživatele' },
+  { key: 'manage_vehicles', label: 'Spravovat vozidla' },
+  { key: 'view_reports', label: 'Zobrazit reporty' },
+  { key: 'manage_distribution', label: 'Spravovat distribuci novin' },
+  { key: 'driver_access', label: 'Přístup pro řidiče' },
+];
 
 const settingsSchema = z.object({
   itemsPerPage: z.preprocess(
@@ -34,6 +50,13 @@ type SettingsFormValues = z.infer<typeof settingsSchema>
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
+  const { hasRole, loading } = useAccessControl();
+  const router = useRouter();
+  useEffect(() => {
+    if (!loading && !hasRole("ADMIN")) {
+      router.replace("/403");
+    }
+  }, [loading, hasRole, router]);
   
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -94,7 +117,13 @@ export default function SettingsPage() {
       const stored = localStorage.getItem('rolePermissions')
       if (stored) return JSON.parse(stored)
     }
-    return { ...ROLE_PERMISSIONS }
+    // Default: all roles have no permissions
+    return {
+      USER: [],
+      ADMIN: [],
+      DRIVER: [],
+      MANAGER: [],
+    };
   })
 
   const handlePermissionChange = (role: string, perm: string, checked: boolean) => {

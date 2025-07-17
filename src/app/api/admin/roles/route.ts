@@ -13,10 +13,17 @@ const ALL_PERMISSIONS = [
   'driver_access',
 ]
 
+function requireAdmin(session: any) {
+  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+    return false;
+  }
+  return true;
+}
+
 // GET: Return all roles with their permissions, or all permissions if ?permissions=1
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const url = new URL(req.url)
@@ -31,17 +38,19 @@ export async function GET(req: Request) {
     id: role.id,
     name: role.name,
     permissions: role.permissions.map(p => p.permission),
+    allowedPages: role.allowedPages || [],
+    defaultLandingPage: role.defaultLandingPage || '',
   })))
 }
 
-// POST: Create a new role with name and permissions
+// POST: Create a new role with name, permissions, allowedPages, defaultLandingPage
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const body = await req.json()
-  const { name, permissions } = body
+  const { name, permissions, allowedPages, defaultLandingPage } = body
   if (!name || !Array.isArray(permissions)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -49,6 +58,8 @@ export async function POST(req: Request) {
   const role = await prisma.role.create({
     data: {
       name,
+      allowedPages: allowedPages || [],
+      defaultLandingPage: defaultLandingPage || '',
       permissions: {
         create: permissions.map((perm: PermissionKey) => ({ permission: perm })),
       },
@@ -59,18 +70,20 @@ export async function POST(req: Request) {
     id: role.id,
     name: role.name,
     permissions: role.permissions.map(p => p.permission),
+    allowedPages: role.allowedPages || [],
+    defaultLandingPage: role.defaultLandingPage || '',
   })
 }
 
-// PATCH: Update permissions for a role
+// PATCH: Update permissions, allowedPages, defaultLandingPage for a role
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const body = await req.json()
-  const { roleName, permissions } = body
-  if (!roleName || !Array.isArray(permissions)) {
+  const { roleName, permissions, allowedPages, defaultLandingPage } = body
+  if (!roleName) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
   const role = await prisma.role.findUnique({ where: { name: roleName } })
@@ -78,13 +91,22 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Role not found' }, { status: 404 })
   }
   // Remove all current permissions
-  await prisma.rolePermission.deleteMany({ where: { roleId: role.id } })
-  // Add new permissions
-  await prisma.rolePermission.createMany({
-    data: permissions.map((perm: PermissionKey) => ({
-      roleId: role.id,
-      permission: perm,
-    })),
+  if (Array.isArray(permissions)) {
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } })
+    await prisma.rolePermission.createMany({
+      data: permissions.map((perm: PermissionKey) => ({
+        roleId: role.id,
+        permission: perm,
+      })),
+    })
+  }
+  // Update allowedPages and defaultLandingPage
+  await prisma.role.update({
+    where: { id: role.id },
+    data: {
+      allowedPages: allowedPages || role.allowedPages,
+      defaultLandingPage: defaultLandingPage ?? role.defaultLandingPage,
+    },
   })
   // Return updated role
   const updated = await prisma.role.findUnique({
@@ -95,5 +117,7 @@ export async function PATCH(req: Request) {
     id: updated?.id,
     name: updated?.name,
     permissions: updated?.permissions.map(p => p.permission),
+    allowedPages: updated?.allowedPages || [],
+    defaultLandingPage: updated?.defaultLandingPage || '',
   })
 } 

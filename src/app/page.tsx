@@ -65,7 +65,15 @@ export default function HomePage() {
           variant: 'destructive'
         })
       } else {
-        router.push('/dashboard')
+        // Wait for session to update
+        setTimeout(() => {
+          // Get session and redirect to defaultLandingPage
+          import('next-auth/react').then(({ useSession }) => {
+            const session = JSON.parse(localStorage.getItem('nextauth.session') || '{}');
+            const landing = session?.user?.defaultLandingPage || '/logined';
+            window.location.href = landing;
+          });
+        }, 200);
       }
     } catch (error) {
       console.error('Login error:', error)

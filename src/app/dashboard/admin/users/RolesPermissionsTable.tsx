@@ -166,6 +166,8 @@ export function RolesPermissionsTable() {
             {allPermissions.map(perm => (
               <th key={perm} className="border px-4 py-2 text-center">{perm}</th>
             ))}
+            <th className="border px-4 py-2 text-center">Allowed Pages</th>
+            <th className="border px-4 py-2 text-center">Default Landing</th>
             <th className="border px-4 py-2 text-center">Actions</th>
             <th className="border px-4 py-2 text-center">Save</th>
           </tr>
@@ -187,6 +189,8 @@ export function RolesPermissionsTable() {
                     />
                   </td>
                 ))}
+                <td className="border px-4 py-2 text-xs text-gray-700 max-w-[200px] whitespace-pre-line">{role.allowedPages?.join('\n') || ''}</td>
+                <td className="border px-4 py-2 text-xs text-gray-700">{role.defaultLandingPage || ''}</td>
                 <td className="border px-4 py-2 text-center">
                   <button
                     className="text-blue-600 hover:underline mr-2 disabled:text-gray-400"

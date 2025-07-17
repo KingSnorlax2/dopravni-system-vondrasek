@@ -4,15 +4,22 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { PermissionKey } from '@prisma/client'
 
-// PATCH: Update role name and/or permissions
+function requireAdmin(session: any) {
+  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+    return false;
+  }
+  return true;
+}
+
+// PATCH: Update role name, permissions, allowedPages, defaultLandingPage
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const { id } = params
   const body = await req.json()
-  const { name, permissions } = body
+  const { name, permissions, allowedPages, defaultLandingPage } = body
   // Update name if provided
   let role = await prisma.role.update({
     where: { id: Number(id) },
@@ -30,17 +37,32 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       include: { permissions: true },
     })
   }
+  // Update allowedPages and defaultLandingPage
+  await prisma.role.update({
+    where: { id: Number(id) },
+    data: {
+      allowedPages: allowedPages || role.allowedPages,
+      defaultLandingPage: defaultLandingPage ?? role.defaultLandingPage,
+    },
+  })
+  // Return updated role
+  const updated = await prisma.role.findUnique({
+    where: { id: Number(id) },
+    include: { permissions: true },
+  })
   return NextResponse.json({
-    id: role?.id,
-    name: role?.name,
-    permissions: role?.permissions.map(p => p.permission),
+    id: updated?.id,
+    name: updated?.name,
+    permissions: updated?.permissions.map(p => p.permission),
+    allowedPages: updated?.allowedPages || [],
+    defaultLandingPage: updated?.defaultLandingPage || '',
   })
 }
 
 // DELETE: Delete role if no users are assigned
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+  if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const { id } = params

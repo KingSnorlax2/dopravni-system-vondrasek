@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormMessage, FormControl } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const loginSchema = z.object({
-  username: z.string().min(2, "Zadejte jméno řidiče"),
+  email: z.string().min(2, "Zadejte jméno nebo email"),
   password: z.string().min(4, "Zadejte heslo"),
 });
 
@@ -21,10 +22,11 @@ export default function DriverLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const { data: session } = useSession();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: "", password: "" },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = async (data: LoginFormValues) => {
@@ -32,14 +34,23 @@ export default function DriverLoginPage() {
     setError("");
     const res = await signIn("credentials", {
       redirect: false,
-      username: data.username,
+      email: data.email, // Use 'email' for both email and username
       password: data.password,
     });
     setLoading(false);
     if (res?.error) {
       setError("Neplatné přihlašovací údaje");
     } else {
-      router.push("/dashboard/noviny/distribuce/driver-route");
+      // Wait for session to update
+      setTimeout(() => {
+        if (session?.user?.role === "DRIVER") {
+          router.push("/dashboard/noviny/distribuce/driver-route");
+        } else if (session?.user?.role === "ADMIN") {
+          router.push("/dashboard");
+        } else {
+          router.push("/");
+        }
+      }, 200);
     }
   };
 
@@ -51,10 +62,10 @@ export default function DriverLoginPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="username"
+              name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Jméno řidiče</FormLabel>
+                  <FormLabel>Jméno nebo email</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
