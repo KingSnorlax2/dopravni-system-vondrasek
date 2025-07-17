@@ -1,30 +1,23 @@
 import { Suspense } from 'react'
-import { prisma } from "@/lib/prisma"
-import { UsersClient } from './users-client'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/auth'
+import { redirect } from 'next/navigation'
+import { UsersAdminClient } from './users-admin-client'
 
-async function getUsers() {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-    },
-  })
-  return users.map(user => ({
-    ...user,
-    name: user.name || undefined,
-    email: user.email || undefined,
-    role: user.role as "ADMIN" | "USER"
-  }))
-}
-
-export default async function UsersPage() {
-  const users = await getUsers()
-
+export default async function AdminUsersPage() {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user?.role !== 'ADMIN') {
+    redirect('/403')
+  }
   return (
-    <Suspense fallback={<div>Načítání...</div>}>
-      <UsersClient users={users} />
-    </Suspense>
+    <div className="container max-w-6xl py-8">
+      <nav className="mb-4 text-sm text-gray-500">
+        Dashboard / Admin / <span className="text-black font-semibold">Users</span>
+      </nav>
+      <h1 className="text-3xl font-bold mb-6">User Management</h1>
+      <Suspense fallback={<div>Loading...</div>}>
+        <UsersAdminClient />
+      </Suspense>
+    </div>
   )
 } 

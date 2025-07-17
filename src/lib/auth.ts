@@ -67,4 +67,29 @@ export const authConfig: NextAuthOptions = {
     }
   },
   session: { strategy: "jwt" }
-} 
+}
+
+// Role and permissions config for UI and backend
+export const ROLES = [
+  { key: 'USER', label: 'Uživatel' },
+  { key: 'ADMIN', label: 'Administrátor' },
+  { key: 'DRIVER', label: 'Řidič' },
+  { key: 'MANAGER', label: 'Manažer' },
+];
+
+export const PERMISSIONS = [
+  { key: 'view_dashboard', label: 'Zobrazit dashboard' },
+  { key: 'manage_users', label: 'Spravovat uživatele' },
+  { key: 'manage_vehicles', label: 'Spravovat vozidla' },
+  { key: 'view_reports', label: 'Zobrazit reporty' },
+  { key: 'manage_distribution', label: 'Spravovat distribuci novin' },
+  { key: 'driver_access', label: 'Přístup pro řidiče' },
+];
+
+// Default permissions for each role
+export const ROLE_PERMISSIONS: Record<string, string[]> = {
+  USER: ['view_dashboard'],
+  ADMIN: ['view_dashboard', 'manage_users', 'manage_vehicles', 'view_reports', 'manage_distribution', 'driver_access'],
+  DRIVER: ['driver_access'],
+  MANAGER: ['view_dashboard', 'view_reports', 'manage_distribution'],
+}; 

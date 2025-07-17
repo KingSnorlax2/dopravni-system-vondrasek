@@ -10,11 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  USER
-  ADMIN
-}
-
 model Auto {
   id              Int       @id @default(autoincrement())
   spz             String    @unique
@@ -174,16 +169,39 @@ model Settings {
   updatedAt DateTime @updatedAt
 }
 
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String   @unique
+  users UserRole[]
+  permissions RolePermission[]
+}
+
+model UserRole {
+  id     Int   @id @default(autoincrement())
+  user   User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  role   Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId Int
+  @@unique([userId, roleId])
+}
+
 model User {
   id              String    @id @default(cuid())
   name            String?
   email           String    @unique
+  username        String?   @unique
   password        String
-  role            String    @default("USER")
   resetToken      String?   @unique
   resetTokenExpiry DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  status          UserStatus @default(ACTIVE)
+  roles           UserRole[]
 }
 
 model VehicleLocation {
@@ -199,4 +217,20 @@ model VehicleLocation {
   timestamp     DateTime @default(now())
   
   auto          Auto     @relation(fields: [autoId], references: [id], onDelete: Cascade)
+}
+
+enum PermissionKey {
+  view_dashboard
+  manage_users
+  manage_vehicles
+  view_reports
+  manage_distribution
+  driver_access
+}
+
+model RolePermission {
+  id        Int    @id @default(autoincrement())
+  roleId    Int
+  role      Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission PermissionKey
 }

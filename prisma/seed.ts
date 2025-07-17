@@ -1,38 +1,34 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
+import bcryptjs from 'bcryptjs';
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 async function main() {
-  // Add some sample data
-  const auto = await prisma.auto.create({
-    data: {
-      spz: 'ABC1234',
-      znacka: 'Škoda',
-      model: 'Octavia',
-      rokVyroby: 2020,
-      stav: 'dobrý', // Added required 'stav' field
-      najezd: 50000,
+  const password = await bcryptjs.hash('Admin123!', 10);
+  await prisma.role.upsert({
+    where: { name: 'ADMIN' },
+    update: {},
+    create: { name: 'ADMIN' },
+  });
+  await prisma.user.upsert({
+    where: { email: 'admin@admin.com' },
+    update: {},
+    create: {
+      name: 'Admin',
+      email: 'admin@admin.com',
+      username: 'admin',
+      password,
+      status: 'ACTIVE',
+      roles: {
+        create: [
+          {
+            role: { connect: { name: 'ADMIN' } },
+          },
+        ],
+      },
     },
-  })
-
-  await prisma.transakce.create({
-    data: {
-      nazev: 'Test Transaction',
-      castka: 1000,
-      datum: new Date(),
-      typ: 'příjem',
-      popis: 'Test description',
-      // Remove 'kategorie' as it doesn't exist in the TransakceCreateInput type
-      autoId: auto.id,
-    },
-  })
+  });
+  console.log('Admin user created: admin@admin.com / admin / Admin123!');
 }
 
-main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  }) 
+main().finally(() => prisma.$disconnect()); 

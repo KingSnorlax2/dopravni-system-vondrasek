@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import { loadSettings, saveSettings, AppSettings } from '@/utils/settings'
+import { ROLES, PERMISSIONS, ROLE_PERMISSIONS } from '@/lib/auth'
 
 const settingsSchema = z.object({
   itemsPerPage: z.preprocess(
@@ -85,6 +86,32 @@ export default function SettingsPage() {
         variant: "destructive",
       })
     }
+  }
+  
+  // Role permissions state
+  const [rolePermissions, setRolePermissions] = useState<Record<string, string[]>>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('rolePermissions')
+      if (stored) return JSON.parse(stored)
+    }
+    return { ...ROLE_PERMISSIONS }
+  })
+
+  const handlePermissionChange = (role: string, perm: string, checked: boolean) => {
+    setRolePermissions(prev => {
+      const perms = new Set(prev[role] || [])
+      if (checked) perms.add(perm)
+      else perms.delete(perm)
+      return { ...prev, [role]: Array.from(perms) }
+    })
+  }
+
+  const saveRolePermissions = () => {
+    localStorage.setItem('rolePermissions', JSON.stringify(rolePermissions))
+    toast({
+      title: 'Role nastavení uloženo',
+      description: 'Oprávnění rolí byla uložena (lokálně pro demo).',
+    })
   }
   
   if (isLoading) {
@@ -227,6 +254,45 @@ export default function SettingsPage() {
                 <Button type="submit">Uložit nastavení</Button>
               </form>
             </Form>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Správa rolí a oprávnění</CardTitle>
+            <CardDescription>
+              Nastavte, ke kterým funkcím mají jednotlivé role přístup
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="min-w-full border text-sm">
+                <thead>
+                  <tr>
+                    <th className="border px-2 py-1 text-left">Role</th>
+                    {PERMISSIONS.map(perm => (
+                      <th key={perm.key} className="border px-2 py-1">{perm.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ROLES.map(role => (
+                    <tr key={role.key}>
+                      <td className="border px-2 py-1 font-semibold">{role.label}</td>
+                      {PERMISSIONS.map(perm => (
+                        <td key={perm.key} className="border px-2 py-1 text-center">
+                          <input
+                            type="checkbox"
+                            checked={rolePermissions[role.key]?.includes(perm.key) || false}
+                            onChange={e => handlePermissionChange(role.key, perm.key, e.target.checked)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Button className="mt-4" onClick={saveRolePermissions}>Uložit oprávnění rolí</Button>
+            </div>
           </CardContent>
         </Card>
       </div>

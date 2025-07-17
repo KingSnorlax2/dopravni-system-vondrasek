@@ -18,56 +18,59 @@ declare module "next-auth" {
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      name: "credentials",
+      name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: "Email or Username", type: "text" },
         password: { label: "Password", type: "password" },
-        remember: { label: "Remember", type: "boolean" }
       },
       async authorize(credentials) {
-        try {
-          if (!credentials?.email || !credentials?.password) {
-            throw new Error("Missing credentials")
-          }
-
-          const user = await prisma.user.findUnique({
-            where: {
-              email: credentials.email
-            },
-            select: {
-              id: true,
-              email: true,
-              name: true,
-              password: true,
-              role: true
-            }
-          })
-
-          if (!user || !user.password) {
-            throw new Error("User not found")
-          }
-
-          const isPasswordValid = await bcryptjs.compare(
-            credentials.password,
-            user.password
-          )
-
-          if (!isPasswordValid) {
-            throw new Error("Invalid password")
-          }
-
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role
-          }
-        } catch (error) {
-          console.error("Auth error:", error)
-          return null
+        if (!credentials?.email || !credentials?.password) {
+          return null;
         }
-      }
-    })
+
+        // Try to find user by email or username
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: credentials.email },
+              { username: credentials.email }, // 'email' field is used for both
+            ],
+          },
+          include: { roles: { include: { role: true } } }, // Fetch roles
+        });
+
+        if (!user || !user.password) {
+          return null;
+        }
+
+        const isPasswordValid = await bcryptjs.compare(
+          credentials.password,
+          user.password
+        );
+
+        if (!isPasswordValid) {
+          return null;
+        }
+
+        // Get the highest role (ADMIN > others)
+        let userRole = 'USER';
+        if (user.roles && user.roles.length > 0) {
+          if (user.roles.some(r => r.role.name === 'ADMIN')) {
+            userRole = 'ADMIN';
+          } else {
+            userRole = user.roles[0].role.name;
+          }
+        }
+
+        // Return user object for session
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: userRole,
+        };
+      },
+    }),
   ],
   callbacks: {
     async jwt({ token, user }) {

@@ -46,7 +46,6 @@ interface UserFormProps {
 }
 
 export function UserForm({ open, onOpenChange, initialData, mode }: UserFormProps) {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<UserFormValues>({
@@ -75,7 +74,6 @@ export function UserForm({ open, onOpenChange, initialData, mode }: UserFormProp
 
       if (!response.ok) throw new Error("Failed to save user")
       
-      router.refresh()
       onOpenChange(false)
     } catch (error) {
       console.error("Error saving user:", error)
