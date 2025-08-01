@@ -26,7 +26,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { format, isBefore, addMonths } from "date-fns"
 import cs from 'date-fns/locale/cs'
-import HomepageNav from "@/components/layout/HomepageNav"
+import UnifiedLayout from "@/components/layout/UnifiedLayout"
 
 export default function Homepage() {
   const { data: session, status } = useSession()
@@ -131,289 +131,255 @@ export default function Homepage() {
     }
   ]
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: "/" })
-  }
-
   if (status === "loading" || data.isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="unified-loading">
+        <div className="unified-spinner"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Car className="w-6 h-6 text-white" />
+    <UnifiedLayout>
+      {/* Welcome Section */}
+      <div className="unified-section-header">
+        <h2 className="unified-section-title">
+          Vítejte v dopravním systému
+        </h2>
+        <p className="unified-section-description">
+          Spravujte svůj vozový park, sledujte GPS polohy a analyzujte data na jednom místě.
+        </p>
+      </div>
+
+      {/* Enhanced Stats Overview */}
+      <div className="unified-grid-stats">
+        {/* Fleet Status Overview */}
+        <Card className="unified-card">
+          <CardHeader className="unified-card-header">
+            <CardTitle className="unified-card-title">
+              <Car className="mr-2 h-5 w-5 text-primary" />
+              Stav vozového parku
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="unified-card-content">
+            <div className="text-2xl font-bold">{data.totalVehicles}</div>
+            <div className="text-sm text-muted-foreground mb-4">Celkový počet vozidel</div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Aktivní</span>
+                <span className="font-medium">{data.activeVehicles}</span>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Dopravní Systém</h1>
-                <p className="text-sm text-gray-600">Vítejte zpět, {session?.user?.name || 'Uživateli'}</p>
+              <Progress value={(data.activeVehicles / data.totalVehicles) * 100} className="h-2 bg-muted" />
+              
+              <div className="flex justify-between text-sm">
+                <span>V servisu</span>
+                <span className="font-medium">{data.inServiceVehicles}</span>
               </div>
+              <Progress value={(data.inServiceVehicles / data.totalVehicles) * 100} className="h-2 bg-muted" />
+              
+              <div className="flex justify-between text-sm">
+                <span>Vyřazeno</span>
+                <span className="font-medium">{data.retiredVehicles}</span>
+              </div>
+              <Progress value={(data.retiredVehicles / data.totalVehicles) * 100} className="h-2 bg-muted" />
             </div>
-            <div className="flex items-center space-x-4">
-              <HomepageNav />
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                Online
-              </Badge>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Odhlásit
-              </Button>
+          </CardContent>
+        </Card>
+
+        {/* STK Overview */}
+        <Card className="unified-card">
+          <CardHeader className="unified-card-header">
+            <CardTitle className="unified-card-title">
+              <Calendar className="mr-2 h-5 w-5 text-primary" />
+              Technické kontroly
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="unified-card-content">
+            {urgentStkCount > 0 ? (
+              <div className="flex items-center mb-4">
+                <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
+                <span className="text-amber-600 font-medium">{urgentStkCount} vozidel vyžaduje STK do 30 dnů</span>
+              </div>
+            ) : (
+              <div className="text-green-600 font-medium mb-4">Všechna vozidla mají platnou STK</div>
+            )}
+            
+            <div className="space-y-3 mt-2">
+              {(data.vehiclesWithStk || []).slice(0, 3).map((vehicle: any) => (
+                <div key={vehicle.id} className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium">{vehicle.spz}</div>
+                    <div className="text-sm text-muted-foreground">{vehicle.znacka} {vehicle.model}</div>
+                  </div>
+                  <Badge variant={
+                    isBefore(new Date(vehicle.datumSTK), new Date()) 
+                      ? "destructive" 
+                      : isBefore(new Date(vehicle.datumSTK), addMonths(new Date(), 1))
+                        ? "outline"
+                        : "secondary"
+                  }>
+                    {format(new Date(vehicle.datumSTK), "dd.MM.yyyy")}
+                  </Badge>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Vítejte v dopravním systému
-          </h2>
-          <p className="text-lg text-gray-600">
-            Spravujte svůj vozový park, sledujte GPS polohy a analyzujte data na jednom místě.
-          </p>
-        </div>
-
-        {/* Enhanced Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Fleet Status Overview */}
-          <Card className="bg-white shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Car className="mr-2 h-5 w-5 text-primary" />
-                Stav vozového parku
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{data.totalVehicles}</div>
-              <div className="text-sm text-muted-foreground mb-4">Celkový počet vozidel</div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Aktivní</span>
-                  <span className="font-medium">{data.activeVehicles}</span>
-                </div>
-                <Progress value={(data.activeVehicles / data.totalVehicles) * 100} className="h-2 bg-muted" />
-                
-                <div className="flex justify-between text-sm">
-                  <span>V servisu</span>
-                  <span className="font-medium">{data.inServiceVehicles}</span>
-                </div>
-                <Progress value={(data.inServiceVehicles / data.totalVehicles) * 100} className="h-2 bg-muted" />
-                
-                <div className="flex justify-between text-sm">
-                  <span>Vyřazeno</span>
-                  <span className="font-medium">{data.retiredVehicles}</span>
-                </div>
-                <Progress value={(data.retiredVehicles / data.totalVehicles) * 100} className="h-2 bg-muted" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* STK Overview */}
-          <Card className="bg-white shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Calendar className="mr-2 h-5 w-5 text-primary" />
-                Technické kontroly
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {urgentStkCount > 0 ? (
-                <div className="flex items-center mb-4">
-                  <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
-                  <span className="text-amber-600 font-medium">{urgentStkCount} vozidel vyžaduje STK do 30 dnů</span>
-                </div>
-              ) : (
-                <div className="text-green-600 font-medium mb-4">Všechna vozidla mají platnou STK</div>
-              )}
-              
-              <div className="space-y-3 mt-2">
-                {(data.vehiclesWithStk || []).slice(0, 3).map((vehicle: any) => (
-                  <div key={vehicle.id} className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">{vehicle.spz}</div>
-                      <div className="text-sm text-muted-foreground">{vehicle.znacka} {vehicle.model}</div>
-                    </div>
-                    <Badge variant={
-                      isBefore(new Date(vehicle.datumSTK), new Date()) 
-                        ? "destructive" 
-                        : isBefore(new Date(vehicle.datumSTK), addMonths(new Date(), 1))
-                          ? "outline"
-                          : "secondary"
-                    }>
-                      {format(new Date(vehicle.datumSTK), "dd.MM.yyyy")}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-              
-              {(data.vehiclesWithStk || []).length > 3 && (
-                <Button variant="link" size="sm" className="mt-2 p-0" asChild>
-                  <Link href="/dashboard/auta">
-                    Zobrazit vše <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Mileage & Age Overview */}
-          <Card className="bg-white shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <TrendingUp className="mr-2 h-5 w-5 text-primary" />
-                Stáří a nájezd
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <div className="text-sm text-muted-foreground">Průměrný nájezd</div>
-                <div className="text-2xl font-bold">{(data.averageMileage || 0).toLocaleString()} km</div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="text-sm text-muted-foreground">Stáří vozového parku</div>
-                <div className="flex justify-between text-sm">
-                  <span>Do 3 let</span>
-                  <span className="font-medium">{data.fleetAgeDistribution?.newer ?? 0}</span>
-                </div>
-                <Progress 
-                  value={(data.fleetAgeDistribution?.newer ?? 0) / data.totalVehicles * 100} 
-                  className="h-2 bg-muted" 
-                />
-                
-                <div className="flex justify-between text-sm">
-                  <span>3-7 let</span>
-                  <span className="font-medium">{data.fleetAgeDistribution?.medium ?? 0}</span>
-                </div>
-                <Progress 
-                  value={(data.fleetAgeDistribution?.medium ?? 0) / data.totalVehicles * 100} 
-                  className="h-2 bg-muted" 
-                />
-                
-                <div className="flex justify-between text-sm">
-                  <span>Nad 7 let</span>
-                  <span className="font-medium">{data.fleetAgeDistribution?.older ?? 0}</span>
-                </div>
-                <Progress 
-                  value={(data.fleetAgeDistribution?.older ?? 0) / data.totalVehicles * 100} 
-                  className="h-2 bg-muted" 
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Maintenance Overview */}
-          <Card className="bg-white shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Wrench className="mr-2 h-5 w-5 text-primary" />
-                Údržba a servis
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <div className="text-sm text-muted-foreground">Celkové náklady</div>
-                <div className="text-2xl font-bold">{(data.totalMaintenanceCost || 0).toLocaleString()} Kč</div>
-              </div>
-              
-              <div className="text-sm text-muted-foreground mb-2">Poslední záznamy</div>
-              <div className="space-y-3">
-                {(data.recentMaintenance || []).slice(0, 3).map((record: { id: string; type: string; spz: string; cost: number; date: string }) => (
-                  <div key={record.id} className="flex justify-between items-start border-b pb-2">
-                    <div>
-                      <div className="font-medium">{record.type}</div>
-                      <div className="text-xs text-muted-foreground">{record.spz}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">{record.cost.toLocaleString()} Kč</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(record.date), "dd.MM.yyyy")}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
+            
+            {(data.vehiclesWithStk || []).length > 3 && (
               <Button variant="link" size="sm" className="mt-2 p-0" asChild>
                 <Link href="/dashboard/auta">
-                  Všechny záznamy <ArrowRight className="ml-1 h-4 w-4" />
+                  Zobrazit vše <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold text-gray-900 mb-6">Rychlé akce</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quickActions.map((action, index) => (
-              <Link key={index} href={action.href}>
-                <Card className="bg-white shadow-md hover:shadow-lg transition-shadow duration-200 cursor-pointer group">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-lg ${action.color} group-hover:scale-110 transition-transform duration-200`}>
-                        <action.icon className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 group-hover:text-primary transition-colors duration-200">
-                          {action.title}
-                        </h4>
-                        <p className="text-sm text-gray-600">{action.description}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Poslední aktivity</h3>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Systém je připraven</p>
-                <p className="text-xs text-gray-600">Všechny služby jsou funkční</p>
-              </div>
-              <span className="text-xs text-gray-500">Právě teď</span>
-            </div>
-            <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Přihlášení úspěšné</p>
-                <p className="text-xs text-gray-600">Uživatel {session?.user?.name} se přihlásil</p>
-              </div>
-              <span className="text-xs text-gray-500">Právě teď</span>
-            </div>
-            {urgentStkCount > 0 && (
-              <div className="flex items-center space-x-4 p-3 bg-amber-50 rounded-lg">
-                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-amber-900">STK upozornění</p>
-                  <p className="text-xs text-amber-700">{urgentStkCount} vozidel vyžaduje technickou kontrolu</p>
-                </div>
-                <span className="text-xs text-amber-600">Důležité</span>
-              </div>
             )}
-          </div>
+          </CardContent>
+        </Card>
+
+        {/* Mileage & Age Overview */}
+        <Card className="unified-card">
+          <CardHeader className="unified-card-header">
+            <CardTitle className="unified-card-title">
+              <TrendingUp className="mr-2 h-5 w-5 text-primary" />
+              Stáří a nájezd
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="unified-card-content">
+            <div className="mb-4">
+              <div className="text-sm text-muted-foreground">Průměrný nájezd</div>
+              <div className="text-2xl font-bold">{(data.averageMileage || 0).toLocaleString()} km</div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Stáří vozového parku</div>
+              <div className="flex justify-between text-sm">
+                <span>Do 3 let</span>
+                <span className="font-medium">{data.fleetAgeDistribution?.newer ?? 0}</span>
+              </div>
+              <Progress 
+                value={(data.fleetAgeDistribution?.newer ?? 0) / data.totalVehicles * 100} 
+                className="h-2 bg-muted" 
+              />
+              
+              <div className="flex justify-between text-sm">
+                <span>3-7 let</span>
+                <span className="font-medium">{data.fleetAgeDistribution?.medium ?? 0}</span>
+              </div>
+              <Progress 
+                value={(data.fleetAgeDistribution?.medium ?? 0) / data.totalVehicles * 100} 
+                className="h-2 bg-muted" 
+              />
+              
+              <div className="flex justify-between text-sm">
+                <span>Nad 7 let</span>
+                <span className="font-medium">{data.fleetAgeDistribution?.older ?? 0}</span>
+              </div>
+              <Progress 
+                value={(data.fleetAgeDistribution?.older ?? 0) / data.totalVehicles * 100} 
+                className="h-2 bg-muted" 
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Maintenance Overview */}
+        <Card className="unified-card">
+          <CardHeader className="unified-card-header">
+            <CardTitle className="unified-card-title">
+              <Wrench className="mr-2 h-5 w-5 text-primary" />
+              Údržba a servis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="unified-card-content">
+            <div className="mb-4">
+              <div className="text-sm text-muted-foreground">Celkové náklady</div>
+              <div className="text-2xl font-bold">{(data.totalMaintenanceCost || 0).toLocaleString()} Kč</div>
+            </div>
+            
+            <div className="text-sm text-muted-foreground mb-2">Poslední záznamy</div>
+            <div className="space-y-3">
+              {(data.recentMaintenance || []).slice(0, 3).map((record: { id: string; type: string; spz: string; cost: number; date: string }) => (
+                <div key={record.id} className="flex justify-between items-start border-b pb-2">
+                  <div>
+                    <div className="font-medium">{record.type}</div>
+                    <div className="text-xs text-muted-foreground">{record.spz}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">{record.cost.toLocaleString()} Kč</div>
+                    <div className="text-xs text-muted-foreground">
+                      {format(new Date(record.date), "dd.MM.yyyy")}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <Button variant="link" size="sm" className="mt-2 p-0" asChild>
+              <Link href="/dashboard/auta">
+                Všechny záznamy <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold text-gray-900 mb-6">Rychlé akce</h3>
+        <div className="unified-grid-actions">
+          {quickActions.map((action, index) => (
+            <Link key={index} href={action.href}>
+              <Card className="unified-card cursor-pointer group">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-3 rounded-lg ${action.color} group-hover:scale-110 transition-transform duration-200`}>
+                      <action.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 group-hover:text-primary transition-colors duration-200">
+                        {action.title}
+                      </h4>
+                      <p className="text-sm text-gray-600">{action.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
-      </main>
-    </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="unified-card p-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">Poslední aktivity</h3>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">Systém je připraven</p>
+              <p className="text-xs text-gray-600">Všechny služby jsou funkční</p>
+            </div>
+            <span className="text-xs text-gray-500">Právě teď</span>
+          </div>
+          <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">Přihlášení úspěšné</p>
+              <p className="text-xs text-gray-600">Uživatel {session?.user?.name} se přihlásil</p>
+            </div>
+            <span className="text-xs text-gray-500">Právě teď</span>
+          </div>
+          {urgentStkCount > 0 && (
+            <div className="flex items-center space-x-4 p-3 bg-amber-50 rounded-lg">
+              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-900">STK upozornění</p>
+                <p className="text-xs text-amber-700">{urgentStkCount} vozidel vyžaduje technickou kontrolu</p>
+              </div>
+              <span className="text-xs text-amber-600">Důležité</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </UnifiedLayout>
   )
 } 

@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -27,8 +28,16 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem
+    --radius: 0.5rem;
+    
+    /* Unified Design System Variables */
+    --gradient-bg: linear-gradient(to bottom right, #eff6ff, #e0e7ff);
+    --header-bg: 0 0% 100%;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --hover-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --transition-standard: all 0.2s ease-in-out;
   }
+  
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -53,9 +62,16 @@
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+    --chart-5: 340 75% 55%;
+    
+    /* Dark mode unified variables */
+    --gradient-bg: linear-gradient(to bottom right, #1e293b, #334155);
+    --header-bg: 222.2 84% 4.9%;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    --hover-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
   }
 }
+
 @layer base {
   * {
     @apply border-border;
@@ -65,7 +81,184 @@
   }
 }
 
-/* Add this to your global CSS */
+/* Unified Design System Components */
+@layer components {
+  /* Unified Page Layout */
+  .unified-page {
+    @apply min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100;
+  }
+  
+  /* Unified Header */
+  .unified-header {
+    @apply bg-white shadow-sm border-b;
+  }
+  
+  .unified-header-content {
+    @apply container mx-auto px-4 py-4;
+  }
+  
+  .unified-header-main {
+    @apply flex items-center justify-between;
+  }
+  
+  .unified-header-brand {
+    @apply flex items-center space-x-4;
+  }
+  
+  .unified-header-logo {
+    @apply w-10 h-10 bg-primary rounded-lg flex items-center justify-center;
+  }
+  
+  .unified-header-title {
+    @apply text-2xl font-bold text-gray-900;
+  }
+  
+  .unified-header-subtitle {
+    @apply text-sm text-gray-600;
+  }
+  
+  .unified-header-actions {
+    @apply flex items-center space-x-4;
+  }
+  
+  /* Unified Main Content */
+  .unified-main {
+    @apply container mx-auto px-4 py-8;
+  }
+  
+  /* Unified Card Styles */
+  .unified-card {
+    @apply bg-white shadow-md hover:shadow-lg transition-shadow duration-200;
+  }
+  
+  .unified-card-header {
+    @apply pb-2;
+  }
+  
+  .unified-card-title {
+    @apply text-lg flex items-center;
+  }
+  
+  .unified-card-content {
+    @apply space-y-4;
+  }
+  
+  /* Unified Navigation */
+  .unified-nav {
+    @apply hidden md:flex items-center space-x-4;
+  }
+  
+  .unified-nav-item {
+    @apply flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors;
+  }
+  
+  .unified-nav-item-active {
+    @apply bg-primary text-primary-foreground;
+  }
+  
+  .unified-nav-item-inactive {
+    @apply text-gray-700 hover:bg-gray-100;
+  }
+  
+  /* Unified Button Styles */
+  .unified-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200;
+  }
+  
+  .unified-button-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors duration-200;
+  }
+  
+  .unified-button-outline {
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors duration-200;
+  }
+  
+  /* Unified Table Styles (Preserved) */
+  .unified-table {
+    @apply w-full border-collapse;
+  }
+  
+  .unified-table-header {
+    @apply bg-gray-50 border-b border-gray-200;
+  }
+  
+  .unified-table-header-cell {
+    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+  }
+  
+  .unified-table-body {
+    @apply bg-white divide-y divide-gray-200;
+  }
+  
+  .unified-table-row {
+    @apply hover:bg-gray-50 transition-colors duration-150;
+  }
+  
+  .unified-table-cell {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+  }
+  
+  /* Unified Form Styles */
+  .unified-form-group {
+    @apply space-y-2;
+  }
+  
+  .unified-form-label {
+    @apply text-sm font-medium text-gray-700;
+  }
+  
+  .unified-form-input {
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  
+  /* Unified Loading States */
+  .unified-loading {
+    @apply min-h-screen flex items-center justify-center;
+  }
+  
+  .unified-spinner {
+    @apply animate-spin rounded-full h-12 w-12 border-b-2 border-primary;
+  }
+  
+  /* Unified Section Headers */
+  .unified-section-header {
+    @apply mb-8;
+  }
+  
+  .unified-section-title {
+    @apply text-3xl font-bold text-gray-900 mb-2;
+  }
+  
+  .unified-section-description {
+    @apply text-lg text-gray-600;
+  }
+  
+  /* Unified Grid Layouts */
+  .unified-grid-stats {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8;
+  }
+  
+  .unified-grid-actions {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+  }
+  
+  /* Unified Mobile Responsiveness */
+  @media (max-width: 768px) {
+    .unified-header-main {
+      @apply flex-col space-y-4;
+    }
+    
+    .unified-header-actions {
+      @apply w-full justify-center;
+    }
+    
+    .unified-nav {
+      @apply flex flex-col space-y-2;
+    }
+  }
+}
+
+/* Existing Leaflet styles (preserved) */
 .vehicle-popup .leaflet-popup-content-wrapper {
   border-radius: 0.5rem;
   padding: 0;

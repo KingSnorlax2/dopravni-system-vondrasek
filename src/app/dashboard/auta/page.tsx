@@ -206,268 +206,230 @@ export default function AutoPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          datumSTK: newDate?.toISOString() || null,
+          datumSTK: newDate ? newDate.toISOString() : null
         }),
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        toast({
+          title: "STK datum aktualizováno",
+          description: "Datum technické kontroly bylo úspěšně změněno",
+        });
+        await refreshData();
+      } else {
         throw new Error('Failed to update STK date');
       }
-
-      // Optimistically update local state
-      const updatedAuta = auta.map(auto => {
-        if (auto.id === vehicleId) {
-          return { ...auto, datumSTK: newDate?.toISOString() || null };
-        }
-        return auto;
-      });
-      setAuta(updatedAuta);
-
-      toast({
-        title: "STK aktualizováno",
-        description: "Datum STK bylo úspěšně změněno",
-      });
-
-      // Refresh data to ensure consistency
-      await refreshData();
     } catch (error) {
       console.error('Error updating STK date:', error);
       toast({
-        title: "Chyba při aktualizaci",
+        title: "Chyba",
         description: "Nepodařilo se aktualizovat datum STK",
         variant: "destructive",
       });
-      
-      // Revert the form value on error
-      const vehicle = expiringSTKVehicles.find(v => v.id === vehicleId);
-      if (vehicle) {
-        stkForm.setValue(`vehicles.${expiringSTKVehicles.findIndex(v => v.id === vehicleId)}.newSTK`, 
-          vehicle.datumSTK ? new Date(vehicle.datumSTK) : null
-        );
-      }
     } finally {
       setSavingVehicleId(null);
     }
   };
 
-  // Handle date selection with immediate save
   const handleDateSelect = async (vehicleId: string, newDate: Date | null) => {
-    const vehicle = expiringSTKVehicles.find(v => v.id === vehicleId);
-    if (!vehicle) return;
-
-    const currentDate = vehicle.datumSTK ? new Date(vehicle.datumSTK) : null;
-    
-    // Only save if the date actually changed
-    if (newDate?.getTime() !== currentDate?.getTime()) {
-      await handleIndividualSTKSave(vehicleId, newDate);
-    }
+    await handleIndividualSTKSave(vehicleId, newDate);
   };
 
+  if (isLoading) {
+    return (
+      <div className="unified-loading">
+        <div className="unified-spinner"></div>
+      </div>
+    )
+  }
+
   return (
-    <div className="container mx-auto py-10">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-gray-500">Celkem aut</h3>
-          <p className="text-2xl font-bold text-black">{auta.length}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-gray-500">Aktivní</h3>
-          <p className="text-2xl font-bold text-green-600">
-            {auta.filter(a => a.stav === 'aktivní').length}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-gray-500">V servisu</h3>
-          <p className="text-2xl font-bold text-yellow-600">
-            {auta.filter(a => a.stav === 'servis').length}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-gray-500">Vyřazené</h3>
-          <p className="text-2xl font-bold text-red-600">
-            {auta.filter(a => a.stav === 'vyřazeno').length}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-gray-500">Průměrný nájezd</h3>
-          <p className="text-2xl font-bold text-black">
-            {auta.length > 0 
-              ? Math.round(auta.reduce((acc, auto) => acc + auto.najezd, 0) / auta.length).toLocaleString()
-              : 0} km
-          </p>
-        </div>
+    <div>
+      {/* Page Header */}
+      <div className="unified-section-header">
+        <h1 className="unified-section-title">Správa vozidel</h1>
+        <p className="unified-section-description">
+          Spravujte svůj vozový park, přidávejte nová vozidla a sledujte technické kontroly.
+        </p>
       </div>
 
+      {/* Action Buttons */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Správa vozidel</h1>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Přidat auto
-        </Button>
-        <Button onClick={addRandomVehicles} variant="outline" size="sm" className="ml-2">
-          Přidat náhodná vozidla
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowForm(true)} className="unified-button-primary">
+            <Plus className="mr-2 h-4 w-4" />
+            Přidat auto
+          </Button>
+          <Button onClick={addRandomVehicles} variant="outline" size="sm" className="unified-button-outline">
+            Přidat náhodná vozidla
+          </Button>
+        </div>
+
+        {/* STK Alert Button */}
+        <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Expiring STK"
+                  tabIndex={0}
+                  className="rounded-full p-2 border border-yellow-300 bg-yellow-50 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition text-yellow-700"
+                  onClick={() => setShowExpiringSTKDialog(true)}
+                >
+                  <AlertTriangle className="h-5 w-5" />
+                  {expiringSTKVehicles.length > 0 && (
+                    <span className="ml-1 text-xs font-semibold">{expiringSTKVehicles.length}</span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Expiring STK</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Expiring STK"
-                tabIndex={0}
-                className="rounded-full p-2 border border-yellow-300 bg-yellow-50 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition text-yellow-700"
-                onClick={() => setShowExpiringSTKDialog(true)}
-              >
-                <AlertTriangle className="h-5 w-5" />
-                {expiringSTKVehicles.length > 0 && (
-                  <span className="ml-1 text-xs font-semibold">{expiringSTKVehicles.length}</span>
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Expiring STK</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <Dialog open={showExpiringSTKDialog} onOpenChange={setShowExpiringSTKDialog}>
-          <DialogContent className="max-w-4xl w-full max-h-[70vh] flex flex-col p-0">
-            <DialogHeader className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
-              <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                Vozidla s blížícím se STK
-              </DialogTitle>
-              <DialogDescription>
-                Seznam vozidel, kterým vyprší STK během 30 dnů. Změny se ukládají automaticky.
-              </DialogDescription>
-            </DialogHeader>
-            {/* Search input */}
-            <div className="px-6 pt-4 pb-2 bg-white sticky top-[72px] z-10">
-              <label htmlFor="expiring-stk-search" className="block text-sm font-medium text-gray-700 mb-1">
-                Hledat podle SPZ nebo značky
-              </label>
-              <Input
-                id="expiring-stk-search"
-                placeholder="Zadejte SPZ nebo značku..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full"
-                autoFocus={showExpiringSTKDialog}
-                aria-label="Hledat vozidlo podle SPZ nebo značky"
-              />
-            </div>
-            <div className="flex-1 overflow-y-auto px-0 py-0">
-              {filteredVehicles.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">Žádná vozidla s blížícím se STK</div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-white sticky top-0 z-20 border-b shadow-sm font-semibold text-sm text-gray-700">
-                    <div className="col-span-2">SPZ</div>
-                    <div className="col-span-4">Vozidlo</div>
-                    <div className="col-span-3">Aktuální STK</div>
-                    <div className="col-span-3">Nové STK</div>
-                  </div>
-                  {/* Table rows */}
-                  <Controller
-                    name="vehicles"
-                    control={stkForm.control}
-                    render={({ field }) => (
-                      <div className="space-y-2 px-6 pb-4">
-                        {field.value
-                          .filter((vehicle: any) =>
-                            filteredVehicles.some(v => v.id === vehicle.id)
-                          )
-                          .map((vehicle: any, index: number) => (
-                            <div key={vehicle.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                              <div className="col-span-2">
-                                <span className="font-mono text-sm text-gray-800">{vehicle.spz}</span>
-                              </div>
-                              <div className="col-span-4">
-                                <span className="text-gray-700 text-sm">{vehicle.znacka} {vehicle.model}</span>
-                              </div>
-                              <div className="col-span-3">
-                                <span className="text-sm text-gray-600">
-                                  {vehicle.currentSTK ? format(new Date(vehicle.currentSTK), "d.M.yyyy", { locale: cs }) : 'Není zadáno'}
-                                </span>
-                              </div>
-                              <div className="col-span-3">
-                                <Controller
-                                  name={`vehicles.${index}.newSTK`}
-                                  control={stkForm.control}
-                                  render={({ field: dateField }) => {
-                                    const [open, setOpen] = React.useState(false);
-                                    return (
-                                      <Popover open={open} onOpenChange={setOpen}>
-                                        <PopoverTrigger asChild>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            disabled={savingVehicleId === vehicle.id}
-                                            className={cn(
-                                              "w-full justify-start text-left font-normal h-8",
-                                              !dateField.value && "text-muted-foreground",
-                                              savingVehicleId === vehicle.id && "opacity-50 cursor-not-allowed"
-                                            )}
-                                          >
-                                            {savingVehicleId === vehicle.id ? (
-                                              <>
-                                                <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
-                                                Ukládám...
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Calendar className="mr-2 h-3 w-3" />
-                                                {dateField.value ? (
-                                                  format(dateField.value, "d.M.yyyy", { locale: cs })
-                                                ) : (
-                                                  <span>Vyberte datum</span>
-                                                )}
-                                              </>
-                                            )}
-                                          </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                          <CustomDatePicker
-                                            value={dateField.value || undefined}
-                                            onChange={(date) => {
-                                              dateField.onChange(date);
-                                              if (date !== undefined) {
-                                                handleDateSelect(vehicle.id, date);
-                                                setOpen(false);
-                                              }
-                                            }}
-                                          />
-                                        </PopoverContent>
-                                      </Popover>
-                                    );
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                  />
+      {/* STK Dialog */}
+      <Dialog open={showExpiringSTKDialog} onOpenChange={setShowExpiringSTKDialog}>
+        <DialogContent className="max-w-4xl w-full max-h-[70vh] flex flex-col p-0">
+          <DialogHeader className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Vozidla s blížícím se STK
+            </DialogTitle>
+            <DialogDescription>
+              Seznam vozidel, kterým vyprší STK během 30 dnů. Změny se ukládají automaticky.
+            </DialogDescription>
+          </DialogHeader>
+          {/* Search input */}
+          <div className="px-6 pt-4 pb-2 bg-white sticky top-[72px] z-10">
+            <label htmlFor="expiring-stk-search" className="unified-form-label">
+              Hledat podle SPZ nebo značky
+            </label>
+            <Input
+              id="expiring-stk-search"
+              placeholder="Zadejte SPZ nebo značku..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="unified-form-input"
+              autoFocus={showExpiringSTKDialog}
+              aria-label="Hledat vozidlo podle SPZ nebo značky"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto px-0 py-0">
+            {filteredVehicles.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">Žádná vozidla s blížícím se STK</div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-white sticky top-0 z-20 border-b shadow-sm font-semibold text-sm text-gray-700">
+                  <div className="col-span-2">SPZ</div>
+                  <div className="col-span-4">Vozidlo</div>
+                  <div className="col-span-3">Aktuální STK</div>
+                  <div className="col-span-3">Nové STK</div>
                 </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+                {/* Table rows */}
+                <Controller
+                  name="vehicles"
+                  control={stkForm.control}
+                  render={({ field }) => (
+                    <div className="space-y-2 px-6 pb-4">
+                      {field.value
+                        .filter((vehicle: any) =>
+                          filteredVehicles.some(v => v.id === vehicle.id)
+                        )
+                        .map((vehicle: any, index: number) => (
+                          <div key={vehicle.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="col-span-2">
+                              <span className="font-mono text-sm text-gray-800">{vehicle.spz}</span>
+                            </div>
+                            <div className="col-span-4">
+                              <span className="text-gray-700 text-sm">{vehicle.znacka} {vehicle.model}</span>
+                            </div>
+                            <div className="col-span-3">
+                              <span className="text-sm text-gray-600">
+                                {vehicle.currentSTK ? format(new Date(vehicle.currentSTK), "d.M.yyyy", { locale: cs }) : 'Není zadáno'}
+                              </span>
+                            </div>
+                            <div className="col-span-3">
+                              <Controller
+                                name={`vehicles.${index}.newSTK`}
+                                control={stkForm.control}
+                                render={({ field: dateField }) => {
+                                  const [open, setOpen] = React.useState(false);
+                                  return (
+                                    <Popover open={open} onOpenChange={setOpen}>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={savingVehicleId === vehicle.id}
+                                          className={cn(
+                                            "w-full justify-start text-left font-normal h-8",
+                                            !dateField.value && "text-muted-foreground",
+                                            savingVehicleId === vehicle.id && "opacity-50 cursor-not-allowed"
+                                          )}
+                                        >
+                                          {savingVehicleId === vehicle.id ? (
+                                            <>
+                                              <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
+                                              Ukládám...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Calendar className="mr-2 h-3 w-3" />
+                                              {dateField.value ? (
+                                                format(dateField.value, "d.M.yyyy", { locale: cs })
+                                              ) : (
+                                                <span>Vyberte datum</span>
+                                              )}
+                                            </>
+                                          )}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <CustomDatePicker
+                                          value={dateField.value || undefined}
+                                          onChange={(date) => {
+                                            dateField.onChange(date);
+                                            if (date !== undefined) {
+                                              handleDateSelect(vehicle.id, date);
+                                              setOpen(false);
+                                            }
+                                          }}
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                  );
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
       
+      {/* Error Display */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p>{error}</p>
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* Main Content */}
+      <div className="unified-card p-6">
         <AutoTable 
           auta={auta}
           onRefresh={refreshData}
         />
       </div>
 
+      {/* Auto Form */}
       <AutoForm 
         open={showForm} 
         onOpenChangeClientAction={handleOpenChange}
