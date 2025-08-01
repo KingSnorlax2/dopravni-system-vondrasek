@@ -23,8 +23,8 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   {
-    title: 'Přehled',
-    href: '/dashboard',
+    title: 'Domů',
+    href: '/homepage',
     icon: <LayoutDashboard className="h-5 w-5" />,
   },
   {

@@ -11,6 +11,7 @@ async function main() {
       allowedPages: [
         '/',
         '/logined',
+        '/homepage',
         '/dashboard',
         '/dashboard/admin',
         '/dashboard/admin/users',
@@ -24,13 +25,14 @@ async function main() {
         '/dashboard/noviny/distribuce/driver-route/edit',
         // Add more as needed
       ],
-      defaultLandingPage: '/dashboard',
+      defaultLandingPage: '/homepage',
     },
     create: {
       name: 'ADMIN',
       allowedPages: [
         '/',
         '/logined',
+        '/homepage',
         '/dashboard',
         '/dashboard/admin',
         '/dashboard/admin/users',
@@ -44,7 +46,7 @@ async function main() {
         '/dashboard/noviny/distribuce/driver-route/edit',
         // Add more as needed
       ],
-      defaultLandingPage: '/dashboard',
+      defaultLandingPage: '/homepage',
     },
   });
   await prisma.user.upsert({

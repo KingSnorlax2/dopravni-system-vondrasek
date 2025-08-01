@@ -46,7 +46,7 @@ export default function DriverLoginPage() {
         if (session?.user?.role === "DRIVER") {
           router.push("/dashboard/noviny/distribuce/driver-route");
         } else if (session?.user?.role === "ADMIN") {
-          router.push("/homepage");
+          router.push("/dashboard");
         } else {
           router.push("/");
         }

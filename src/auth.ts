@@ -54,6 +54,7 @@ export const authOptions: NextAuthOptions = {
             allowedPages = [
               '/',
               '/logined',
+              '/homepage',
               '/dashboard',
               '/dashboard/admin',
               '/dashboard/admin/users',
@@ -66,10 +67,10 @@ export const authOptions: NextAuthOptions = {
               '/dashboard/noviny/distribuce/driver-route',
               // Add more as needed, or use a wildcard logic if supported
             ];
-            defaultLandingPage = '/dashboard';
+            defaultLandingPage = '/homepage';
           } else {
             allowedPages = (mainRole.role as any).allowedPages || [];
-            defaultLandingPage = (mainRole.role as any).defaultLandingPage || '/logined';
+            defaultLandingPage = (mainRole.role as any).defaultLandingPage || '/homepage';
           }
         }
 

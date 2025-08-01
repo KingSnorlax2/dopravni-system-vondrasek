@@ -15,14 +15,31 @@ const routePermissions: { pattern: RegExp; permission?: string; role?: string }[
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request });
   const isAuthPage = request.nextUrl.pathname === "/";
+  const isHomepage = request.nextUrl.pathname === "/homepage";
   const isDashboardPage = request.nextUrl.pathname.startsWith("/dashboard");
 
   // Allow public access to the home page
   if (isAuthPage) {
     if (token) {
       // Redirect to landing page if already logged in
-      const landing = String(token.defaultLandingPage || "/logined");
+      const landing = String(token.defaultLandingPage || "/homepage");
       return NextResponse.redirect(new URL(landing, request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Protect homepage route
+  if (isHomepage) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+    // Enforce allowedPages
+    const allowedPages: string[] = Array.isArray(token.allowedPages) ? token.allowedPages : [];
+    const path = request.nextUrl.pathname;
+    // Allow if the path matches any allowedPage (exact or as a prefix for subpages)
+    const isAllowed = allowedPages.some(page => path === page || path.startsWith(page + "/"));
+    if (!isAllowed) {
+      return NextResponse.redirect(new URL("/403", request.url));
     }
     return NextResponse.next();
   }
