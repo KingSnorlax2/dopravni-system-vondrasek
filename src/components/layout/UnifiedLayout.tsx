@@ -5,10 +5,17 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Car, LogOut, Menu, X } from "lucide-react"
+import { Car, LogOut, Menu, X, ChevronDown, Shield, Users, Settings } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from 'next/navigation'
 import { useAccessControl } from "@/hooks/useAccessControl"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface UnifiedLayoutProps {
   children: React.ReactNode
@@ -45,12 +52,6 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       show: true
     },
     {
-      name: 'Uživatelé',
-      href: '/dashboard/users',
-      icon: Car,
-      show: hasRole('ADMIN')
-    },
-    {
       name: 'Transakce',
       href: '/dashboard/transakce',
       icon: Car,
@@ -73,20 +74,31 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       href: '/dashboard/noviny',
       icon: Car,
       show: true
+    }
+  ].filter(item => item.show)
+
+  const adminItems = [
+    {
+      name: 'Uživatelé',
+      href: '/dashboard/admin/users',
+      icon: Users
     },
     {
       name: 'Nastavení',
       href: '/dashboard/settings',
-      icon: Car,
-      show: hasRole('ADMIN')
+      icon: Settings
     }
-  ].filter(item => item.show)
+  ]
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" })
   }
 
   const isActive = (path: string) => pathname === path
+
+  const isAdminActive = () => {
+    return adminItems.some(item => isActive(item.href))
+  }
 
   if (status === "loading") {
     return (
@@ -153,6 +165,41 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
                         {item.name}
                       </Link>
                     ))}
+
+                    {/* Admin Dropdown */}
+                    {hasRole('ADMIN') && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className={`unified-nav-item ${
+                              isAdminActive()
+                                ? 'unified-nav-item-active'
+                                : 'unified-nav-item-inactive'
+                            }`}
+                          >
+                            <Shield className="mr-2 h-4 w-4" />
+                            Admin
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          {adminItems.map((item) => (
+                            <DropdownMenuItem key={item.href} asChild>
+                              <Link
+                                href={item.href}
+                                className={`flex items-center ${
+                                  isActive(item.href) ? 'bg-accent' : ''
+                                }`}
+                              >
+                                <item.icon className="mr-2 h-4 w-4" />
+                                {item.name}
+                              </Link>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </nav>
                 )}
 
@@ -186,6 +233,30 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
                       {item.name}
                     </Link>
                   ))}
+
+                  {/* Mobile Admin Section */}
+                  {hasRole('ADMIN') && (
+                    <>
+                      <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Admin
+                      </div>
+                      {adminItems.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                            isActive(item.href)
+                              ? 'unified-nav-item-active'
+                              : 'unified-nav-item-inactive'
+                          }`}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <item.icon className="mr-3 h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      ))}
+                    </>
+                  )}
                 </nav>
               </div>
             )}

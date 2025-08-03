@@ -9,15 +9,27 @@ export default async function AdminUsersPage() {
   if (!session || session.user?.role !== 'ADMIN') {
     redirect('/403')
   }
+  
   return (
-    <div className="container max-w-6xl py-8">
-      <nav className="mb-4 text-sm text-gray-500">
-        Dashboard / Admin / <span className="text-black font-semibold">Users</span>
-      </nav>
-      <h1 className="text-3xl font-bold mb-6">User Management</h1>
-      <Suspense fallback={<div>Loading...</div>}>
-        <UsersAdminClient />
-      </Suspense>
+    <div>
+      {/* Page Header */}
+      <div className="unified-section-header">
+        <h1 className="unified-section-title">Správa uživatelů</h1>
+        <p className="unified-section-description">
+          Spravujte uživatele systému, role a oprávnění
+        </p>
+      </div>
+
+      {/* Main Content */}
+      <div className="unified-card p-6">
+        <Suspense fallback={
+          <div className="unified-loading">
+            <div className="unified-spinner"></div>
+          </div>
+        }>
+          <UsersAdminClient />
+        </Suspense>
+      </div>
     </div>
   )
 } 
