@@ -25,7 +25,10 @@ export const authOptions: NextAuthOptions = {
               { username: credentials.email }, // 'email' field is used for both
             ],
           },
-          include: { roles: { include: { role: true } } }, // Fetch roles
+          include: { 
+            roles: { include: { role: true } },
+            preferences: true // Include user preferences for default landing page
+          },
         });
 
         if (!user || !user.password) {
@@ -44,7 +47,7 @@ export const authOptions: NextAuthOptions = {
         // Get the highest role (ADMIN > others)
         let userRole = 'USER';
         let allowedPages: string[] = [];
-        let defaultLandingPage = '/logined';
+        let defaultLandingPage = '/homepage';
         if (user.roles && user.roles.length > 0) {
           const adminRole = user.roles.find(r => r.role.name === 'ADMIN');
           const mainRole = adminRole || user.roles[0];
@@ -53,7 +56,6 @@ export const authOptions: NextAuthOptions = {
             // Admin: allow everything
             allowedPages = [
               '/',
-              '/logined',
               '/homepage',
               '/dashboard',
               '/dashboard/admin',
@@ -72,6 +74,11 @@ export const authOptions: NextAuthOptions = {
             allowedPages = (mainRole.role as any).allowedPages || [];
             defaultLandingPage = (mainRole.role as any).defaultLandingPage || '/homepage';
           }
+        }
+
+        // Use user's personal preference if available, otherwise use role default
+        if (user.preferences?.defaultLandingPage) {
+          defaultLandingPage = user.preferences.defaultLandingPage;
         }
 
         // Get user permissions from database

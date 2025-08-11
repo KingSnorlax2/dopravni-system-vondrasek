@@ -19,7 +19,7 @@ async function main() {
       priority: 100,
       allowedPages: [
         '/',
-        '/logined',
+        
         '/homepage',
         '/dashboard',
         '/dashboard/admin',
@@ -52,7 +52,7 @@ async function main() {
       priority: 100,
       allowedPages: [
         '/',
-        '/logined',
+        
         '/homepage',
         '/dashboard',
         '/dashboard/admin',

@@ -30,7 +30,7 @@ export async function GET(
           include: {
             role: {
               include: {
-                permissions: true
+                permissions: true  // This gets the RolePermission records, each has a scalar 'permission' field
               }
             }
           }
