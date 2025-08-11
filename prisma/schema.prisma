@@ -228,6 +228,11 @@ enum PermissionKey {
   view_reports
   manage_distribution
   driver_access
+  manage_roles
+  view_users
+  edit_vehicles
+  view_distribution
+  system_settings
 }
 
 model RolePermission {

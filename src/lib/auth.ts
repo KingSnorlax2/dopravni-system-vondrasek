@@ -130,7 +130,7 @@ export const PERMISSIONS = [
 // Default permissions for each role
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
   USER: ['view_dashboard'],
-  ADMIN: ['view_dashboard', 'manage_users', 'manage_vehicles', 'view_reports', 'manage_distribution', 'driver_access'],
+  ADMIN: ['view_dashboard', 'manage_users', 'manage_vehicles', 'view_reports', 'manage_distribution', 'driver_access', 'manage_roles'],
   DRIVER: ['driver_access'],
   MANAGER: ['view_dashboard', 'view_reports', 'manage_distribution'],
 }; 

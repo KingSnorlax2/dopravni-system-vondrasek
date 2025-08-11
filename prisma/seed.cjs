@@ -11,6 +11,7 @@ async function main() {
     'view_reports',
     'manage_distribution',
     'driver_access',
+    'manage_roles',
   ];
   const ADMIN_EMAIL = 'admin@admin.com';
   const ADMIN_USERNAME = 'admin';

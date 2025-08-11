@@ -74,12 +74,24 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
+        // Get user permissions from database
+        const userPermissions: string[] = [];
+        if (user.roles && user.roles.length > 0) {
+          for (const userRole of user.roles) {
+            const rolePermissions = await prisma.rolePermission.findMany({
+              where: { roleId: userRole.role.id }
+            });
+            userPermissions.push(...rolePermissions.map(rp => rp.permission));
+          }
+        }
+
         // Return user object for session
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: userRole,
+          permissions: userPermissions,
           allowedPages,
           defaultLandingPage,
         };
@@ -93,6 +105,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email
         token.name = user.name
         token.role = user.role as string;
+        token.permissions = (user as any).permissions as string[];
         (token as any).allowedPages = (user as any).allowedPages as string[];
         (token as any).defaultLandingPage = (user as any).defaultLandingPage as string;
       }
@@ -104,6 +117,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string
         session.user.name = token.name as string | null
         session.user.role = token.role as string
+        session.user.permissions = (token as any).permissions as string[];
         (session.user as any).allowedPages = (token as any).allowedPages as string[]
         (session.user as any).defaultLandingPage = (token as any).defaultLandingPage as string
       }

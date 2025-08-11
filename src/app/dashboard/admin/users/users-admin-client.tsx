@@ -2,36 +2,39 @@
 
 import { useState } from 'react'
 import { UserTable } from './UserTable'
-import { RolesPermissionsTable } from './RolesPermissionsTable'
+import { DynamicRoleSettings } from '@/components/admin/DynamicRoleSettings'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Users, Shield } from 'lucide-react'
 
 export function UsersAdminClient() {
-  const [tab, setTab] = useState<'users' | 'roles'>('users')
+  const [activeTab, setActiveTab] = useState('users')
 
   return (
-    <div>
-      <div className="flex gap-4 mb-6 border-b">
-        <button
-          className={`pb-2 px-2 border-b-2 ${tab === 'users' ? 'border-blue-600 font-semibold' : 'border-transparent text-gray-500'}`}
-          onClick={() => setTab('users')}
-        >
-          Users
-        </button>
-        <button
-          className={`pb-2 px-2 border-b-2 ${tab === 'roles' ? 'border-blue-600 font-semibold' : 'border-transparent text-gray-500'}`}
-          onClick={() => setTab('roles')}
-        >
-          Roles & Permissions
-        </button>
-      </div>
-      {tab === 'users' ? (
-        <div>
-          <UserTable />
-        </div>
-      ) : (
-        <div>
-          <RolesPermissionsTable />
-        </div>
-      )}
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Roles & Permissions
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-4">
+          <div className="bg-white rounded-lg border p-6">
+            <UserTable />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="roles" className="space-y-4">
+          <div className="bg-white rounded-lg border p-6">
+            <DynamicRoleSettings />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 } 
