@@ -37,6 +37,9 @@ model Auto {
   lastLongitude   Float?
   lastLocationUpdate DateTime?
   locations       VehicleLocation[]
+  department      String?     // Department assignment for role-based access
+  assignedDriver  String?     // Assigned driver ID
+  assignedDriverUser User?    @relation("DriverVehicles", fields: [assignedDriver], references: [id])
 
   Transakce Transakce[]
 }
@@ -82,8 +85,18 @@ model Transakce {
   faktura     String?
   fakturaTyp  String?
   fakturaNazev String?
+  approvedBy  String?   // User ID who approved the transaction
+  approvedAt  DateTime? // When the transaction was approved
+  status      TransactionStatus @default(PENDING)
 
   Auto Auto[] @relation("AutoTransakce")
+}
+
+enum TransactionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 model GPSZaznam {
@@ -98,49 +111,60 @@ model GPSZaznam {
 }
 
 model Udrzba {
-  id             String   @id @default(cuid())
-  autoId         Int
-  auto           Auto     @relation("AutoUdrzba", fields: [autoId], references: [id], onDelete: Cascade)
-  typ            String
-  popis          String?
-  datumProvedeni DateTime
-  datumPristi    DateTime?
-  najezdKm       Int
-  nakladyCelkem  Float
-  provedeno      Boolean
-  dokumenty      String?
-  poznamka       String?
+  id          Int      @id @default(autoincrement())
+  autoId      Int
+  auto        Auto     @relation("AutoUdrzba", fields: [autoId], references: [id], onDelete: Cascade)
+  datumUdrzby DateTime
+  popis       String
+  cena        Float
+  typUdrzby   String   
+  stav        String   
+  servis      String?
+  poznamka    String?
+  approvedBy  String?  // User ID who approved the maintenance
+  approvedAt  DateTime? // When the maintenance was approved
+  status      MaintenanceStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum MaintenanceStatus {
+  PENDING
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 model Tankovani {
-  id            Int      @id @default(autoincrement())
-  autoId        Int
-  auto          Auto     @relation("AutoTankovani", fields: [autoId], references: [id], onDelete: Cascade)
-  datum         DateTime
-  mnozstviLitru Float
-  cenaZaLitr    Float
-  celkovaCena   Float
-  typPaliva     String
-  najezdKm      Int
-  mistoTankovani String?
-  plnaNadrz     Boolean  @default(true)
-  poznamka      String?
+  id        Int      @id @default(autoincrement())
+  autoId    Int
+  auto      Auto     @relation("AutoTankovani", fields: [autoId], references: [id], onDelete: Cascade)
+  datum     DateTime
+  litry     Float
+  cena      Float
+  poznamka  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ArchivedAuto {
-  id            Int       @id @default(autoincrement())
-  originalId    Int
-  spz           String
-  znacka        String
-  model         String
-  rokVyroby     Int
-  najezd        Int
-  stav          String
-  poznamka      String?
-  datumSTK      DateTime?
-  datumArchivace DateTime @default(now())
-  duvodArchivace String?
-  archivedData  Json     // Store any additional data as JSON
+  id              Int       @id @default(autoincrement())
+  spz             String
+  znacka          String
+  model           String
+  rokVyroby       Int
+  najezd          Int
+  stav            String
+  poznamka        String?
+  datumSTK        DateTime?
+  thumbnailFotoId String?
+  thumbnailUrl    String?
+  aktivni         Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  archivedAt      DateTime @default(now())
+  archivedBy      String?  // User ID who archived the vehicle
 }
 
 model Oprava {
@@ -172,15 +196,49 @@ model Settings {
 enum UserStatus {
   ACTIVE
   DISABLED
+  SUSPENDED
 }
 
+// Enhanced Role system with dynamic capabilities
 model Role {
-  id    Int    @id @default(autoincrement())
-  name  String   @unique
-  users UserRole[]
-  permissions RolePermission[]
-  allowedPages String[] // NEW: List of allowed page routes for this role
-  defaultLandingPage String? // NEW: Default landing page for this role
+  id                    Int    @id @default(autoincrement())
+  name                  String @unique
+  displayName           String // User-friendly display name
+  description           String // Detailed description of the role
+  icon                  String? // Icon/emoji for the role
+  color                 String? // Color theme for the role
+  isSystem              Boolean @default(false) // System roles cannot be deleted
+  isActive              Boolean @default(true)
+  priority              Int     @default(0) // Higher number = higher priority
+  
+  // Navigation and access
+  allowedPages          String[] // List of allowed page routes for this role
+  defaultLandingPage    String? // Default landing page for this role
+  
+  // Dynamic rules configuration
+  dynamicRules          Json? // JSON configuration for dynamic permission rules
+  
+  // Relationships
+  users                 UserRole[]
+  permissions           RolePermission[]
+  departmentAssignments RoleDepartmentAssignment[]
+  
+  // Audit
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  createdBy             String? // User ID who created this role
+}
+
+// Department assignments for role-based access control
+model RoleDepartmentAssignment {
+  id         Int    @id @default(autoincrement())
+  roleId     Int
+  role       Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  department String // Department name
+  canManage  Boolean @default(false) // Can manage this department
+  canView    Boolean @default(true)  // Can view this department
+  
+  @@unique([roleId, department])
 }
 
 model UserRole {
@@ -189,6 +247,9 @@ model UserRole {
   userId String
   role   Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
   roleId Int
+  assignedAt DateTime @default(now())
+  assignedBy String? // User ID who assigned this role
+  
   @@unique([userId, roleId])
 }
 
@@ -203,7 +264,56 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   status          UserStatus @default(ACTIVE)
+  
+  // Enhanced user profile
+  department      String?   // Department assignment
+  position        String?   // Job position/title
+  phone           String?   // Contact phone
+  avatar          String?   // Avatar URL
+  lastLoginAt     DateTime? // Last login timestamp
+  trustScore      Int       @default(100) // Trust/reliability score (0-100)
+  
+  // Relationships
   roles           UserRole[]
+  assignedVehicles Auto[] @relation("DriverVehicles") // Vehicles assigned to this driver
+  preferences     UserPreferences? // User preferences and settings
+  
+  // Audit
+  createdBy       String?   // User ID who created this user
+  updatedBy       String?   // User ID who last updated this user
+}
+
+// User preferences and settings
+model UserPreferences {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Navigation preferences
+  defaultLandingPage String  @default("/homepage")
+  
+  // Display preferences
+  theme             String   @default("system") // system, light, dark
+  language          String   @default("cs")     // cs, en
+  
+  // Notification preferences
+  emailNotifications Boolean @default(true)
+  pushNotifications Boolean @default(true)
+  smsNotifications  Boolean @default(false)
+  
+  // Display settings
+  compactMode       Boolean @default(false)
+  showAvatars       Boolean @default(true)
+  autoRefresh       Boolean @default(true)
+  
+  // Custom preferences (JSON field for extensibility)
+  customSettings    Json?   // Additional user-specific settings
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([userId])
 }
 
 model VehicleLocation {
@@ -221,18 +331,68 @@ model VehicleLocation {
   auto          Auto     @relation(fields: [autoId], references: [id], onDelete: Cascade)
 }
 
+// Comprehensive permission system
 enum PermissionKey {
+  // Dashboard permissions
   view_dashboard
-  manage_users
-  manage_vehicles
-  view_reports
-  manage_distribution
-  driver_access
-  manage_roles
+  customize_dashboard
+  export_dashboard
+  
+  // User management
   view_users
+  create_users
+  edit_users
+  delete_users
+  assign_roles
+  manage_roles
+  
+  // Vehicle management
+  view_vehicles
+  create_vehicles
   edit_vehicles
+  delete_vehicles
+  track_vehicles
+  assign_vehicles
+  
+  // Financial management
+  view_transactions
+  create_transactions
+  edit_transactions
+  delete_transactions
+  approve_expenses
+  view_financial_reports
+  
+  // Maintenance management
+  view_maintenance
+  schedule_maintenance
+  approve_maintenance
+  edit_maintenance
+  delete_maintenance
+  track_service_history
+  
+  // Distribution management
   view_distribution
+  manage_distribution
+  assign_routes
+  edit_routes
+  
+  // System administration
   system_settings
+  view_audit_logs
+  manage_departments
+  backup_restore
+  
+  // Reports and analytics
+  view_reports
+  generate_reports
+  export_reports
+  view_analytics
+  
+  // Driver specific
+  driver_access
+  view_personal_history
+  report_issues
+  update_vehicle_status
 }
 
 model RolePermission {
@@ -240,4 +400,20 @@ model RolePermission {
   roleId    Int
   role      Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission PermissionKey
+  
+  @@unique([roleId, permission])
+}
+
+// Audit log for role and permission changes
+model RoleAuditLog {
+  id          Int      @id @default(autoincrement())
+  action      String   // CREATE, UPDATE, DELETE, ASSIGN, REVOKE
+  entityType  String   // ROLE, PERMISSION, USER_ROLE
+  entityId    String   // ID of the affected entity
+  oldValue    Json?    // Previous value
+  newValue    Json?    // New value
+  userId      String   // User who performed the action
+  timestamp   DateTime @default(now())
+  ipAddress   String?  // IP address of the user
+  userAgent   String?  // User agent string
 }

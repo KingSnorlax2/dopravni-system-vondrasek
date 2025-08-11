@@ -11,6 +11,52 @@ function requireAdmin(session: any) {
   return true;
 }
 
+// GET: Get user details by ID
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!requireAdmin(session)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+  
+  const { id } = params
+  
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: { 
+        roles: { 
+          include: { role: true } 
+        } 
+      },
+    })
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+    
+    return NextResponse.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      status: user.status,
+      department: user.department,
+      position: user.position,
+      phone: user.phone,
+      trustScore: user.trustScore,
+      roles: user.roles.map((r) => r.role.name),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    })
+  } catch (error) {
+    console.error('Error fetching user:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch user' },
+      { status: 500 }
+    )
+  }
+}
+
 // PATCH: Update user info, roles, and status
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)

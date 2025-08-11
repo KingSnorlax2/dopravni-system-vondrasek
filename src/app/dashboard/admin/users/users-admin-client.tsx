@@ -2,39 +2,39 @@
 
 import { useState } from 'react'
 import { UserTable } from './UserTable'
-import { DynamicRoleSettings } from '@/components/admin/DynamicRoleSettings'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Users, Shield } from 'lucide-react'
+import { RoleManagement } from '@/components/admin/RoleManagement'
 
 export function UsersAdminClient() {
-  const [activeTab, setActiveTab] = useState('users')
+  const [tab, setTab] = useState<'users' | 'roleManagement'>('users')
 
   return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Users
-          </TabsTrigger>
-          <TabsTrigger value="roles" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Roles & Permissions
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users" className="space-y-4">
-          <div className="bg-white rounded-lg border p-6">
-            <UserTable />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="roles" className="space-y-4">
-          <div className="bg-white rounded-lg border p-6">
-            <DynamicRoleSettings />
-          </div>
-        </TabsContent>
-      </Tabs>
+    <div>
+      <div className="flex gap-4 mb-6 border-b">
+        <button
+          className={`pb-2 px-2 border-b-2 ${tab === 'users' ? 'border-blue-600 font-semibold' : 'border-transparent text-gray-500'}`}
+          onClick={() => setTab('users')}
+        >
+          Users
+        </button>
+        <button
+          className={`pb-2 px-2 border-b-2 ${tab === 'roleManagement' ? 'border-blue-600 font-semibold' : 'border-transparent text-gray-500'}`}
+          onClick={() => setTab('roleManagement')}
+        >
+          Role Management
+        </button>
+      </div>
+      
+      {tab === 'users' && (
+        <div>
+          <UserTable />
+        </div>
+      )}
+      
+      {tab === 'roleManagement' && (
+        <div>
+          <RoleManagement />
+        </div>
+      )}
     </div>
   )
 } 
