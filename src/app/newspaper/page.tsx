@@ -7,10 +7,10 @@ import { cs } from 'date-fns/locale';
 import { 
   Newspaper, TruckIcon, Calendar, Clock, AlertTriangle, 
   CheckCircle, Map, ChevronRight, Users, FileText, BarChart4,
-  Zap, MoreHorizontal, Download, ListFilter, Search
+  Zap, MoreHorizontal, Download, ListFilter, Search, Lock
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { PageHeader } from '@/components/layout/PageHeader';
+
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Sidebar from '@/components/layout/Sidebar';
+
 
 // Types
 interface DeliveryRoute {
@@ -254,11 +254,19 @@ export default function NewspaperDistributionPage() {
 
   return (
     <div className="container mx-auto py-6 max-w-7xl">
-      <PageHeader
-        title="Distribuce novin"
-        description={`Přehled distribuce pro ${formattedDate}`}
-        icon={<Newspaper className="h-6 w-6" />}
-        actions={
+      <div className="unified-section-header">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Newspaper className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="unified-section-title">Distribuce novin</h1>
+              <p className="unified-section-description">
+                Přehled distribuce pro {formattedDate}
+              </p>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Input
               type="date"
@@ -275,11 +283,11 @@ export default function NewspaperDistributionPage() {
               Naplánovat trasy
             </Button>
           </div>
-        }
-      />
+        </div>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <Card>
+        <Card className="unified-card">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-medium flex items-center text-blue-700">
               <Clock className="h-4 w-4 mr-2 text-blue-500" />
@@ -294,7 +302,7 @@ export default function NewspaperDistributionPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="unified-card">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-medium flex items-center text-green-700">
               <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
@@ -313,7 +321,7 @@ export default function NewspaperDistributionPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="unified-card">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-medium flex items-center text-amber-700">
               <TruckIcon className="h-4 w-4 mr-2 text-amber-500" />
@@ -328,7 +336,7 @@ export default function NewspaperDistributionPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="unified-card">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-medium flex items-center text-purple-700">
               <Users className="h-4 w-4 mr-2 text-purple-500" />
@@ -346,7 +354,7 @@ export default function NewspaperDistributionPage() {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="unified-card">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-center">
                 <CardTitle>Přehled tras</CardTitle>
@@ -544,7 +552,7 @@ export default function NewspaperDistributionPage() {
             </CardFooter>
           </Card>
           
-          <Card>
+          <Card className="unified-card">
             <CardHeader>
               <CardTitle>Statistika distribuce</CardTitle>
             </CardHeader>
@@ -605,7 +613,7 @@ export default function NewspaperDistributionPage() {
         </div>
         
         <div className="space-y-6">
-          <Card>
+          <Card className="unified-card">
             <CardHeader className="pb-3">
               <CardTitle>Dnešní směna</CardTitle>
               <CardDescription>
@@ -702,7 +710,7 @@ export default function NewspaperDistributionPage() {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="unified-card">
             <CardHeader className="pb-3">
               <CardTitle>Rychlé akce</CardTitle>
             </CardHeader>
@@ -730,6 +738,38 @@ export default function NewspaperDistributionPage() {
                   <Link href="/newspaper/statistics">
                     <BarChart4 className="h-4 w-4 mr-1.5" />
                     Reporty a statistiky
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Driver Login Control - Admin Only */}
+          <Card className="unified-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center space-x-2">
+                <Lock className="h-5 w-5 text-blue-600" />
+                <span>Kontrola přihlášení řidičů</span>
+              </CardTitle>
+              <CardDescription>
+                Spravujte přístup řidičů k přihlašovacímu systému
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                <div className="text-sm text-gray-600">
+                  <p>• Uzamkněte přihlášení pro všechny řidiče</p>
+                  <p>• Okamžitě zablokujte přístup k systému</p>
+                  <p>• Pouze pro administrátory</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  asChild
+                >
+                  <Link href="/newspaper/admin/settings">
+                    <Lock className="h-4 w-4 mr-1.5" />
+                    Otevřít kontrolu přihlášení
                   </Link>
                 </Button>
               </div>

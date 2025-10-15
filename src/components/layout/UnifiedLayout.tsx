@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Car, LogOut, Menu, X, ChevronDown, Shield, Users, Settings } from "lucide-react"
+import { Car, LogOut, Menu, X, ChevronDown, Shield, Users, Settings, Truck } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from 'next/navigation'
 import { useAccessControl } from "@/hooks/useAccessControl"
@@ -71,8 +71,14 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
     },
     {
       name: 'Noviny',
-      href: '/dashboard/noviny',
+      href: '/newspaper',
       icon: Car,
+      show: true
+    },
+    {
+      name: 'Přihlášení řidiče',
+      href: '/dashboard/noviny/distribuce/driver-login',
+      icon: Truck,
       show: true
     }
   ].filter(item => item.show)
@@ -87,6 +93,11 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       name: 'Nastavení',
       href: '/dashboard/settings',
       icon: Settings
+    },
+    {
+      name: 'Nastavení novin',
+      href: '/newspaper/admin/settings',
+      icon: Truck
     }
   ]
 

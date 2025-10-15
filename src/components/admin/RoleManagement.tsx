@@ -142,6 +142,11 @@ const PERMISSION_CATEGORIES = {
         name: 'Assign Vehicles',
         description: 'Assign vehicles to drivers',
         icon: Users
+      },
+      update_vehicle_status: {
+        name: 'Update Vehicle Status',
+        description: 'Change vehicle operational status',
+        icon: Edit
       }
     }
   },
@@ -216,6 +221,109 @@ const PERMISSION_CATEGORIES = {
         name: 'Track Service History',
         description: 'View vehicle service records',
         icon: Eye
+      }
+    }
+  },
+  distribution: {
+    name: 'Newspaper Distribution',
+    icon: Car,
+    description: 'Manage newspaper distribution routes and drivers',
+    permissions: {
+      view_distribution: {
+        name: 'View Distribution',
+        description: 'See distribution routes and schedules',
+        icon: Eye
+      },
+      manage_distribution: {
+        name: 'Manage Distribution',
+        description: 'Control distribution operations',
+        icon: Settings
+      },
+      assign_routes: {
+        name: 'Assign Routes',
+        description: 'Assign delivery routes to drivers',
+        icon: Users
+      },
+      edit_routes: {
+        name: 'Edit Routes',
+        description: 'Modify distribution routes',
+        icon: Edit
+      }
+    }
+  },
+  system: {
+    name: 'System Administration',
+    icon: Shield,
+    description: 'System-wide settings and administration',
+    permissions: {
+      system_settings: {
+        name: 'System Settings',
+        description: 'Access system configuration',
+        icon: Settings
+      },
+      view_audit_logs: {
+        name: 'View Audit Logs',
+        description: 'Access system audit logs',
+        icon: Eye
+      },
+      manage_departments: {
+        name: 'Manage Departments',
+        description: 'Create and manage departments',
+        icon: Users
+      },
+      backup_restore: {
+        name: 'Backup & Restore',
+        description: 'System backup and restore operations',
+        icon: Copy
+      }
+    }
+  },
+  reporting: {
+    name: 'Reports & Analytics',
+    icon: Copy,
+    description: 'Generate and export reports',
+    permissions: {
+      view_reports: {
+        name: 'View Reports',
+        description: 'Access system reports',
+        icon: Eye
+      },
+      generate_reports: {
+        name: 'Generate Reports',
+        description: 'Create new reports',
+        icon: Plus
+      },
+      export_reports: {
+        name: 'Export Reports',
+        description: 'Download reports in various formats',
+        icon: Copy
+      },
+      view_analytics: {
+        name: 'View Analytics',
+        description: 'Access analytics dashboard',
+        icon: Eye
+      }
+    }
+  },
+  driver: {
+    name: 'Driver Operations',
+    icon: User,
+    description: 'Driver-specific operations and access',
+    permissions: {
+      driver_access: {
+        name: 'Driver Access',
+        description: 'Access driver-specific features',
+        icon: User
+      },
+      view_personal_history: {
+        name: 'View Personal History',
+        description: 'Access personal work history',
+        icon: Eye
+      },
+      report_issues: {
+        name: 'Report Issues',
+        description: 'Report problems and issues',
+        icon: AlertCircle
       }
     }
   }
@@ -308,6 +416,11 @@ const AVAILABLE_PAGES = [
   { value: '/dashboard/grafy', label: 'Charts', description: 'Analytics and charts' },
   { value: '/dashboard/transakce', label: 'Transactions', description: 'Financial transactions' },
   { value: '/dashboard/noviny', label: 'Newspapers', description: 'Newspaper distribution' },
+  { value: '/dashboard/noviny/distribuce/driver-login', label: 'Driver Login', description: 'Driver login page' },
+  { value: '/dashboard/noviny/distribuce/driver-route', label: 'Driver Route', description: 'Driver route management' },
+  { value: '/dashboard/noviny/distribuce/driver-restricted', label: 'Driver Restricted', description: 'Restricted driver view' },
+  { value: '/newspaper', label: 'Newspaper Overview', description: 'Newspaper distribution overview' },
+  { value: '/newspaper/admin/settings', label: 'Newspaper Admin Settings', description: 'Combined access + overview' },
   { value: '/dashboard/admin/users', label: 'Users', description: 'User management' },
   { value: '/dashboard/settings', label: 'Settings', description: 'System settings' }
 ]
@@ -347,7 +460,7 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
   const [isSavingUserSettings, setIsSavingUserSettings] = useState(false)
   const [userPreferences, setUserPreferences] = useState({
     defaultLandingPage: '/homepage',
-    theme: 'system',
+    theme: 'system' as 'light' | 'dark' | 'system',
     language: 'cs',
     notifications: {
       email: true,
@@ -387,7 +500,7 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
   }, [])
 
   useEffect(() => {
-    if (activeTab === 'userSettings') {
+    if (activeTab === 'userSettings' || activeTab === 'userPreferences') {
       loadUsers()
     }
   }, [activeTab])
@@ -415,6 +528,15 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
   }
 
   const handleCreateRole = async () => {
+    // Client-side minimal required checks
+    if (!formData.name?.trim() || !formData.displayName?.trim() || !formData.description?.trim()) {
+      toast({
+        title: "Chybí povinná pole",
+        description: "Vyplňte název role, zobrazovaný název a popis.",
+        variant: "destructive",
+      })
+      return
+    }
     try {
       const response = await fetch('/api/admin/roles', {
         method: 'POST',
@@ -432,7 +554,14 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
         loadRoles()
         onRoleChange?.()
       } else {
-        throw new Error('Failed to create role')
+        const json = await response.json().catch(() => ({}))
+        if (response.status === 422 && json?.errors) {
+          const firstMsg = Object.values(json.errors)[0] as string | undefined
+          toast({ title: "Chyba validace", description: firstMsg || "Zkontrolujte zadaná data.", variant: "destructive" })
+        } else {
+          toast({ title: "Chyba", description: json?.error || 'Nepodařilo se vytvořit roli.', variant: "destructive" })
+        }
+        return
       }
     } catch (error) {
       toast({
@@ -445,6 +574,16 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
 
   const handleUpdateRole = async () => {
     if (!selectedRole?.id) return
+
+    // Client-side minimal required checks
+    if (!formData.name?.trim() || !formData.displayName?.trim() || !formData.description?.trim()) {
+      toast({
+        title: "Chybí povinná pole",
+        description: "Vyplňte název role, zobrazovaný název a popis.",
+        variant: "destructive",
+      })
+      return
+    }
 
     try {
       const response = await fetch(`/api/admin/roles/${selectedRole.id}`, {
@@ -463,7 +602,14 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
         loadRoles()
         onRoleChange?.()
       } else {
-        throw new Error('Failed to update role')
+        const json = await response.json().catch(() => ({}))
+        if (response.status === 422 && json?.errors) {
+          const firstMsg = Object.values(json.errors)[0] as string | undefined
+          toast({ title: "Chyba validace", description: firstMsg || "Zkontrolujte zadaná data.", variant: "destructive" })
+        } else {
+          toast({ title: "Chyba", description: json?.error || 'Nepodařilo se aktualizovat roli.', variant: "destructive" })
+        }
+        return
       }
     } catch (error) {
       toast({
@@ -498,6 +644,38 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
         description: "Nepodařilo se smazat roli.",
         variant: "destructive",
       })
+    }
+  }
+
+  const handleSaveUserPreferences = async () => {
+    if (!selectedUser?.id) return
+
+    try {
+      setIsSavingUserSettings(true)
+      
+      // Save user preferences to the database
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/preferences`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userPreferences)
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Preference uloženy",
+          description: "Uživatelské preference byly úspěšně uloženy.",
+        })
+      } else {
+        throw new Error('Failed to save user preferences')
+      }
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se uložit uživatelské preference.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingUserSettings(false)
     }
   }
 
@@ -722,9 +900,10 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="roles">Správa rolí</TabsTrigger>
           <TabsTrigger value="userSettings">Nastavení uživatelů</TabsTrigger>
+          <TabsTrigger value="userPreferences">Uživatelské preference</TabsTrigger>
         </TabsList>
 
         {/* Roles Tab */}
@@ -1148,6 +1327,197 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
             </Tabs>
           )}
         </TabsContent>
+
+        {/* User Preferences Tab */}
+        <TabsContent value="userPreferences" className="space-y-6">
+          <Card className="unified-card">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <UserCog className="h-5 w-5" />
+                <span>Uživatelské preference</span>
+              </CardTitle>
+              <CardDescription>
+                Nastavte výchozí stránku po přihlášení a další preference pro uživatele
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* User Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="user-select">Vyberte uživatele</Label>
+                <Select
+                  value={selectedUser?.id?.toString() || ''}
+                  onValueChange={(value) => {
+                    const user = users.find(u => u.id?.toString() === value);
+                    setSelectedUser(user || null);
+                  }}
+                >
+                  <SelectTrigger className="unified-form-input">
+                    <SelectValue placeholder="Vyberte uživatele..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id?.toString() || ''}>
+                        <div className="flex items-center space-x-2">
+                          <span>{user.name || 'Unknown'}</span>
+                          <Badge variant="outline">{user.email || 'No email'}</Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* User Preferences Form */}
+              {selectedUser && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Default Landing Page */}
+                    <div className="space-y-2">
+                      <Label htmlFor="default-landing-page">Výchozí stránka po přihlášení</Label>
+                      <Select
+                        value={userPreferences.defaultLandingPage}
+                        onValueChange={(value) => setUserPreferences(prev => ({
+                          ...prev,
+                          defaultLandingPage: value
+                        }))}
+                      >
+                        <SelectTrigger className="unified-form-input">
+                          <SelectValue placeholder="Vyberte výchozí stránku..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AVAILABLE_PAGES.map((page) => (
+                            <SelectItem key={page.value} value={page.value}>
+                              <div className="space-y-1">
+                                <div className="font-medium">{page.label}</div>
+                                <div className="text-xs text-gray-500">{page.description}</div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">
+                        Stránka, na kterou bude uživatel přesměrován po přihlášení
+                      </p>
+                    </div>
+
+                    {/* Theme Selection */}
+                    <div className="space-y-2">
+                      <Label htmlFor="theme">Téma</Label>
+                      <Select
+                        value={userPreferences.theme}
+                        onValueChange={(value) => setUserPreferences(prev => ({
+                          ...prev,
+                          theme: value as 'light' | 'dark' | 'system'
+                        }))}
+                      >
+                        <SelectTrigger className="unified-form-input">
+                          <SelectValue placeholder="Vyberte téma..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="light">Světlé</SelectItem>
+                          <SelectItem value="dark">Tmavé</SelectItem>
+                          <SelectItem value="system">Systémové</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Notification Settings */}
+                  <div className="space-y-3">
+                    <Label>Nastavení notifikací</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="email-notifications"
+                          checked={userPreferences.notifications.email}
+                          onCheckedChange={(checked) => setUserPreferences(prev => ({
+                            ...prev,
+                            notifications: { ...prev.notifications, email: checked }
+                          }))}
+                        />
+                        <Label htmlFor="email-notifications">Email</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="push-notifications"
+                          checked={userPreferences.notifications.push}
+                          onCheckedChange={(checked) => setUserPreferences(prev => ({
+                            ...prev,
+                            notifications: { ...prev.notifications, push: checked }
+                          }))}
+                        />
+                        <Label htmlFor="push-notifications">Push</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="sms-notifications"
+                          checked={userPreferences.notifications.sms}
+                          onCheckedChange={(checked) => setUserPreferences(prev => ({
+                            ...prev,
+                            notifications: { ...prev.notifications, sms: checked }
+                          }))}
+                        />
+                        <Label htmlFor="sms-notifications">SMS</Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Display Settings */}
+                  <div className="space-y-3">
+                    <Label>Zobrazení</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="compact-mode"
+                          checked={userPreferences.display.compactMode}
+                          onCheckedChange={(checked) => setUserPreferences(prev => ({
+                            ...prev,
+                            display: { ...prev.display, compactMode: checked }
+                          }))}
+                        />
+                        <Label htmlFor="compact-mode">Kompaktní režim</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="show-avatars"
+                          checked={userPreferences.display.showAvatars}
+                          onCheckedChange={(checked) => setUserPreferences(prev => ({
+                            ...prev,
+                            display: { ...prev.display, showAvatars: checked }
+                          }))}
+                        />
+                        <Label htmlFor="show-avatars">Zobrazit avatary</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="auto-refresh"
+                          checked={userPreferences.display.autoRefresh}
+                          onCheckedChange={(checked) => setUserPreferences(prev => ({
+                            ...prev,
+                            display: { ...prev.display, autoRefresh: checked }
+                          }))}
+                        />
+                        <Label htmlFor="auto-refresh">Automatické obnovení</Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button 
+                      onClick={handleSaveUserPreferences}
+                      disabled={isSavingUserSettings}
+                      className="unified-button-primary"
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      {isSavingUserSettings ? 'Ukládám...' : 'Uložit preference'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   )
@@ -1372,6 +1742,7 @@ function RoleForm({
             ))}
           </div>
         </TabsContent>
+
       </Tabs>
 
       <div className="flex justify-end space-x-2 pt-4 border-t">

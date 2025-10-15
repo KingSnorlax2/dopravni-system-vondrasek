@@ -316,6 +316,13 @@ model UserPreferences {
   @@index([userId])
 }
 
+model DriverRouteLogin {
+  id            Int      @id @default(autoincrement())
+  ridicEmail    String
+  cisloTrasy    String
+  casPrihlaseni DateTime @default(now())
+}
+
 model VehicleLocation {
   id            String   @id @default(uuid())
   autoId        Int

@@ -27,7 +27,6 @@ export async function GET(req: Request) {
     id: u.id,
     name: u.name,
     email: u.email,
-    username: u.username, // Add this line
     status: u.status,
     roles: u.roles.map(r => r.role.name),
     createdAt: u.createdAt,

@@ -13,9 +13,9 @@ export async function GET() {
 
     // Get all maintenance records
     const allMaintenance = await prisma.udrzba.findMany({
-      where: { provedeno: true },
+      where: { status: 'COMPLETED' },
       include: { auto: true },
-      orderBy: { datumProvedeni: 'desc' }
+      orderBy: { datumUdrzby: 'desc' }
     })
 
     // Calculate fleet status
@@ -38,7 +38,7 @@ export async function GET() {
     }
 
     // Calculate maintenance costs
-    const totalMaintenanceCost = allMaintenance.reduce((sum, record) => sum + record.nakladyCelkem, 0)
+    const totalMaintenanceCost = allMaintenance.reduce((sum, record) => sum + record.cena, 0)
 
     // Format data for front-end
     const vehiclesWithStk = allVehicles
@@ -61,10 +61,10 @@ export async function GET() {
       .slice(0, 5)
       .map(record => ({
         id: record.id,
-        type: record.typ,
+        type: record.typUdrzby,
         spz: record.auto.spz,
-        cost: record.nakladyCelkem,
-        date: record.datumProvedeni
+        cost: record.cena,
+        date: record.datumUdrzby
       }))
 
     return NextResponse.json({

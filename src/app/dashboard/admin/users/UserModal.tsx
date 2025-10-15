@@ -10,7 +10,6 @@ export function UserModal({ open, onClose, onSave, user }: {
 }) {
   const [form, setForm] = useState({
     name: '',
-    username: '',
     email: '',
     password: '',
     roles: [] as string[],
@@ -38,14 +37,13 @@ export function UserModal({ open, onClose, onSave, user }: {
     if (user) {
       setForm({
         name: user.name || '',
-        username: user.username || '',
         email: user.email || '',
         password: '',
         roles: user.roles || [],
         status: user.status || 'ACTIVE',
       })
     } else {
-      setForm({ name: '', username: '', email: '', password: '', roles: [], status: 'ACTIVE' })
+      setForm({ name: '', email: '', password: '', roles: [], status: 'ACTIVE' })
     }
     setError(null)
   }, [user, open])
@@ -66,12 +64,8 @@ export function UserModal({ open, onClose, onSave, user }: {
 
   const handleSubmit = (e: any) => {
     e.preventDefault()
-    if (!form.name.trim() || !form.email.trim() || !form.username.trim()) {
-      setError('Name, username, and email are required')
-      return
-    }
-    if (!/^[a-zA-Z0-9._-]+$/.test(form.username)) {
-      setError('Username must be alphanumeric and cannot contain spaces')
+    if (!form.name.trim() || !form.email.trim()) {
+      setError('Name and email are required')
       return
     }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) {
@@ -106,19 +100,7 @@ export function UserModal({ open, onClose, onSave, user }: {
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Username</label>
-            <input
-              name="username"
-              value={form.username}
-              onChange={handleChange}
-              className="border rounded px-3 py-2 w-full"
-              required
-              pattern="^[a-zA-Z0-9._-]+$"
-              autoComplete="username"
-            />
-            <div className="text-xs text-gray-500 mt-1">Username must be unique, alphanumeric, and cannot contain spaces.</div>
-          </div>
+          {/* Username removed from UI by request */}
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
             <input

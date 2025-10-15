@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Newspaper } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar';
+import UnifiedLayout from '@/components/layout/UnifiedLayout';
 
 export const metadata: Metadata = {
   title: 'Distribuce novin | Vozový park',
@@ -13,17 +13,21 @@ export default function NewspaperLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex-1 overflow-auto">
-        <div className="min-h-screen bg-gray-50">
-          <div className="py-2 px-4 bg-blue-600 text-white flex items-center">
-            <Newspaper className="h-4 w-4 mr-2" />
-            <span className="font-medium">Noční distribuce novin</span>
+    <UnifiedLayout>
+      <div className="unified-section-header">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Newspaper className="h-6 w-6 text-blue-600" />
           </div>
-          {children}
+          <div>
+            <h1 className="unified-section-title">Distribuce novin</h1>
+            <p className="unified-section-description">
+              Správa a monitorování distribuce novin a časopisů
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+      {children}
+    </UnifiedLayout>
   );
 } 
