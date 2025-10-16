@@ -40,7 +40,7 @@ export default function DriverLoginPage() {
   const [adminPassword, setAdminPassword] = useState("");
   const [reauthError, setReauthError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<null | 'login' | 'fullscreen' | 'exitFullscreen'>(null);
+  const [pendingAction, setPendingAction] = useState<null | 'fullscreen' | 'exitFullscreen'>(null);
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -61,14 +61,21 @@ export default function DriverLoginPage() {
       setIsFullscreen(active);
       document.body.classList.toggle('hide-navigation', active);
       if (!active && session?.user?.role === 'ADMIN') {
-        // Show guard overlay and prompt re-auth if fullscreen was exited via browser controls
         setPendingAction('exitFullscreen');
         setReauthOpen(true);
       }
     };
     document.addEventListener('fullscreenchange', onFsChange);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (session?.user?.role === 'ADMIN' && isFullscreen && (e.key === 'Escape' || e.key === 'Esc')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown, { capture: true });
     return () => {
       document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('keydown', onKeyDown, { capture: true } as any);
       document.body.classList.remove('hide-navigation');
     };
   }, []);
@@ -126,13 +133,6 @@ export default function DriverLoginPage() {
       return;
     }
 
-    // If admin, require reconfirmation first
-    if (session?.user?.role === 'ADMIN') {
-      setPendingAction('login');
-      setReauthOpen(true);
-      return;
-    }
-
     setLoading(true);
     setError("");
     try {
@@ -165,9 +165,6 @@ export default function DriverLoginPage() {
         await enterFullscreen()
       } else if (action === 'exitFullscreen') {
         await exitFullscreen()
-      } else if (action === 'login') {
-        setLoading(true)
-        await submitDriverLogin(form.getValues())
       }
     } finally {
       setLoading(false)
@@ -486,8 +483,8 @@ export default function DriverLoginPage() {
             />
             {reauthError && <div className="text-sm text-red-600">{reauthError}</div>}
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => { /* disabled while guard active */ }} disabled>
-                Zrušit
+              <Button variant="outline" onClick={async () => { setPendingAction(null); setReauthOpen(false); setAdminPassword(''); await enterFullscreen(); }}>
+                Zpět do celé obrazovky
               </Button>
               <Button onClick={handleReauthConfirm} disabled={!adminPassword}>
                 Potvrdit

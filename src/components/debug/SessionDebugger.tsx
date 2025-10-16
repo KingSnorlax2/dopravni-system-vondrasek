@@ -43,7 +43,7 @@ export function SessionDebugger() {
         try {
           result.data = await response.json()
         } catch (e) {
-          result.data = { error: 'Could not parse error response' }
+          result.data = { error: 'Could not parse error response' } as any as null
         }
       }
       
