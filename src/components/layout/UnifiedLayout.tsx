@@ -69,12 +69,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       icon: Car,
       show: true
     },
-    {
-      name: 'Noviny',
-      href: '/newspaper',
-      icon: Car,
-      show: true
-    },
+    
     {
       name: 'Přihlášení řidiče',
       href: '/dashboard/noviny/distribuce/driver-login',
@@ -95,10 +90,11 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       icon: Settings
     },
     {
-      name: 'Nastavení novin',
-      href: '/newspaper/admin/settings',
+      name: 'Nastavení přihlášení řidičů',
+      href: '/dashboard/admin/driver-settings',
       icon: Truck
-    }
+    },
+    
   ]
 
   const handleSignOut = () => {

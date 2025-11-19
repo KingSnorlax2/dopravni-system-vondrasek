@@ -15,10 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const isAdmin = (
-    (session.user as any)?.role === 'ADMIN' ||
-    (Array.isArray((session.user as any)?.roles) && (session.user as any).roles.includes('ADMIN'))
-  )
+  const isAdmin = (session.user as any)?.role === 'ADMIN'
   if (!isAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -29,24 +26,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Chybí povinná pole', errors: result.error.flatten().fieldErrors }, { status: 422 })
   }
 
-  // Find the exact logged-in admin user by id if available, otherwise fall back to email/username (case-insensitive)
-  let admin = null as any
+  // Strictly resolve the current user by session id; fallback to email only if present
   const sessionUser: any = session.user
-  if (sessionUser?.id) {
-    admin = await prisma.user.findUnique({ where: { id: sessionUser.id } })
-  }
-  if (!admin) {
-    const email = sessionUser?.email as string | undefined
-    const username = (sessionUser?.username || sessionUser?.name) as string | undefined
-    admin = await prisma.user.findFirst({
-      where: {
-        OR: [
-          email ? { email: { equals: email, mode: 'insensitive' } } : undefined,
-          username ? { username: { equals: username, mode: 'insensitive' } } : undefined,
-        ].filter(Boolean) as any
-      }
-    })
-  }
+  const admin = sessionUser?.id
+    ? await prisma.user.findUnique({ where: { id: sessionUser.id } })
+    : (sessionUser?.email
+        ? await prisma.user.findFirst({ where: { email: { equals: sessionUser.email, mode: 'insensitive' } } })
+        : null)
   if (!admin?.password) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

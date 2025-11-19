@@ -54,17 +54,8 @@ export async function PATCH(
         id: true,
         name: true,
         email: true,
-        role: true,
       },
     })
-
-    // If this was a password update, return the unhashed password
-    if (body.password) {
-      return NextResponse.json({ 
-        ...user, 
-        password: body.password 
-      })
-    }
 
     return NextResponse.json(user)
   } catch (error) {

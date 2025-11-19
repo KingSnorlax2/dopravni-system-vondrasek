@@ -62,6 +62,15 @@ export function UserModal({ open, onClose, onSave, user }: {
     }
   }
 
+  const toggleRoleChip = (role: string) => {
+    setForm(f => ({
+      ...f,
+      roles: f.roles.includes(role)
+        ? f.roles.filter(r => r !== role)
+        : [...f.roles, role]
+    }))
+  }
+
   const handleSubmit = (e: any) => {
     e.preventDefault()
     if (!form.name.trim() || !form.email.trim()) {
@@ -86,83 +95,126 @@ export function UserModal({ open, onClose, onSave, user }: {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-      <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">{user ? 'Edit User' : 'Add User'}</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 space-y-5">
+        <div className="flex items-start justify-between">
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              className="border rounded px-3 py-2 w-full"
-              required
-            />
+            <h2 className="text-2xl font-semibold text-gray-900">{user ? 'Upravit uživatele' : 'Nový uživatel'}</h2>
+            <p className="text-sm text-gray-500">Vyplňte základní informace a přiřaďte role.</p>
           </div>
-          {/* Username removed from UI by request */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              className="border rounded px-3 py-2 w-full"
-              required
-            />
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition"
+            aria-label="Zavřít"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Jméno</label>
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Např. Jan Novák"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
+              <input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="jan.novak@example.com"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Password {user ? '(leave blank to keep unchanged)' : ''}</label>
-            <input
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              className="border rounded px-3 py-2 w-full"
-              placeholder={user ? '••••••••' : ''}
-              autoComplete="new-password"
-            />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">
+                Heslo {user && <span className="text-xs text-gray-500">(ponechte prázdné pro zachování)</span>}
+              </label>
+              <input
+                name="password"
+                type="password"
+                value={form.password}
+                onChange={handleChange}
+                className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder={user ? '••••••••' : 'Min. 8 znaků'}
+                autoComplete="new-password"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Status</label>
+              <select
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="ACTIVE">Aktivní</option>
+                <option value="DISABLED">Deaktivovaný</option>
+              </select>
+            </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium mb-1">Roles</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">Role</label>
+              {rolesLoading && <span className="text-xs text-gray-500">Načítám…</span>}
+            </div>
             {rolesLoading ? (
-              <div className="text-gray-500 text-sm">Loading roles...</div>
+              <div className="text-gray-500 text-sm">Načítám role…</div>
             ) : roleOptions.length === 0 ? (
-              <div className="text-red-500 text-sm">No roles available. Please create a role first.</div>
+              <div className="text-red-500 text-sm">Nejsou dostupné žádné role. Vytvořte nejdříve roli.</div>
             ) : (
-              <div className="flex flex-wrap gap-3">
-                {roleOptions.map(opt => (
-                  <label key={opt} className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      name="roles"
-                      value={opt}
-                      checked={form.roles.includes(opt)}
-                      onChange={handleChange}
-                    />
-                    {opt}
-                  </label>
-                ))}
+              <div className="flex flex-wrap gap-2">
+                {roleOptions.map(opt => {
+                  const active = form.roles.includes(opt)
+                  return (
+                    <button
+                      type="button"
+                      key={opt}
+                      onClick={() => toggleRoleChip(opt)}
+                      className={`px-3 py-1 rounded-full text-sm border transition ${
+                        active
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  )
+                })}
               </div>
             )}
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Status</label>
-            <select
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              className="border rounded px-3 py-2 w-full"
-            >
-              <option value="ACTIVE">Active</option>
-              <option value="DISABLED">Disabled</option>
-            </select>
-          </div>
+
           {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-          <div className="flex justify-end gap-2 mt-4">
-            <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={onClose}>Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white" disabled={rolesLoading || roleOptions.length === 0}>Save</button>
+
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+              onClick={onClose}
+            >
+              Zrušit
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+              disabled={rolesLoading || roleOptions.length === 0}
+            >
+              Uložit
+            </button>
           </div>
         </form>
       </div>

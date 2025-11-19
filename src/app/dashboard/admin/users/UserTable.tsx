@@ -10,7 +10,7 @@ const STATUS_OPTIONS = [
   { value: 'DISABLED', label: 'Disabled' },
 ]
 
-export function UserTable() {
+export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void }) {
   const { hasPermission } = useAccessControl();
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,6 +93,7 @@ export function UserTable() {
   const handleEdit = (user: any) => {
     setModalUser(user)
     setModalOpen(true)
+    if (onManageUser) onManageUser(user)
   }
 
   const handleSave = async (form: any) => {
@@ -174,10 +175,10 @@ export function UserTable() {
       {/* Toast */}
       {toast && <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow z-50">{toast}</div>}
       {/* Search & Filters */}
-      <div className="flex flex-wrap gap-4 mb-4 items-end">
+      <div className="flex flex-wrap gap-3 mb-4 items-end">
         {hasPermission("manage_users") && (
           <button
-            className="px-4 py-2 rounded bg-blue-600 text-white font-semibold shadow"
+            className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium shadow hover:bg-blue-700 transition"
             onClick={handleAdd}
           >
             + Add User
@@ -188,12 +189,12 @@ export function UserTable() {
           placeholder="Search by name or email..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="border rounded px-3 py-2 w-64"
+          className="border rounded-md px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <select
           value={roleFilter}
           onChange={e => setRoleFilter(e.target.value)}
-          className="border rounded px-3 py-2"
+          className="border rounded-md px-3 py-2"
         >
           <option value="">All Roles</option>
           {allRoles.map(role => (
@@ -203,48 +204,74 @@ export function UserTable() {
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="border rounded px-3 py-2"
+          className="border rounded-md px-3 py-2"
         >
           {STATUS_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border text-sm">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('name')}>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left w-[30%] cursor-pointer" onClick={() => handleSort('name')}>
                 Name {sortKey === 'name' && (sortDir === 'asc' ? '▲' : '▼')}
               </th>
-              <th className="border px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('email')}>
+              <th className="px-4 py-2 text-left w-[30%] cursor-pointer" onClick={() => handleSort('email')}>
                 Email {sortKey === 'email' && (sortDir === 'asc' ? '▲' : '▼')}
               </th>
-              <th className="border px-4 py-2 text-left">Roles</th>
-              <th className="border px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('status')}>
+              <th className="px-4 py-2 text-left">Roles</th>
+              <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('status')}>
                 Status {sortKey === 'status' && (sortDir === 'asc' ? '▲' : '▼')}
               </th>
-              <th className="border px-4 py-2 text-center">Actions</th>
+              <th className="px-4 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(user => (
-              <tr key={user.id} className="border-b hover:bg-gray-50">
-                <td className="border px-4 py-2">{user.name}</td>
-                <td className="border px-4 py-2">{user.email}</td>
-                <td className="border px-4 py-2">
-                  {user.roles && user.roles.length > 0 ? user.roles.join(', ') : <span className="text-gray-400">None</span>}
-                </td>
-                <td className="border px-4 py-2">
-                  <span className={user.status === 'ACTIVE' ? 'text-green-700' : 'text-gray-400'}>{user.status}</span>
-                </td>
-                <td className="border px-4 py-2 text-center">
-                  <button className="text-blue-600 hover:underline mr-2" onClick={() => handleEdit(user)}>Edit</button>
-                  <button className="text-yellow-600 hover:underline mr-2" onClick={() => handleDeactivate(user)} disabled={user.status === 'DISABLED'}>Deactivate</button>
-                  <button className="text-red-600 hover:underline" onClick={() => handleDelete(user)}>Delete</button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map(user => {
+              const initials = String(user.name || user.email || '?')
+                .split(' ')
+                .map((s: string) => s[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase()
+              return (
+                <tr key={user.id} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-700">
+                        {initials}
+                      </div>
+                      <div className="font-medium text-gray-900">{user.name}</div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-gray-700">{user.email}</td>
+                  <td className="px-4 py-2">
+                    {user.roles && user.roles.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {user.roles.map((r: string) => (
+                          <span key={r} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs border">{r}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">None</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${user.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+                      {user.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    <div className="inline-flex gap-2">
+                      <button className="px-2 py-1 rounded-md border text-blue-700 border-blue-200 hover:bg-blue-50" onClick={() => handleEdit(user)}>Edit</button>
+                      <button className="px-2 py-1 rounded-md border text-yellow-700 border-yellow-200 hover:bg-yellow-50 disabled:opacity-50" onClick={() => handleDeactivate(user)} disabled={user.status === 'DISABLED'}>Deactivate</button>
+                      <button className="px-2 py-1 rounded-md border text-red-700 border-red-200 hover:bg-red-50" onClick={() => handleDelete(user)}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              )})}
           </tbody>
         </table>
       </div>

@@ -419,8 +419,7 @@ const AVAILABLE_PAGES = [
   { value: '/dashboard/noviny/distribuce/driver-login', label: 'Driver Login', description: 'Driver login page' },
   { value: '/dashboard/noviny/distribuce/driver-route', label: 'Driver Route', description: 'Driver route management' },
   { value: '/dashboard/noviny/distribuce/driver-restricted', label: 'Driver Restricted', description: 'Restricted driver view' },
-  { value: '/newspaper', label: 'Newspaper Overview', description: 'Newspaper distribution overview' },
-  { value: '/newspaper/admin/settings', label: 'Newspaper Admin Settings', description: 'Combined access + overview' },
+  
   { value: '/dashboard/admin/users', label: 'Users', description: 'User management' },
   { value: '/dashboard/settings', label: 'Settings', description: 'System settings' }
 ]
@@ -443,14 +442,16 @@ interface Role {
 
 interface RoleManagementProps {
   onRoleChange?: () => void
+  prefillUserId?: string
+  initialTab?: 'roles' | 'userSettings' | 'userPreferences'
 }
 
-export function RoleManagement({ onRoleChange }: RoleManagementProps) {
+export function RoleManagement({ onRoleChange, prefillUserId, initialTab }: RoleManagementProps) {
   const [roles, setRoles] = useState<Role[]>([])
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState('roles')
+  const [activeTab, setActiveTab] = useState(initialTab || 'roles')
   
   // User Settings state
   const [users, setUsers] = useState<any[]>([])
@@ -504,6 +505,18 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
       loadUsers()
     }
   }, [activeTab])
+
+  // When initialTab prop changes (e.g., navigating from Users), reflect it
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab)
+  }, [initialTab])
+
+  // Prefill selected user when provided and users are loaded
+  useEffect(() => {
+    if (!prefillUserId || users.length === 0) return
+    const found = users.find(u => u.id === prefillUserId)
+    if (found) setSelectedUser(found)
+  }, [prefillUserId, users])
 
   useEffect(() => {
     if (selectedUser?.id) {
@@ -1101,58 +1114,7 @@ export function RoleManagement({ onRoleChange }: RoleManagementProps) {
                   </CardContent>
                 </Card>
 
-                {/* Display Preferences */}
-                <Card className="unified-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Settings className="mr-2 h-5 w-5" />
-                      Zobrazení
-                    </CardTitle>
-                    <CardDescription>
-                      Nastavení vzhledu a chování rozhraní pro uživatele
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Kompaktní režim</Label>
-                          <p className="text-sm text-gray-500">
-                            Zmenší mezery mezi prvky pro kompaktnější zobrazení
-                          </p>
-                        </div>
-                        <Switch
-                          checked={userPreferences.display.compactMode}
-                          onCheckedChange={(checked) => handleUserPreferenceChange('display', 'compactMode', checked)}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Zobrazit avatary</Label>
-                          <p className="text-sm text-gray-500">
-                            Zobrazit profilové obrázky uživatelů
-                          </p>
-                        </div>
-                        <Switch
-                          checked={userPreferences.display.showAvatars}
-                          onCheckedChange={(checked) => handleUserPreferenceChange('display', 'showAvatars', checked)}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Automatické obnovení</Label>
-                          <p className="text-sm text-gray-500">
-                            Automaticky obnovovat data na stránkách
-                          </p>
-                        </div>
-                        <Switch
-                          checked={userPreferences.display.autoRefresh}
-                          onCheckedChange={(checked) => handleUserPreferenceChange('display', 'autoRefresh', checked)}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                
 
                 {/* Notification Preferences */}
                 <Card className="unified-card">

@@ -14,6 +14,7 @@ import * as z from 'zod'
 import { loadSettings, saveSettings, AppSettings } from '@/utils/settings'
 import { useAccessControl } from "@/hooks/useAccessControl";
 import { useRouter } from "next/navigation";
+import DriverLoginControl from '@/components/newspaper/DriverLoginControl'
 
 const ROLES = [
   { key: 'USER', label: 'Uživatel' },
@@ -152,6 +153,18 @@ export default function SettingsPage() {
       <h1 className="text-3xl font-bold mb-6">Nastavení aplikace</h1>
       
       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nastavení přihlášení řidičů</CardTitle>
+            <CardDescription>
+              Správa uzamčení přihlášení a omezení navigace pro řidiče
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DriverLoginControl />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Obecná nastavení</CardTitle>

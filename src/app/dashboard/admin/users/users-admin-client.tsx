@@ -1,40 +1,22 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { UserTable } from './UserTable'
-import { RoleManagement } from '@/components/admin/RoleManagement'
 
 export function UsersAdminClient() {
-  const [tab, setTab] = useState<'users' | 'roleManagement'>('users')
+  // Right-side access panel removed per request. Keep minimal state if needed later.
+
+  // All role/permission logic removed with the panel
 
   return (
-    <div>
-      <div className="flex gap-4 mb-6 border-b">
-        <button
-          className={`pb-2 px-2 border-b-2 ${tab === 'users' ? 'border-blue-600 font-semibold' : 'border-transparent text-gray-500'}`}
-          onClick={() => setTab('users')}
-        >
-          Users
-        </button>
-        <button
-          className={`pb-2 px-2 border-b-2 ${tab === 'roleManagement' ? 'border-blue-600 font-semibold' : 'border-transparent text-gray-500'}`}
-          onClick={() => setTab('roleManagement')}
-        >
-          Role Management
-        </button>
-      </div>
-      
-      {tab === 'users' && (
-        <div>
+    <div className="grid grid-cols-1 gap-6">
+      <section className="unified-card p-4">
+        <header className="mb-3">
+          <h2 className="text-lg font-semibold">Uživatelé</h2>
+          <p className="text-sm text-gray-500">Přehled, filtrování a správa</p>
+        </header>
           <UserTable />
-        </div>
-      )}
-      
-      {tab === 'roleManagement' && (
-        <div>
-          <RoleManagement />
-        </div>
-      )}
+      </section>
     </div>
   )
 } 

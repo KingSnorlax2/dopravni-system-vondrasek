@@ -65,7 +65,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
   const { id } = params
   const body = await req.json()
-  const { name, email, status, roles } = body
+  const { name, email, status, roles, password } = body
   // Update user info
   const user = await prisma.user.update({
     where: { id },
@@ -73,6 +73,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       name,
       email,
       status: status as UserStatus,
+      // If password provided and non-empty, hash and update
+      ...(password && String(password).trim().length > 0
+        ? { password: (await import('bcryptjs')).default.hashSync(String(password), 10) }
+        : {}),
       roles: roles ? {
         deleteMany: {},
         create: roles.map((roleName: string) => ({
