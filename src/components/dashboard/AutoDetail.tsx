@@ -364,6 +364,20 @@ export function AutoDetail({ auto }: AutoDetailProps) {
     ? Math.ceil((new Date(auto.datumSTK).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null
 
+  const serviceStats = {
+    total: sortedServiceRecords.length,
+    open: sortedServiceRecords.filter(record => record.status !== 'dokončeno').length,
+    totalCost: sortedServiceRecords.reduce((sum, record) => sum + (record.cost || 0), 0),
+    last: sortedServiceRecords[0]?.date
+  }
+
+  const maintenanceStats = {
+    planned: maintenanceRecords.filter(record => !record.completed).length,
+    completed: maintenanceRecords.filter(record => record.completed).length,
+    totalCost: maintenanceRecords.reduce((sum, record) => sum + (record.cost || 0), 0),
+    next: upcomingMaintenance[0]?.nextDate
+  }
+
   // Handle submitting a new service record
   const handleServiceSubmit = async (data: any) => {
     try {
@@ -680,114 +694,186 @@ export function AutoDetail({ auto }: AutoDetailProps) {
 
         {/* Service Tab */}
         <TabsContent value="service" className="mt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold">Opravy a servis</h2>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold">Opravy a servis</h2>
+              <p className="text-sm text-muted-foreground">Přehled všech zásahů na vozidle.</p>
+            </div>
             <Button onClick={handleAddService}>
               <Plus className="h-4 w-4 mr-2" />
               Přidat opravu
             </Button>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-3 mt-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Servisní záznamy</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{serviceStats.total}</p>
+                <p className="text-sm text-muted-foreground">celkem zaevidováno</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Otevřené případy</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{serviceStats.open}</p>
+                <p className="text-sm text-muted-foreground">čeká na dokončení</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Náklady celkem</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{serviceStats.totalCost.toLocaleString()} Kč</p>
+                <p className="text-sm text-muted-foreground">
+                  {serviceStats.last ? `Poslední ${format(new Date(serviceStats.last), 'd. MMM', { locale: cs })}` : 'Žádná data'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
           {isLoading ? (
             <div className="py-8 text-center text-muted-foreground">
               Načítání historie oprav...
             </div>
-          ) : (
-            <div className="space-y-6">
-              {sortedServiceRecords.length > 0 ? (
-                <div className="relative">
-                  <div className="absolute left-9 top-0 bottom-0 w-px bg-border"></div>
-                  
-                  {sortedServiceRecords.map((record, index) => (
-                    <div key={record.id} className="relative pl-12 pb-8">
-                      <div className="absolute left-0 rounded-full w-7 h-7 bg-background border-2 border-primary flex items-center justify-center">
-                        <Wrench className="h-3 w-3 text-primary" />
+          ) : sortedServiceRecords.length > 0 ? (
+            <div className="mt-6 space-y-4">
+              {sortedServiceRecords.map((record) => (
+                <Card key={record.id} className="border-muted/60">
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <CardTitle className="text-base">{record.type}</CardTitle>
+                        <CardDescription>
+                          {format(new Date(record.date), 'dd. MMMM yyyy', { locale: cs })}
+                        </CardDescription>
                       </div>
-                      
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between">
-                            <div>
-                              <CardTitle>{record.type}</CardTitle>
-                              <CardDescription>
-                                {format(new Date(record.date), 'dd. MMMM yyyy', { locale: cs })}
-                              </CardDescription>
-                            </div>
-                            <Badge 
-                              variant={
-                                record.status === 'dokončeno' ? 'success' :
-                                record.status === 'probíhá' ? 'warning' : 'default'
-                              }
-                            >
-                              {record.status}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground">Náklady</p>
-                              <p className="font-medium">{record.cost.toLocaleString()} Kč</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Nájezd</p>
-                              <p className="font-medium">{(record.mileage || auto.najezd).toLocaleString()} km</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Servis</p>
-                              <p className="font-medium">{record.service || "Nespecifikováno"}</p>
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <h4 className="font-medium mb-1">Popis opravy</h4>
-                            <p className="text-sm">{record.description}</p>
-                          </div>
-                          
-                          {record.note && (
-                            <div className="mt-4 border-t pt-2">
-                              <h4 className="text-sm font-medium mb-1">Poznámka</h4>
-                              <p className="text-sm text-muted-foreground">{record.note}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                      <div className="flex items-center gap-3">
+                        <Badge 
+                          variant={
+                            record.status === 'dokončeno' ? 'success' :
+                            record.status === 'probíhá' ? 'warning' : 'outline'
+                          }
+                        >
+                          {record.status}
+                        </Badge>
+                        <p className="text-lg font-semibold">{record.cost.toLocaleString()} Kč</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center border rounded-lg">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
-                  <h3 className="mt-4 text-lg font-medium">Žádné záznamy o opravách</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    U tohoto vozidla zatím nejsou žádné záznamy o opravách nebo servisu.
-                  </p>
-                  <Button onClick={handleAddService} className="mt-4">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Přidat první záznam
-                  </Button>
-                </div>
-              )}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Nájezd</p>
+                        <p className="font-medium">{(record.mileage || auto.najezd).toLocaleString()} km</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Servis</p>
+                        <p className="font-medium">{record.service || "Nespecifikováno"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Typ zásahu</p>
+                        <p className="font-medium">{record.description}</p>
+                      </div>
+                    </div>
+                    {record.note && (
+                      <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
+                        {record.note}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 py-8 text-center border rounded-lg">
+              <FileText className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+              <h3 className="mt-4 text-lg font-medium">Žádné záznamy o opravách</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                U tohoto vozidla zatím nejsou žádné záznamy o opravách nebo servisu.
+              </p>
+              <Button onClick={handleAddService} className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Přidat první záznam
+              </Button>
             </div>
           )}
         </TabsContent>
 
         {/* Maintenance Tab */}
         <TabsContent value="maintenance" className="mt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold">Údržba vozidla</h2>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold">Údržba vozidla</h2>
+              <p className="text-sm text-muted-foreground">Plán i historie v přehledných kartách.</p>
+            </div>
             <Button onClick={handleAddMaintenance}>
               <Plus className="h-4 w-4 mr-2" />
               Naplánovat údržbu
             </Button>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Upcoming Maintenance */}
+          <div className="grid gap-4 md:grid-cols-4 mt-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalendarCheck className="h-4 w-4" />
+                  Plánováno
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{maintenanceStats.planned}</p>
+                <p className="text-sm text-muted-foreground">čeká na provedení</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Dokončeno
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{maintenanceStats.completed}</p>
+                <p className="text-sm text-muted-foreground">provedených zásahů</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Náklady celkem</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">{maintenanceStats.totalCost.toLocaleString()} Kč</p>
+                <p className="text-sm text-muted-foreground">za evidované údržby</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Další termín</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xl font-semibold">
+                  {maintenanceStats.next ? format(new Date(maintenanceStats.next), 'dd. MM. yyyy', { locale: cs }) : 'Neplánováno'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {maintenanceStats.next 
+                    ? `za ${Math.ceil((new Date(maintenanceStats.next).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} dní`
+                    : 'Žádná nadcházející údržba'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 mt-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CalendarCheck className="h-5 w-5 mr-2" />
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarCheck className="h-5 w-5" />
                   Plánovaná údržba
                 </CardTitle>
               </CardHeader>
@@ -795,20 +881,21 @@ export function AutoDetail({ auto }: AutoDetailProps) {
                 {isLoading ? (
                   <div className="py-4 text-center text-muted-foreground">Načítání...</div>
                 ) : upcomingMaintenance.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {upcomingMaintenance.map((item) => (
-                      <div key={item.id} className="flex justify-between items-start border-b pb-4">
-                        <div>
-                          <h4 className="font-medium">{item.type}</h4>
-                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                      <div key={item.id} className="rounded-lg border p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{item.type}</p>
+                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                          </div>
+                          <Badge variant="outline">Plán</Badge>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">
-                            {item.nextDate ? format(new Date(item.nextDate), 'dd. MM. yyyy', { locale: cs }) : ''}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
+                        <div className="mt-3 flex items-center justify-between text-sm">
+                          <span>{item.nextDate ? format(new Date(item.nextDate), 'dd. MM. yyyy', { locale: cs }) : ''}</span>
+                          <span className="text-muted-foreground">
                             {item.nextDate ? `za ${Math.ceil((new Date(item.nextDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} dní` : ''}
-                          </p>
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -821,33 +908,33 @@ export function AutoDetail({ auto }: AutoDetailProps) {
               </CardContent>
             </Card>
 
-            {/* Completed Maintenance */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Clock className="h-5 w-5 mr-2" />
-                  Historie údržby
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Poslední dokončené
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
                   <div className="py-4 text-center text-muted-foreground">Načítání...</div>
                 ) : sortedMaintenanceRecords.filter(r => r.completed).length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {sortedMaintenanceRecords
                       .filter(r => r.completed)
-                      .slice(0, 5)
+                      .slice(0, 4)
                       .map((item) => (
-                        <div key={item.id} className="flex justify-between items-start border-b pb-4">
-                          <div>
-                            <h4 className="font-medium">{item.type}</h4>
-                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                        <div key={item.id} className="rounded-lg border p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{item.type}</p>
+                              <p className="text-sm text-muted-foreground">{item.description}</p>
+                            </div>
+                            <Badge variant="success">Hotovo</Badge>
                           </div>
-                          <div className="text-right">
-                            <p className="font-medium">{item.cost.toLocaleString()} Kč</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(item.completionDate), 'dd. MM. yyyy', { locale: cs })}
-                            </p>
+                          <div className="mt-3 flex items-center justify-between text-sm">
+                            <span>{format(new Date(item.completionDate), 'dd. MM. yyyy', { locale: cs })}</span>
+                            <span className="font-medium">{item.cost.toLocaleString()} Kč</span>
                           </div>
                         </div>
                       ))}
@@ -861,72 +948,57 @@ export function AutoDetail({ auto }: AutoDetailProps) {
             </Card>
           </div>
 
-          {/* All Maintenance Records */}
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Kompletní záznamy o údržbě</CardTitle>
+              <CardTitle>Kompletní přehled</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="py-4 text-center text-muted-foreground">Načítání...</div>
               ) : maintenanceRecords.length > 0 ? (
-                <div className="relative">
-                  <div className="absolute left-9 top-0 bottom-0 w-px bg-border"></div>
-                  
+                <div className="space-y-4">
                   {sortedMaintenanceRecords.map((record) => (
-                    <div key={record.id} className="relative pl-12 pb-8">
-                      <div className={`absolute left-0 rounded-full w-7 h-7 ${record.completed ? 'bg-green-100 border-green-500' : 'bg-background border-muted'} border-2 flex items-center justify-center`}>
-                        <Wrench className={`h-3 w-3 ${record.completed ? 'text-green-600' : 'text-muted-foreground'}`} />
-                      </div>
-                      
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between">
-                            <div>
-                              <CardTitle>{record.type}</CardTitle>
-                              <CardDescription>
-                                {format(new Date(record.completionDate), 'dd. MMMM yyyy', { locale: cs })}
-                              </CardDescription>
-                            </div>
-                            <Badge variant={record.completed ? 'success' : 'outline'}>
+                    <Card key={record.id} className="border-muted/60">
+                      <CardHeader className="pb-3">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <CardTitle className="text-base">{record.type}</CardTitle>
+                            <CardDescription>
+                              {format(new Date(record.completionDate), 'dd. MMMM yyyy', { locale: cs })}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge variant={record.completed ? 'success' : 'warning'}>
                               {record.completed ? 'Dokončeno' : 'Plánováno'}
                             </Badge>
+                            <p className="text-lg font-semibold">{record.cost.toLocaleString()} Kč</p>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground">Náklady</p>
-                              <p className="font-medium">{record.cost.toLocaleString()} Kč</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Nájezd</p>
-                              <p className="font-medium">{(record.mileage || auto.najezd).toLocaleString()} km</p>
-                            </div>
-                            {record.nextDate && (
-                              <div>
-                                <p className="text-sm text-muted-foreground">Příští termín</p>
-                                <p className="font-medium">
-                                  {format(new Date(record.nextDate), 'dd. MM. yyyy', { locale: cs })}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-4 md:grid-cols-3">
                           <div>
-                            <h4 className="font-medium mb-1">Popis údržby</h4>
-                            <p className="text-sm">{record.description}</p>
+                            <p className="text-sm text-muted-foreground">Nájezd</p>
+                            <p className="font-medium">{(record.mileage || auto.najezd).toLocaleString()} km</p>
                           </div>
-                          
-                          {record.note && (
-                            <div className="mt-4 border-t pt-2">
-                              <h4 className="text-sm font-medium mb-1">Poznámka</h4>
-                              <p className="text-sm text-muted-foreground">{record.note}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Popis</p>
+                            <p className="font-medium">{record.description}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Další termín</p>
+                            <p className="font-medium">
+                              {record.nextDate ? format(new Date(record.nextDate), 'dd. MM. yyyy', { locale: cs }) : 'Neuvedeno'}
+                            </p>
+                          </div>
+                        </div>
+                        {record.note && (
+                          <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
+                            {record.note}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               ) : (

@@ -268,6 +268,14 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
                       <button className="px-2 py-1 rounded-md border text-blue-700 border-blue-200 hover:bg-blue-50" onClick={() => handleEdit(user)}>Edit</button>
                       <button className="px-2 py-1 rounded-md border text-yellow-700 border-yellow-200 hover:bg-yellow-50 disabled:opacity-50" onClick={() => handleDeactivate(user)} disabled={user.status === 'DISABLED'}>Deactivate</button>
                       <button className="px-2 py-1 rounded-md border text-red-700 border-red-200 hover:bg-red-50" onClick={() => handleDelete(user)}>Delete</button>
+                      {onManageUser && (
+                        <button
+                          className="px-2 py-1 rounded-md border text-slate-700 border-slate-200 hover:bg-slate-50"
+                          onClick={() => onManageUser(user)}
+                        >
+                          Role
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
