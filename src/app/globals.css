@@ -85,7 +85,7 @@
 @layer components {
   /* Unified Page Layout */
   .unified-page {
-    @apply min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100;
+    @apply min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100;
   }
   
   /* Unified Header */
@@ -123,7 +123,11 @@
   
   /* Unified Main Content */
   .unified-main {
-    @apply container mx-auto px-4 py-8;
+    @apply container mx-auto w-full max-w-6xl px-4 py-8;
+  }
+  
+  .unified-main-content {
+    @apply flex flex-col gap-6;
   }
   
   /* Unified Card Styles */
@@ -145,7 +149,7 @@
   
   /* Unified Navigation */
   .unified-nav {
-    @apply hidden md:flex items-center space-x-4;
+    @apply hidden lg:flex items-center space-x-4;
   }
   
   .unified-nav-item {
@@ -243,7 +247,7 @@
   }
   
   /* Unified Mobile Responsiveness */
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     .unified-header-main {
       @apply flex-col space-y-4;
     }
@@ -252,10 +256,27 @@
       @apply w-full justify-center;
     }
     
-    .unified-nav {
-      @apply flex flex-col space-y-2;
+    .unified-main {
+      @apply px-3 py-6;
+    }
+    
+    .unified-main-content {
+      @apply gap-5;
+    }
+    
+    .unified-card {
+      @apply shadow-lg;
     }
   }
+  
+  @media (max-width: 768px) {
+    .unified-main {
+      @apply py-6;
+    }
+  }
+}
+
+@layer components {
 }
 
 /* Existing Leaflet styles (preserved) */

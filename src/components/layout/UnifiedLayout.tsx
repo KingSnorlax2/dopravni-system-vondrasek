@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Car, LogOut, Menu, X, ChevronDown, Shield, Users, Settings, Truck } from "lucide-react"
+import { Car, LogOut, Menu, ChevronDown, Shield, Users, Settings, Truck } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from 'next/navigation'
 import { useAccessControl } from "@/hooks/useAccessControl"
@@ -16,6 +16,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 
 interface UnifiedLayoutProps {
   children: React.ReactNode
@@ -97,6 +105,17 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
     
   ]
 
+  const mobileNavigationItems = hasRole('ADMIN')
+    ? [
+        ...navigationItems,
+        {
+          name: 'Admin',
+          href: '/dashboard/admin/users',
+          icon: Shield,
+        },
+      ]
+    : navigationItems
+
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" })
   }
@@ -145,15 +164,79 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
               </div>
               
               <div className="unified-header-actions">
-                {/* Mobile menu button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="md:hidden"
-                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                >
-                  {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                </Button>
+                {/* Mobile & Tablet menu button */}
+                {showNavigation && (
+                  <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                    <SheetTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="lg:hidden"
+                      >
+                        <Menu className="h-5 w-5" />
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="w-full px-0 sm:max-w-sm">
+                      <SheetHeader className="px-6 pt-6">
+                        <SheetTitle className="flex items-center gap-3 text-xl">
+                          <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                            <Car className="h-5 w-5" />
+                          </span>
+                          {title}
+                        </SheetTitle>
+                        <SheetDescription>
+                          {description || `Vítejte zpět, ${session?.user?.name || 'uživateli'}`}
+                        </SheetDescription>
+                      </SheetHeader>
+                      <div className="px-6 py-6">
+                        <nav className="space-y-6">
+                          <div className="space-y-1">
+                            {navigationItems.map((item) => (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`flex items-center rounded-xl px-4 py-3 text-base font-medium ${
+                                  isActive(item.href)
+                                    ? 'bg-blue-50 text-blue-900'
+                                    : 'text-gray-700 hover:bg-gray-50'
+                                }`}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                              >
+                                <item.icon className="mr-3 h-5 w-5" />
+                                {item.name}
+                              </Link>
+                            ))}
+                          </div>
+
+                          {hasRole('ADMIN') && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Admin
+                              </p>
+                              <div className="space-y-1 rounded-2xl border border-gray-100 p-2">
+                                {adminItems.map((item) => (
+                                  <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={`flex items-center rounded-xl px-4 py-3 text-base font-medium ${
+                                      isActive(item.href)
+                                        ? 'bg-blue-50 text-blue-900'
+                                        : 'text-gray-700 hover:bg-gray-50'
+                                    }`}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                  >
+                                    <item.icon className="mr-3 h-5 w-5" />
+                                    {item.name}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </nav>
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                )}
 
                 {/* Desktop Navigation */}
                 {showNavigation && (
@@ -220,60 +303,15 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
                 </Button>
               </div>
             </div>
-
-            {/* Mobile Navigation */}
-            {showNavigation && isMobileMenuOpen && (
-              <div className="md:hidden mt-4 border-t pt-4">
-                <nav className="space-y-2">
-                  {navigationItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        isActive(item.href)
-                          ? 'unified-nav-item-active'
-                          : 'unified-nav-item-inactive'
-                      }`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <item.icon className="mr-3 h-4 w-4" />
-                      {item.name}
-                    </Link>
-                  ))}
-
-                  {/* Mobile Admin Section */}
-                  {hasRole('ADMIN') && (
-                    <>
-                      <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Admin
-                      </div>
-                      {adminItems.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={`flex items-center px-6 py-2 rounded-md text-sm font-medium transition-colors ${
-                            isActive(item.href)
-                              ? 'unified-nav-item-active'
-                              : 'unified-nav-item-inactive'
-                          }`}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <item.icon className="mr-3 h-4 w-4" />
-                          {item.name}
-                        </Link>
-                      ))}
-                    </>
-                  )}
-                </nav>
-              </div>
-            )}
           </div>
         </header>
       )}
 
       {/* Main Content */}
-      <main className="unified-main">
-        {children}
+      <main className="unified-main lg:pb-12">
+        <div className="unified-main-content">
+          {children}
+        </div>
       </main>
     </div>
   )

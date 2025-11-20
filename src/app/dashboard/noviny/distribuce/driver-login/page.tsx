@@ -256,19 +256,19 @@ export default function DriverLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-[70vh] w-full flex flex-col justify-center items-center bg-gradient-to-br from-blue-50 to-indigo-100 px-3 py-6 sm:py-10">
+      <div className="w-full max-w-md space-y-6 sm:space-y-8">
         {/* Status indicator */}
-        <div className="mb-6 text-center">
-          <Badge variant="secondary" className="px-4 py-2 text-sm bg-green-100 text-green-800 border-green-200">
-            <Unlock className="h-4 w-4 mr-2" />
+        <div className="text-center">
+          <Badge variant="secondary" className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm bg-green-100 text-green-800 border-green-200 rounded-full">
+            <Unlock className="h-4 w-4" />
             Přihlášení otevřeno
           </Badge>
         </div>
 
         {/* Main login card */}
-        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-          <CardHeader className="text-center pb-6">
+        <Card className="shadow-2xl border border-white/60 bg-white/90 backdrop-blur rounded-2xl">
+          <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6">
             <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
               <Truck className="h-8 w-8 text-blue-600" />
             </div>
@@ -302,9 +302,9 @@ export default function DriverLoginPage() {
             )}
           </CardHeader>
           
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 px-4 sm:px-6 pb-6">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
                 <FormField
                   control={form.control}
                   name="identifier"
@@ -383,7 +383,7 @@ export default function DriverLoginPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+                  className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 focus-visible:ring-blue-500"
                   disabled={loading}
                 >
                   {loading ? (
@@ -412,7 +412,7 @@ export default function DriverLoginPage() {
                 <Button
                   type="button"
                   variant="link"
-                  className="text-blue-600 hover:text-blue-700 text-sm"
+                  className="text-blue-600 hover:text-blue-700 text-sm w-full sm:w-auto justify-center"
                   onClick={() => router.push("/dashboard/noviny/distribuce/driver-reset-password")}
                   disabled={loading}
                 >
@@ -424,7 +424,7 @@ export default function DriverLoginPage() {
         </Card>
 
         {/* Footer info */}
-        <div className="mt-6 text-center text-xs text-gray-500">
+        <div className="text-center text-xs text-gray-500">
           <p>Systém distribuce novin • Vozový park</p>
           <p className="mt-1">Bezpečné přihlášení pro řidiče</p>
         </div>
@@ -432,7 +432,7 @@ export default function DriverLoginPage() {
 
     {/* Admin re-auth modal */}
     <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
-      <DialogContent>
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Potvrďte svou identitu</DialogTitle>
         </DialogHeader>
@@ -446,6 +446,7 @@ export default function DriverLoginPage() {
             onChange={(e) => setAdminPassword(e.target.value)}
             placeholder="Zadejte heslo"
             disabled={loading}
+            className="h-11"
           />
           {reauthError && <div className="text-sm text-red-600">{reauthError}</div>}
           <div className="flex justify-end gap-2 pt-2">
@@ -467,7 +468,7 @@ export default function DriverLoginPage() {
     {/* Force password box on overlay when fullscreen exited */}
     {!isFullscreen && session?.user?.role === 'ADMIN' && pendingAction === 'exitFullscreen' && (
       <Dialog open={true}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Potvrďte svou identitu</DialogTitle>
           </DialogHeader>
@@ -480,6 +481,7 @@ export default function DriverLoginPage() {
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               placeholder="Zadejte heslo"
+              className="h-11"
             />
             {reauthError && <div className="text-sm text-red-600">{reauthError}</div>}
             <div className="flex justify-end gap-2 pt-2">
