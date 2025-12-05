@@ -7,7 +7,6 @@ import {
   Camera, 
   X, 
   CalendarCheck, 
-  Wrench,
   Clock, 
   Plus, 
   FileText,
@@ -30,10 +29,11 @@ import { format } from "date-fns"
 import cs from 'date-fns/locale/cs'
 import { useRouter } from "next/navigation"
 import { ServiceForm } from '@/components/forms/ServiceForm'
-import { MaintenanceForm } from '@/components/forms/MaintenanceForm'
 import { toast } from "@/components/ui/use-toast"
 import { PhotoPositionModal } from "@/components/photo-positioning/PhotoPositionModal"
 import { PhotoGallery } from "@/components/dashboard/PhotoGallery"
+import { RepairsTable } from "@/components/repairs/RepairsTable"
+import { RepairDialog } from "@/components/repairs/RepairDialog"
 
 interface AutoDetailProps {
   auto: {
@@ -54,6 +54,22 @@ interface AutoDetailProps {
       scale?: number
     }>
   }
+  repairs?: Array<{
+    id: number
+    autoId: number
+    kategorie: string
+    popis: string
+    datum: Date | string
+    najezd: number
+    poznamka: string | null
+    cena: number | null
+    auto?: {
+      id: number
+      spz: string
+      znacka: string
+      model: string
+    }
+  }>
 }
 
 // Intentionally empty for initial state - will be fetched from API endpoints
@@ -69,31 +85,17 @@ interface ServiceRecord {
   note?: string
 }
 
-// Intentionally empty for initial state - will be fetched from API endpoints
-interface MaintenanceRecord {
-  id: string
-  type: string
-  description: string
-  completionDate: Date
-  nextDate?: Date
-  mileage: number
-  cost: number
-  completed: boolean
-  documents?: string
-  note?: string
-}
 
-export function AutoDetail({ auto }: AutoDetailProps) {
+export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
   const router = useRouter()
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isRepairDialogOpen, setIsRepairDialogOpen] = useState(false)
   const [qrUrl, setQrUrl] = useState<string>("")
   const [isUploading, setIsUploading] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([])
-  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false)
-  const [isAddMaintenanceModalOpen, setIsAddMaintenanceModalOpen] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [currentEditPhotoId, setCurrentEditPhotoId] = useState<string | null>(null)
   const [photoSize, setPhotoSize] = useState<'small' | 'medium' | 'large'>('medium')
@@ -127,32 +129,8 @@ export function AutoDetail({ auto }: AutoDetailProps) {
       }
     }
 
-    // fetch maintenance records
-    const fetchMaintenanceRecords = async () => {
-      try {
-        const response = await fetch(`/api/auta/${auto.id}/udrzba`)
-        
-        if (!response.ok) throw new Error('Failed to fetch maintenance records')
-        
-        const data = await response.json()
-        setMaintenanceRecords(data.map((record: any) => ({
-          ...record,
-          completionDate: new Date(record.datumUdrzby || record.datumProvedeni),
-          nextDate: record.datumPristi ? new Date(record.datumPristi) : undefined,
-          mileage: record.najezdKm,
-          cost: record.cena || record.nakladyCelkem,
-          completed: record.stav === 'COMPLETED' || record.provedeno,
-          description: record.popis
-        })))
-      } catch (error) {
-        console.error('Error fetching maintenance records:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     fetchServiceRecords()
-    fetchMaintenanceRecords()
+    setIsLoading(false)
   }, [auto.id, auto.najezd])
 
   const handleEdit = async (data: any) => {
@@ -336,10 +314,6 @@ export function AutoDetail({ auto }: AutoDetailProps) {
     setIsAddServiceModalOpen(true)
   }
 
-  // Handle adding new maintenance record
-  const handleAddMaintenance = () => {
-    setIsAddMaintenanceModalOpen(true)
-  }
 
   useEffect(() => {
     setQrUrl(`${window.location.origin}/dashboard/auta/${auto.id}`)
@@ -349,15 +323,6 @@ export function AutoDetail({ auto }: AutoDetailProps) {
   const sortedServiceRecords = [...serviceRecords].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
   )
-
-  const sortedMaintenanceRecords = [...maintenanceRecords].sort((a, b) => 
-    new Date(b.completionDate).getTime() - new Date(a.completionDate).getTime()
-  )
-
-  // Get upcoming maintenance
-  const upcomingMaintenance = maintenanceRecords
-    .filter(record => !record.completed && record.nextDate && new Date(record.nextDate) > new Date())
-    .sort((a, b) => new Date(a.nextDate!).getTime() - new Date(b.nextDate!).getTime())
 
   // Calculate days until next STK
   const daysUntilSTK = auto.datumSTK 
@@ -371,11 +336,17 @@ export function AutoDetail({ auto }: AutoDetailProps) {
     last: sortedServiceRecords[0]?.date
   }
 
-  const maintenanceStats = {
-    planned: maintenanceRecords.filter(record => !record.completed).length,
-    completed: maintenanceRecords.filter(record => record.completed).length,
-    totalCost: maintenanceRecords.reduce((sum, record) => sum + (record.cost || 0), 0),
-    next: upcomingMaintenance[0]?.nextDate
+  // Compute stats and sorted repairs from the new repairs prop
+  const sortedRepairs = [...repairs].sort((a, b) => {
+    const dateA = typeof a.datum === 'string' ? new Date(a.datum) : a.datum
+    const dateB = typeof b.datum === 'string' ? new Date(b.datum) : b.datum
+    return dateB.getTime() - dateA.getTime()
+  })
+
+  const repairStats = {
+    total: repairs.length,
+    totalCost: repairs.reduce((sum, repair) => sum + (repair.cena || 0), 0),
+    last: sortedRepairs[0]?.datum
   }
 
   // Handle submitting a new service record
@@ -408,34 +379,6 @@ export function AutoDetail({ auto }: AutoDetailProps) {
     }
   }
 
-  // Handle submitting a new maintenance record
-  const handleMaintenanceSubmit = async (data: any) => {
-    try {
-      const response = await fetch(`/api/auta/${auto.id}/udrzba`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      
-      if (!response.ok) throw new Error('Failed to create maintenance record')
-      
-      // Refresh the data
-      const newMaintenanceRecords = await fetch(`/api/auta/${auto.id}/udrzba`).then(res => res.json())
-      setMaintenanceRecords(newMaintenanceRecords.map((record: any) => ({
-        ...record,
-        completionDate: new Date(record.datumUdrzby || record.datumProvedeni),
-        nextDate: record.datumPristi ? new Date(record.datumPristi) : undefined,
-        mileage: record.najezdKm,
-        cost: record.cena || record.nakladyCelkem,
-        completed: record.provedeno,
-        description: record.popis
-      })))
-      
-      setIsAddMaintenanceModalOpen(false)
-    } catch (error) {
-      console.error('Error creating maintenance record:', error)
-    }
-  }
 
   const handleSetAsThumbnail = async (photoId: string) => {
     try {
@@ -527,12 +470,11 @@ export function AutoDetail({ auto }: AutoDetailProps) {
         </Link>
         <div className="flex flex-col gap-2 sm:flex-row sm:space-x-2 w-full sm:w-auto">
           <Button 
-            onClick={() => router.push(`/dashboard/auta/servis/${auto.id}`)}
-            variant="outline"
+            onClick={() => setIsRepairDialogOpen(true)}
+            variant="default"
             className="w-full sm:w-auto"
           >
-            <Wrench className="h-4 w-4 mr-2" />
-            Zaznamenat servis
+            Opravy
           </Button>
           <Button 
             onClick={() => setIsEditOpen(true)}
@@ -543,6 +485,17 @@ export function AutoDetail({ auto }: AutoDetailProps) {
           </Button>
         </div>
       </div>
+
+      {isRepairDialogOpen && (
+        <RepairDialog
+          preselectedCarId={Number(auto.id)}
+          open={isRepairDialogOpen}
+          onOpenChange={setIsRepairDialogOpen}
+          onSuccess={() => {
+            router.refresh()
+          }}
+        />
+      )}
 
       <div className="space-y-2">
         <p className="text-sm uppercase tracking-wide text-muted-foreground">Detail vozidla</p>
@@ -568,7 +521,6 @@ export function AutoDetail({ auto }: AutoDetailProps) {
         <TabsList className="w-full flex flex-wrap gap-2">
           <TabsTrigger value="overview" className="text-sm">Přehled</TabsTrigger>
           <TabsTrigger value="service" className="text-sm">Opravy</TabsTrigger>
-          <TabsTrigger value="maintenance" className="text-sm">Údržba</TabsTrigger>
           <TabsTrigger value="photos" className="text-sm">Fotogalerie</TabsTrigger>
         </TabsList>
 
@@ -623,42 +575,6 @@ export function AutoDetail({ auto }: AutoDetailProps) {
             </Card>
           </div>
 
-          {/* Upcoming Maintenance Alerts */}
-          {upcomingMaintenance.length > 0 && (
-            <Card className="mt-6 border-yellow-200 bg-yellow-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-amber-800 flex items-center">
-                  <AlertCircle className="h-5 w-5 mr-2" />
-                  Nadcházející údržba
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {upcomingMaintenance.slice(0, 3).map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-2 border-b border-yellow-100">
-                      <div>
-                        <h4 className="font-medium text-amber-900">{item.type}</h4>
-                        <p className="text-sm text-amber-700">{item.description}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-amber-900 font-medium">
-                          {item.nextDate ? format(new Date(item.nextDate), 'dd. MM. yyyy', { locale: cs }) : ''}
-                        </p>
-                        <p className="text-xs text-amber-700">
-                          {item.nextDate ? `za ${Math.ceil((new Date(item.nextDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} dní` : ''}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full text-amber-800 border-amber-300 hover:bg-amber-100" onClick={() => setActiveTab("maintenance")}>
-                  Zobrazit vše
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
 
           {/* Recent Service History */}
           <Card className="mt-6">
@@ -671,24 +587,27 @@ export function AutoDetail({ auto }: AutoDetailProps) {
               </div>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="py-4 text-center text-muted-foreground">Načítání...</div>
-              ) : sortedServiceRecords.length > 0 ? (
+              {sortedRepairs.length > 0 ? (
                 <div className="space-y-4">
-                  {sortedServiceRecords.slice(0, 3).map((record) => (
-                    <div key={record.id} className="flex justify-between border-b pb-3">
-                      <div>
-                        <h4 className="font-medium">{record.type}</h4>
-                        <p className="text-sm text-muted-foreground">{record.description}</p>
+                  {sortedRepairs.slice(0, 3).map((repair) => {
+                    const repairDate = typeof repair.datum === 'string' ? new Date(repair.datum) : repair.datum
+                    return (
+                      <div key={repair.id} className="flex justify-between border-b pb-3">
+                        <div>
+                          <h4 className="font-medium">{repair.kategorie}</h4>
+                          <p className="text-sm text-muted-foreground">{repair.popis}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">
+                            {repair.cena ? `${repair.cena.toLocaleString('cs-CZ')} Kč` : '-'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(repairDate, 'dd. MM. yyyy', { locale: cs })}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">{record.cost.toLocaleString()} Kč</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(record.date), 'dd. MM. yyyy', { locale: cs })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="py-4 text-center text-muted-foreground">Žádné záznamy o opravách</div>
@@ -704,322 +623,11 @@ export function AutoDetail({ auto }: AutoDetailProps) {
               <h2 className="text-2xl font-semibold">Opravy a servis</h2>
               <p className="text-sm text-muted-foreground">Přehled všech zásahů na vozidle.</p>
             </div>
-            <Button onClick={handleAddService} className="w-full md:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Přidat opravu
-            </Button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3 mt-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Servisní záznamy</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold">{serviceStats.total}</p>
-                <p className="text-sm text-muted-foreground">celkem zaevidováno</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Otevřené případy</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold">{serviceStats.open}</p>
-                <p className="text-sm text-muted-foreground">čeká na dokončení</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Náklady celkem</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold">{serviceStats.totalCost.toLocaleString()} Kč</p>
-                <p className="text-sm text-muted-foreground">
-                  {serviceStats.last ? `Poslední ${format(new Date(serviceStats.last), 'd. MMM', { locale: cs })}` : 'Žádná data'}
-                </p>
-              </CardContent>
-            </Card>
           </div>
 
-          {isLoading ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Načítání historie oprav...
-            </div>
-          ) : sortedServiceRecords.length > 0 ? (
-            <div className="mt-6 space-y-4">
-              {sortedServiceRecords.map((record) => (
-                <Card key={record.id} className="border-muted/60">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <CardTitle className="text-base">{record.type}</CardTitle>
-                        <CardDescription>
-                          {format(new Date(record.date), 'dd. MMMM yyyy', { locale: cs })}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge 
-                          variant={
-                            record.status === 'dokončeno' ? 'success' :
-                            record.status === 'probíhá' ? 'warning' : 'outline'
-                          }
-                        >
-                          {record.status}
-                        </Badge>
-                        <p className="text-lg font-semibold">{record.cost.toLocaleString()} Kč</p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Nájezd</p>
-                        <p className="font-medium">{(record.mileage || auto.najezd).toLocaleString()} km</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Servis</p>
-                        <p className="font-medium">{record.service || "Nespecifikováno"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Typ zásahu</p>
-                        <p className="font-medium">{record.description}</p>
-                      </div>
-                    </div>
-                    {record.note && (
-                      <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
-                        {record.note}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-6 py-8 text-center border rounded-lg">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
-              <h3 className="mt-4 text-lg font-medium">Žádné záznamy o opravách</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                U tohoto vozidla zatím nejsou žádné záznamy o opravách nebo servisu.
-              </p>
-              <Button onClick={handleAddService} className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Přidat první záznam
-              </Button>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Maintenance Tab */}
-        <TabsContent value="maintenance" className="mt-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold">Údržba vozidla</h2>
-              <p className="text-sm text-muted-foreground">Plán i historie v přehledných kartách.</p>
-            </div>
-            <Button onClick={handleAddMaintenance} className="w-full md:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Naplánovat údržbu
-            </Button>
+          <div className="mt-6">
+            <RepairsTable repairs={repairs} showVehicleColumn={false} />
           </div>
-
-          <div className="grid gap-4 md:grid-cols-4 mt-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CalendarCheck className="h-4 w-4" />
-                  Plánováno
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold">{maintenanceStats.planned}</p>
-                <p className="text-sm text-muted-foreground">čeká na provedení</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Dokončeno
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold">{maintenanceStats.completed}</p>
-                <p className="text-sm text-muted-foreground">provedených zásahů</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Náklady celkem</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold">{maintenanceStats.totalCost.toLocaleString()} Kč</p>
-                <p className="text-sm text-muted-foreground">za evidované údržby</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Další termín</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xl font-semibold">
-                  {maintenanceStats.next ? format(new Date(maintenanceStats.next), 'dd. MM. yyyy', { locale: cs }) : 'Neplánováno'}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {maintenanceStats.next 
-                    ? `za ${Math.ceil((new Date(maintenanceStats.next).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} dní`
-                    : 'Žádná nadcházející údržba'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarCheck className="h-5 w-5" />
-                  Plánovaná údržba
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="py-4 text-center text-muted-foreground">Načítání...</div>
-                ) : upcomingMaintenance.length > 0 ? (
-                  <div className="space-y-3">
-                    {upcomingMaintenance.map((item) => (
-                      <div key={item.id} className="rounded-lg border p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{item.type}</p>
-                            <p className="text-sm text-muted-foreground">{item.description}</p>
-                          </div>
-                          <Badge variant="outline">Plán</Badge>
-                        </div>
-                        <div className="mt-3 flex items-center justify-between text-sm">
-                          <span>{item.nextDate ? format(new Date(item.nextDate), 'dd. MM. yyyy', { locale: cs }) : ''}</span>
-                          <span className="text-muted-foreground">
-                            {item.nextDate ? `za ${Math.ceil((new Date(item.nextDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} dní` : ''}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground">
-                    Žádná plánovaná údržba
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Poslední dokončené
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="py-4 text-center text-muted-foreground">Načítání...</div>
-                ) : sortedMaintenanceRecords.filter(r => r.completed).length > 0 ? (
-                  <div className="space-y-3">
-                    {sortedMaintenanceRecords
-                      .filter(r => r.completed)
-                      .slice(0, 4)
-                      .map((item) => (
-                        <div key={item.id} className="rounded-lg border p-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">{item.type}</p>
-                              <p className="text-sm text-muted-foreground">{item.description}</p>
-                            </div>
-                            <Badge variant="success">Hotovo</Badge>
-                          </div>
-                          <div className="mt-3 flex items-center justify-between text-sm">
-                            <span>{format(new Date(item.completionDate), 'dd. MM. yyyy', { locale: cs })}</span>
-                            <span className="font-medium">{item.cost.toLocaleString()} Kč</span>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground">
-                    Žádné záznamy o údržbě
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Kompletní přehled</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="py-4 text-center text-muted-foreground">Načítání...</div>
-              ) : maintenanceRecords.length > 0 ? (
-                <div className="space-y-4">
-                  {sortedMaintenanceRecords.map((record) => (
-                    <Card key={record.id} className="border-muted/60">
-                      <CardHeader className="pb-3">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <CardTitle className="text-base">{record.type}</CardTitle>
-                            <CardDescription>
-                              {format(new Date(record.completionDate), 'dd. MMMM yyyy', { locale: cs })}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Badge variant={record.completed ? 'success' : 'warning'}>
-                              {record.completed ? 'Dokončeno' : 'Plánováno'}
-                            </Badge>
-                            <p className="text-lg font-semibold">{record.cost.toLocaleString()} Kč</p>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-3">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Nájezd</p>
-                            <p className="font-medium">{(record.mileage || auto.najezd).toLocaleString()} km</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Popis</p>
-                            <p className="font-medium">{record.description}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Další termín</p>
-                            <p className="font-medium">
-                              {record.nextDate ? format(new Date(record.nextDate), 'dd. MM. yyyy', { locale: cs }) : 'Neuvedeno'}
-                            </p>
-                          </div>
-                        </div>
-                        {record.note && (
-                          <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
-                            {record.note}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center border rounded-lg">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
-                  <h3 className="mt-4 text-lg font-medium">Žádné záznamy o údržbě</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    U tohoto vozidla zatím nejsou žádné záznamy o údržbě.
-                  </p>
-                  <Button onClick={handleAddMaintenance} className="mt-4">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Naplánovat údržbu
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Photos Tab */}
@@ -1147,15 +755,6 @@ export function AutoDetail({ auto }: AutoDetailProps) {
         />
       )}
       
-      {isAddMaintenanceModalOpen && (
-        <MaintenanceForm
-          open={isAddMaintenanceModalOpen}
-          onOpenChange={setIsAddMaintenanceModalOpen}
-          autoId={auto.id}
-          currentMileage={auto.najezd}
-          onSubmit={handleMaintenanceSubmit}
-        />
-      )}
 
       {/* Add print styles at the end of the file */}
       <style jsx global>{`

@@ -1,5 +1,6 @@
 import { AutoDetail } from "@/components/dashboard/AutoDetail"
 import { fetchAutoById } from "@/lib/data"
+import { getRepairs } from "@/app/actions/repairs"
 import { notFound } from "next/navigation"
 
 interface PageProps {
@@ -15,18 +16,25 @@ export default async function AutoDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  return <AutoDetail auto={{
-    ...auto,
-    id: auto.id.toString(),
-    datumSTK: auto.datumSTK?.toISOString(),
-    thumbnailFotoId: auto.thumbnailFotoId ?? undefined,
-    fotky: auto.fotky.map(foto => ({
-      id: foto.id,
-      url: `data:${foto.mimeType};base64,${foto.data}`,
-      mimeType: foto.mimeType,
-      positionX: foto.positionX ?? undefined,
-      positionY: foto.positionY ?? undefined,
-      scale: foto.scale ?? undefined
-    }))
-  }} />
+  // Fetch repairs for this car
+  const repairsResult = await getRepairs(auto.id)
+  const repairs = repairsResult.success ? repairsResult.data || [] : []
+
+  return <AutoDetail 
+    auto={{
+      ...auto,
+      id: auto.id.toString(),
+      datumSTK: auto.datumSTK?.toISOString(),
+      thumbnailFotoId: auto.thumbnailFotoId ?? undefined,
+      fotky: auto.fotky.map(foto => ({
+        id: foto.id,
+        url: `data:${foto.mimeType};base64,${foto.data}`,
+        mimeType: foto.mimeType,
+        positionX: foto.positionX ?? undefined,
+        positionY: foto.positionY ?? undefined,
+        scale: foto.scale ?? undefined
+      }))
+    }}
+    repairs={repairs}
+  />
 }

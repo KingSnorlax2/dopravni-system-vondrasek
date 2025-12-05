@@ -168,18 +168,17 @@ model ArchivedAuto {
 }
 
 model Oprava {
-  id          Int      @id @default(autoincrement())
-  autoId      Int
-  auto        Auto     @relation("AutoOpravy", fields: [autoId], references: [id], onDelete: Cascade)
-  datumOpravy DateTime
-  popis       String
-  cena        Float
-  typOpravy   String   
-  stav        String   
-  servis      String?
-  poznamka    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int       @id @default(autoincrement())
+  autoId    Int
+  auto      Auto      @relation("AutoOpravy", fields: [autoId], references: [id], onDelete: Cascade)
+  kategorie String
+  popis     String
+  datum     DateTime
+  najezd    Int
+  poznamka  String?
+  cena      Float?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Settings {
