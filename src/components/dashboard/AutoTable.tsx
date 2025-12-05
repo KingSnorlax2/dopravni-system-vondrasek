@@ -4,12 +4,15 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Pencil, ImageIcon, X, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle, Check, Edit3, CircleDot } from "lucide-react"
+import { Pencil, ImageIcon, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle, Check, Edit3, CircleDot, Search, Filter, X, ChevronDown } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
 import { BulkActionToolbar } from "@/components/dashboard/BulkActionToolbar"
 import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { loadSettings, saveSettings } from '@/utils/settings'
@@ -20,6 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1597,142 +1601,275 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           </div>
         )}
         
-        <div className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Vyhledat..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border rounded-lg px-4 py-3 w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-            />
-            <select
-              value={filterStav}
-              onChange={(e) => setFilterStav(e.target.value)}
-              className="border rounded-lg px-4 py-3 w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-            >
-              <option value="vse">Všechny stavy</option>
-              <option value="Aktivní">Aktivní</option>
-              <option value="Neaktivní">Neaktivní</option>
-              <option value="V servisu">V servisu</option>
-            </select>
-          </div>
-
-          {/* STK Warning Indicator */}
-          {expiringSTKCount > 0 && (
-            <div className="flex items-center gap-4 mb-4">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={showSTKWarningFilter ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowSTKWarningFilter(!showSTKWarningFilter)}
-                      className={cn(
-                        "flex items-center gap-2 transition-all duration-200",
-                        showSTKWarningFilter 
-                          ? "bg-orange-500 hover:bg-orange-600 text-white" 
-                          : "border-orange-300 text-orange-700 hover:bg-orange-50"
-                      )}
-                      aria-label={showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s vypršelým STK"}
-                    >
-                      <CircleDot className="h-4 w-4 mr-2" aria-hidden="true" />
-                      <span className="font-medium">
-                        STK vyprší ({expiringSTKCount})
-                      </span>
-                      {showSTKWarningFilter && (
-                        <Badge variant="secondary" className="ml-1 bg-white/20 text-white">
-                          Aktivní
-                        </Badge>
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs">
-                    <div className="space-y-1">
-                      <p className="font-medium">
-                        {showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s vypršelým STK"}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {showSTKWarningFilter 
-                          ? "Klikněte pro zobrazení všech vozidel" 
-                          : `Klikněte pro zobrazení ${expiringSTKCount} vozidel s STK vypršelým do 30 dnů`
-                        }
-                      </p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              
-              {showSTKWarningFilter && (
+        {/* Filters Card */}
+        <Card className="m-4">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filtry a vyhledávání
+              </CardTitle>
+              {(searchTerm || filterStav !== 'vse' || dateFrom || dateTo || mileageFrom || mileageTo || selectedModels.length > 0 || showSTKWarningFilter) && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowSTKWarningFilter(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                  aria-label="Zrušit filtr STK"
+                  onClick={() => {
+                    setSearchTerm('')
+                    setFilterStav('vse')
+                    setDateFrom('')
+                    setDateTo('')
+                    setMileageFrom('')
+                    setMileageTo('')
+                    setSelectedModels([])
+                    setShowSTKWarningFilter(false)
+                  }}
+                  className="h-8 text-xs"
                 >
-                  <X className="h-4 w-4 mr-1" />
-                  Zrušit filtr
+                  <X className="h-3 w-3 mr-1" />
+                  Vymazat filtry
                 </Button>
               )}
             </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600 text-lg whitespace-nowrap">Datum:</span>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="border rounded-lg px-4 py-3 w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-              />
-              <span className="text-gray-600">-</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="border rounded-lg px-4 py-3 w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-              />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Search Bar */}
+            <div className="space-y-2">
+              <Label htmlFor="search" className="text-sm font-medium">
+                Vyhledávání
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Hledat podle značky, modelu..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-10"
+                />
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600 text-lg whitespace-nowrap">Nájezd (km):</span>
-              <input
-                type="number"
-                placeholder="Od"
-                value={mileageFrom}
-                onChange={(e) => setMileageFrom(e.target.value)}
-                className="border rounded-lg px-4 py-3 w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-              />
-              <span className="text-gray-600">-</span>
-              <input
-                type="number"
-                placeholder="Do"
-                value={mileageTo}
-                onChange={(e) => setMileageTo(e.target.value)}
-                className="border rounded-lg px-4 py-3 w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-              />
-              <span className="text-gray-600 ml-1">km</span>
-            </div>
-          </div>
+            {/* Filters Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="filter-stav" className="text-sm font-medium">
+                  Stav
+                </Label>
+                <Select value={filterStav} onValueChange={setFilterStav}>
+                  <SelectTrigger id="filter-stav" className="h-10">
+                    <SelectValue placeholder="Všechny stavy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vse">Všechny stavy</SelectItem>
+                    <SelectItem value="Aktivní">Aktivní</SelectItem>
+                    <SelectItem value="Neaktivní">Neaktivní</SelectItem>
+                    <SelectItem value="V servisu">V servisu</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-sm text-gray-600 mr-2">Model:</span>
-              {modelOptions.map(m => (
-                <Badge
-                  key={m}
-                  variant={selectedModels.includes(m) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setSelectedModels(selectedModels.includes(m) ? selectedModels.filter(val => val !== m) : [...selectedModels, m])}
-                >
-                  {m}
-                </Badge>
-              ))}
+              {/* Date From */}
+              <div className="space-y-2">
+                <Label htmlFor="date-from" className="text-sm font-medium">
+                  STK od
+                </Label>
+                <Input
+                  id="date-from"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Date To */}
+              <div className="space-y-2">
+                <Label htmlFor="date-to" className="text-sm font-medium">
+                  STK do
+                </Label>
+                <Input
+                  id="date-to"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Mileage From */}
+              <div className="space-y-2">
+                <Label htmlFor="mileage-from" className="text-sm font-medium">
+                  Nájezd od (km)
+                </Label>
+                <Input
+                  id="mileage-from"
+                  type="number"
+                  placeholder="Od"
+                  value={mileageFrom}
+                  onChange={(e) => setMileageFrom(e.target.value)}
+                  className="h-10"
+                />
+              </div>
             </div>
-          </div>
-        </div>
+
+            {/* Second Row of Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Mileage To */}
+              <div className="space-y-2">
+                <Label htmlFor="mileage-to" className="text-sm font-medium">
+                  Nájezd do (km)
+                </Label>
+                <Input
+                  id="mileage-to"
+                  type="number"
+                  placeholder="Do"
+                  value={mileageTo}
+                  onChange={(e) => setMileageTo(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Model Filter - Compact Multi-Select */}
+              <div className="space-y-2">
+                <Label htmlFor="model-filter" className="text-sm font-medium">
+                  Model
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full h-10 justify-between text-left font-normal"
+                      id="model-filter"
+                    >
+                      <span className="truncate">
+                        {selectedModels.length === 0
+                          ? 'Všechny modely'
+                          : selectedModels.length === 1
+                          ? selectedModels[0]
+                          : `${selectedModels.length} modelů`}
+                      </span>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0" align="start">
+                    <div className="max-h-[300px] overflow-y-auto p-2">
+                      <div className="space-y-1">
+                        <div
+                          className="flex items-center space-x-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent"
+                          onClick={() => setSelectedModels([])}
+                        >
+                          <Checkbox
+                            checked={selectedModels.length === 0}
+                            onCheckedChange={() => setSelectedModels([])}
+                          />
+                          <span>Všechny modely</span>
+                        </div>
+                        {modelOptions.map((model) => {
+                          const isSelected = selectedModels.includes(model)
+                          return (
+                            <div
+                              key={model}
+                              className="flex items-center space-x-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedModels(selectedModels.filter((m) => m !== model))
+                                } else {
+                                  setSelectedModels([...selectedModels, model])
+                                }
+                              }}
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedModels([...selectedModels, model])
+                                  } else {
+                                    setSelectedModels(selectedModels.filter((m) => m !== model))
+                                  }
+                                }}
+                              />
+                              <span>{model}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {selectedModels.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedModels.slice(0, 2).map((m) => (
+                      <Badge key={m} variant="secondary" className="text-xs h-5 px-1.5">
+                        {m}
+                      </Badge>
+                    ))}
+                    {selectedModels.length > 2 && (
+                      <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                        +{selectedModels.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* STK Warning Filter */}
+            {expiringSTKCount > 0 && (
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={showSTKWarningFilter ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setShowSTKWarningFilter(!showSTKWarningFilter)}
+                          className={cn(
+                            "flex items-center gap-2",
+                            showSTKWarningFilter 
+                              ? "bg-orange-500 hover:bg-orange-600 text-white" 
+                              : "border-orange-300 text-orange-700 hover:bg-orange-50"
+                          )}
+                        >
+                          <CircleDot className="h-4 w-4" />
+                          STK vyprší ({expiringSTKCount})
+                          {showSTKWarningFilter && (
+                            <Badge variant="secondary" className="ml-1 bg-white/20 text-white">
+                              Aktivní
+                            </Badge>
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <div className="space-y-1">
+                          <p className="font-medium">
+                            {showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s vypršelým STK"}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {showSTKWarningFilter 
+                              ? "Klikněte pro zobrazení všech vozidel" 
+                              : `Klikněte pro zobrazení ${expiringSTKCount} vozidel s STK vypršelým do 30 dnů`
+                            }
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
+            )}
+
+            {/* Results count */}
+            <div className="pt-2 border-t">
+              <div className="text-sm text-muted-foreground">
+                Zobrazeno <span className="font-semibold text-foreground">{paginatedAuta.length}</span> z{' '}
+                <span className="font-semibold text-foreground">{filteredAuta.length}</span> vozidel
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Selection Indicator - only show when items are selected */}
         {selectedRows.size > 0 && (
@@ -1767,18 +1904,14 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             <TableHeader className="bg-gray-50">
               <TableRow>
                 <TableHead className="w-[50px] text-center">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    ref={(input) => {
-                      if (input) {
-                        input.indeterminate = isIndeterminate;
-                      }
-                    }}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-gray-300 w-5 h-5 cursor-pointer focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                    aria-label={isAllSelected ? "Odznačit vše" : "Označit vše"}
-                  />
+                  <div className="flex justify-center">
+                    <Checkbox
+                      checked={isAllSelected}
+                      indeterminate={isIndeterminate}
+                      onCheckedChange={(checked) => handleSelectAll(checked === true)}
+                      aria-label={isAllSelected ? "Odznačit vše" : "Označit vše"}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead className="w-[80px] text-left">Foto</TableHead>
                 <TableHead className="w-[20px] text-left"></TableHead>
@@ -1822,13 +1955,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     className={`transition-colors ${getRowBackgroundClass()}`}
                   >
                     <TableCell className="text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.has(auto.id.toString())}
-                        onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
-                        className="rounded border-gray-300 w-5 h-5 cursor-pointer focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                        aria-label={`Označit vozidlo ${auto.spz}`}
-                      />
+                      <div className="flex justify-center">
+                        <Checkbox
+                          checked={selectedRows.has(auto.id.toString())}
+                          onCheckedChange={(checked) => handleSelectRow(auto.id.toString(), checked === true)}
+                          aria-label={`Označit vozidlo ${auto.spz}`}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="text-left">
                       {(() => {
@@ -2157,13 +2290,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.has(auto.id.toString())}
-                      onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
-                      className="rounded border-gray-300 w-5 h-5 mt-1"
-                      aria-label={`Označit vozidlo ${auto.spz}`}
-                    />
+                    <div className="mt-1">
+                      <Checkbox
+                        checked={selectedRows.has(auto.id.toString())}
+                        onCheckedChange={(checked) => handleSelectRow(auto.id.toString(), checked === true)}
+                        aria-label={`Označit vozidlo ${auto.spz}`}
+                      />
+                    </div>
                     <div>
                       <p className="text-sm uppercase tracking-wide text-gray-500">{auto.spz}</p>
                       <p className="text-lg font-semibold text-gray-900">
@@ -2271,17 +2404,29 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               <span className="text-sm text-gray-700">
                 Zobrazeno {paginatedAuta.length} z {filteredAuta.length} vozidel
               </span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className="border rounded px-2 py-1"
-              >
-                <option value={5}>5 / stránka</option>
-                <option value={10}>10 / stránka</option>
-                <option value={25}>25 / stránka</option>
-                <option value={50}>50 / stránka</option>
-                <option value={100}>100 / stránka</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="items-per-page" className="text-sm text-gray-700 whitespace-nowrap">
+                  Záznamů na stránku:
+                </Label>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value))
+                    setCurrentPage(1)
+                  }}
+                >
+                  <SelectTrigger id="items-per-page" className="h-9 w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center space-x-2">
               {Array.from({ length: Math.ceil(filteredAuta.length / itemsPerPage) }, (_, i) => (
