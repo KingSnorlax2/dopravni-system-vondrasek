@@ -115,14 +115,14 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
         const data = await response.json()
         setServiceRecords(data.map((record: any) => ({
           ...record,
-          date: new Date(record.datumOpravy),
-          cost: record.cena,
+          date: new Date(record.datum),
+          cost: record.cena || 0,
           description: record.popis,
-          type: record.typOpravy,
-          status: record.stav,
-          mileage: record.najezdKm || auto.najezd,
+          type: record.kategorie,
+          status: 'dokončeno', // Default status since we removed this field
+          mileage: record.najezd || auto.najezd,
           note: record.poznamka,
-          service: record.servis
+          service: undefined // Removed field
         })))
       } catch (error) {
         console.error('Error fetching service records:', error)
@@ -364,12 +364,12 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
       const newServiceRecords = await fetch(`/api/auta/${auto.id}/opravy`).then(res => res.json())
       setServiceRecords(newServiceRecords.map((record: any) => ({
         ...record,
-        date: new Date(record.datumOpravy),
-        cost: record.cena,
+        date: new Date(record.datum),
+        cost: record.cena || 0,
         description: record.popis,
-        type: record.typOpravy,
-        status: record.stav,
-        mileage: record.najezdKm,
+        type: record.kategorie,
+        status: 'dokončeno', // Default status since we removed this field
+        mileage: record.najezd,
         note: record.poznamka
       })))
       

@@ -3,14 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const opravaSchema = z.object({
-  datumOpravy: z.string(),
+  datum: z.union([z.string(), z.date()]).transform((val) => {
+    if (val instanceof Date) return val
+    return new Date(val)
+  }),
   popis: z.string().min(1, "Popis je povinný").max(500, "Popis je příliš dlouhý"),
-  cena: z.number().min(0, "Cena nemůže být záporná"),
-  typOpravy: z.enum(["běžná", "servisní", "porucha"]),
-  stav: z.enum(["plánovaná", "probíhá", "dokončená"]),
-  servis: z.string().optional(),
-  poznamka: z.string().optional(),
-  najezdKm: z.number().optional(),
+  kategorie: z.string().min(1, "Kategorie je povinná"),
+  najezd: z.number().int().min(0, "Nájezd nemůže být záporný"),
+  poznamka: z.string().optional().nullable(),
+  cena: z.number().min(0, "Cena nemůže být záporná").optional().nullable(),
 });
 
 // GET /api/auta/[id]/opravy - Fetch all repair records for a car
@@ -30,7 +31,7 @@ export async function GET(
 
     const opravy = await prisma.oprava.findMany({
       where: { autoId },
-      orderBy: { datumOpravy: 'desc' },
+      orderBy: { datum: 'desc' },
     });
 
     return NextResponse.json(opravy);
@@ -59,23 +60,23 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { 
-      datumOpravy, 
-      popis, 
-      cena, 
-      typOpravy, 
-      stav, 
-      servis,
-      poznamka
-    } = body;
-
-    // Validate required fields
-    if (!datumOpravy || !popis || !typOpravy || !stav || cena === undefined) {
+    
+    // Validate input
+    const validationResult = opravaSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { 
+          error: 'Neplatná data',
+          details: validationResult.error.errors.map(e => ({
+            path: e.path.join('.'),
+            message: e.message
+          }))
+        },
         { status: 400 }
       );
     }
+
+    const validatedData = validationResult.data;
 
     // Check if the car exists
     const car = await prisma.auto.findUnique({
@@ -93,21 +94,20 @@ export async function POST(
     const oprava = await prisma.oprava.create({
       data: {
         autoId,
-        datumOpravy: new Date(datumOpravy),
-        popis,
-        cena: parseFloat(cena.toString()),
-        typOpravy,
-        stav,
-        servis,
-        poznamka
+        kategorie: validatedData.kategorie,
+        popis: validatedData.popis,
+        datum: validatedData.datum,
+        najezd: validatedData.najezd,
+        poznamka: validatedData.poznamka || null,
+        cena: validatedData.cena || null,
       }
     });
 
-    // Also update the car's mileage if a new value was provided
-    if (body.najezdKm && body.najezdKm > car.najezd) {
+    // Side effect: Update car mileage if new mileage is greater
+    if (validatedData.najezd > car.najezd) {
       await prisma.auto.update({
         where: { id: autoId },
-        data: { najezd: body.najezdKm }
+        data: { najezd: validatedData.najezd },
       });
     }
 
