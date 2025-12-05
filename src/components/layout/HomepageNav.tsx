@@ -16,7 +16,8 @@ import {
   X,
   Home,
   User,
-  Shield
+  Shield,
+  Wrench
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAccessControl } from "@/hooks/useAccessControl"
@@ -53,9 +54,9 @@ const HomepageNav = () => {
       show: true
     },
     {
-      name: 'GPS Sledování',
-      href: '/dashboard/auta/mapa',
-      icon: MapPin,
+      name: 'Opravy',
+      href: '/dashboard/opravy',
+      icon: Wrench,
       show: true
     },
     {

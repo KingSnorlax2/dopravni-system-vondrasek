@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Car, LogOut, Menu, ChevronDown, Shield, Users, Settings, Truck } from "lucide-react"
+import { Car, LogOut, Menu, ChevronDown, Shield, Users, Settings, Truck, Wrench } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from 'next/navigation'
 import { useAccessControl } from "@/hooks/useAccessControl"
@@ -66,9 +66,9 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       show: true
     },
     {
-      name: 'GPS Sledování',
-      href: '/dashboard/auta/mapa',
-      icon: Car,
+      name: 'Opravy',
+      href: '/dashboard/opravy',
+      icon: Wrench,
       show: true
     },
     {

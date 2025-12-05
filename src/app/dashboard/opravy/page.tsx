@@ -1,5 +1,6 @@
 import { getRepairs } from '@/app/actions/repairs'
 import { RepairsTable } from '@/components/repairs/RepairsTable'
+import { RepairDialog } from '@/components/repairs/RepairDialog'
 
 export default async function RepairsPage() {
   const result = await getRepairs()
@@ -25,6 +26,7 @@ export default async function RepairsPage() {
             Přehled všech oprav vozidel
           </p>
         </div>
+        <RepairDialog />
       </div>
 
       <div className="rounded-lg border bg-card">
