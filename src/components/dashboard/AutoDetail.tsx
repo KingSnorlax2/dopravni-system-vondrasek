@@ -137,11 +137,11 @@ export function AutoDetail({ auto }: AutoDetailProps) {
         const data = await response.json()
         setMaintenanceRecords(data.map((record: any) => ({
           ...record,
-          completionDate: new Date(record.datumProvedeni),
+          completionDate: new Date(record.datumUdrzby || record.datumProvedeni),
           nextDate: record.datumPristi ? new Date(record.datumPristi) : undefined,
           mileage: record.najezdKm,
-          cost: record.nakladyCelkem,
-          completed: record.provedeno,
+          cost: record.cena || record.nakladyCelkem,
+          completed: record.stav === 'COMPLETED' || record.provedeno,
           description: record.popis
         })))
       } catch (error) {
@@ -423,10 +423,10 @@ export function AutoDetail({ auto }: AutoDetailProps) {
       const newMaintenanceRecords = await fetch(`/api/auta/${auto.id}/udrzba`).then(res => res.json())
       setMaintenanceRecords(newMaintenanceRecords.map((record: any) => ({
         ...record,
-        completionDate: new Date(record.datumProvedeni),
+        completionDate: new Date(record.datumUdrzby || record.datumProvedeni),
         nextDate: record.datumPristi ? new Date(record.datumPristi) : undefined,
         mileage: record.najezdKm,
-        cost: record.nakladyCelkem,
+        cost: record.cena || record.nakladyCelkem,
         completed: record.provedeno,
         description: record.popis
       })))
@@ -516,8 +516,8 @@ export function AutoDetail({ auto }: AutoDetailProps) {
   }
 
   return (
-    <div className="container max-w-6xl py-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container max-w-6xl py-6 sm:py-8 space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Link 
           href="/dashboard/auta" 
           className="flex items-center text-sm text-muted-foreground hover:text-foreground"
@@ -525,10 +525,11 @@ export function AutoDetail({ auto }: AutoDetailProps) {
           <ArrowLeft className="h-4 w-4 mr-1" />
           Zpět na seznam aut
         </Link>
-        <div className="flex space-x-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:space-x-2 w-full sm:w-auto">
           <Button 
             onClick={() => router.push(`/dashboard/auta/servis/${auto.id}`)}
             variant="outline"
+            className="w-full sm:w-auto"
           >
             <Wrench className="h-4 w-4 mr-2" />
             Zaznamenat servis
@@ -536,15 +537,19 @@ export function AutoDetail({ auto }: AutoDetailProps) {
           <Button 
             onClick={() => setIsEditOpen(true)}
             variant="default"
+            className="w-full sm:w-auto"
           >
             Upravit auto
           </Button>
         </div>
       </div>
 
-      <h1 className="text-3xl font-bold mb-4">
-        {auto.znacka} {auto.model} - {auto.spz}
-      </h1>
+      <div className="space-y-2">
+        <p className="text-sm uppercase tracking-wide text-muted-foreground">Detail vozidla</p>
+        <h1 className="text-3xl font-bold">
+          {auto.znacka} {auto.model} • {auto.spz}
+        </h1>
+      </div>
       
       {/* Status Badges */}
       <div className="flex space-x-2 mb-6">
@@ -560,16 +565,16 @@ export function AutoDetail({ auto }: AutoDetailProps) {
       </div>
 
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full grid grid-cols-4">
-          <TabsTrigger value="overview">Přehled</TabsTrigger>
-          <TabsTrigger value="service">Opravy a servis</TabsTrigger>
-          <TabsTrigger value="maintenance">Údržba</TabsTrigger>
-          <TabsTrigger value="photos">Fotogalerie</TabsTrigger>
+        <TabsList className="w-full flex flex-wrap gap-2">
+          <TabsTrigger value="overview" className="text-sm">Přehled</TabsTrigger>
+          <TabsTrigger value="service" className="text-sm">Opravy</TabsTrigger>
+          <TabsTrigger value="maintenance" className="text-sm">Údržba</TabsTrigger>
+          <TabsTrigger value="photos" className="text-sm">Fotogalerie</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="mt-6">
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Základní údaje</CardTitle>
@@ -699,12 +704,11 @@ export function AutoDetail({ auto }: AutoDetailProps) {
               <h2 className="text-2xl font-semibold">Opravy a servis</h2>
               <p className="text-sm text-muted-foreground">Přehled všech zásahů na vozidle.</p>
             </div>
-            <Button onClick={handleAddService}>
+            <Button onClick={handleAddService} className="w-full md:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Přidat opravu
             </Button>
           </div>
-
           <div className="grid gap-4 md:grid-cols-3 mt-6">
             <Card>
               <CardHeader className="pb-2">
@@ -812,7 +816,7 @@ export function AutoDetail({ auto }: AutoDetailProps) {
               <h2 className="text-2xl font-semibold">Údržba vozidla</h2>
               <p className="text-sm text-muted-foreground">Plán i historie v přehledných kartách.</p>
             </div>
-            <Button onClick={handleAddMaintenance}>
+            <Button onClick={handleAddMaintenance} className="w-full md:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Naplánovat údržbu
             </Button>
@@ -1021,11 +1025,11 @@ export function AutoDetail({ auto }: AutoDetailProps) {
         {/* Photos Tab */}
         <TabsContent value="photos" className="mt-4">
           <div className="flex flex-col space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-xl font-semibold">Fotogalerie</h3>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Photo size controls */}
-                <div className="flex items-center border rounded-md overflow-hidden mr-2">
+                <div className="flex items-center border rounded-md overflow-hidden">
                   <Button 
                     variant={photoSize === 'small' ? "default" : "ghost"}
                     size="sm"

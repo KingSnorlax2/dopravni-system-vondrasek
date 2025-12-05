@@ -1761,9 +1761,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           </div>
         )}
 
-        <div className="overflow-auto max-h-[calc(100vh-16rem)]">
-          <Table className="w-full table-fixed divide-y divide-gray-200
-          ">
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-auto max-h-[calc(100vh-16rem)]">
+          <Table className="w-full min-w-[960px] table-fixed divide-y divide-gray-200">
             <TableHeader className="bg-gray-50">
               <TableRow>
                 <TableHead className="w-[50px] text-center">
@@ -2126,6 +2126,143 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               })}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Mobile card layout */}
+        <div className="sm:hidden space-y-4 px-4 pb-4">
+          {paginatedAuta.map((auto) => {
+            const stkStatus = getSTKStatus(auto.datumSTK);
+            const getRowBackgroundClass = () => {
+              switch (stkStatus) {
+                case 'expired':
+                  return 'bg-red-50';
+                case 'upcoming':
+                  return 'bg-yellow-50';
+                default:
+                  return 'bg-white';
+              }
+            };
+
+            const thumbnailUrl = (() => {
+              const timestamp = new Date().getTime();
+              if (auto.thumbnailUrl) return `${auto.thumbnailUrl}?t=${timestamp}`;
+              if (auto.thumbnailFotoId) return `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`;
+              return null;
+            })();
+
+            return (
+              <div
+                key={auto.id}
+                className={`rounded-2xl border border-gray-200 shadow-sm ${getRowBackgroundClass()} p-4 space-y-4`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(auto.id.toString())}
+                      onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
+                      className="rounded border-gray-300 w-5 h-5 mt-1"
+                      aria-label={`Označit vozidlo ${auto.spz}`}
+                    />
+                    <div>
+                      <p className="text-sm uppercase tracking-wide text-gray-500">{auto.spz}</p>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {auto.znacka} {auto.model}
+                      </p>
+                      <Badge className={`mt-2 ${getStatusColor(auto.stav)}`}>{auto.stav}</Badge>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onClick={() => handleEdit(auto)}>Upravit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleCarDetail(auto.id)}>Detail</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setDeleteModalData({ auto, isOpen: true })}
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      >
+                        Vyřadit
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex gap-3">
+                  {thumbnailUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setFullscreenPhoto(thumbnailUrl)}
+                      className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100"
+                      aria-label="Zvětšit fotografii"
+                    >
+                      <img src={thumbnailUrl} alt={`${auto.znacka} ${auto.model}`} className="h-full w-full object-cover" />
+                    </button>
+                  ) : (
+                    <div className="h-24 w-24 flex items-center justify-center rounded-xl bg-gray-100 flex-shrink-0">
+                      <ImageIcon className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3 text-sm w-full">
+                    <div>
+                      <p className="text-xs uppercase text-gray-500">Rok výroby</p>
+                      <p className="font-medium text-gray-900">{auto.rokVyroby}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase text-gray-500">Nájezd</p>
+                      {editingCell?.id === auto.id && editingCell?.field === 'najezd' ? (
+                        <InlineMileageEditor
+                          auto={auto}
+                          onSave={(value) => handleInlineSave(auto.id, 'najezd', value)}
+                          onCancel={handleInlineCancel}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="font-semibold text-gray-900 underline-offset-2 hover:underline"
+                          onClick={() => setEditingCell({ id: auto.id, field: 'najezd' })}
+                        >
+                          {formatNumber(auto.najezd)}
+                        </button>
+                      )}
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs uppercase text-gray-500">Datum STK</p>
+                      {editingCell?.id === auto.id && editingCell?.field === 'datumSTK' ? (
+                        <InlineSTKEditor
+                          auto={auto}
+                          onSave={(value) => handleInlineSave(auto.id, 'datumSTK', value)}
+                          onCancel={handleInlineCancel}
+                        />
+                      ) : auto.datumSTK ? (
+                        <button
+                          type="button"
+                          className="flex items-center gap-2 font-semibold text-gray-900 underline-offset-2 hover:underline"
+                          onClick={() => setEditingCell({ id: auto.id, field: 'datumSTK' })}
+                        >
+                          {new Date(auto.datumSTK).toLocaleDateString('cs-CZ')}
+                          {stkStatus === 'expired' && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                          {stkStatus === 'upcoming' && <AlertCircle className="h-4 w-4 text-yellow-500" />}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingCell({ id: auto.id, field: 'datumSTK' })}
+                          className="text-sm text-amber-700 underline underline-offset-2"
+                        >
+                          Není zadáno
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="px-4 py-4 bg-gray-50 border-t border-gray-200">

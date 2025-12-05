@@ -21,7 +21,7 @@ export async function GET(
         autoId
       },
       orderBy: {
-        datumProvedeni: 'desc'
+        datumUdrzby: 'desc'
       }
     })
 
@@ -51,22 +51,29 @@ export async function POST(
     }
 
     const body = await request.json()
+    // Support both old field names (datumProvedeni) and new field names (datumUdrzby)
     const { 
       typ, 
+      typUdrzby,
       popis, 
       datumProvedeni, 
-      datumPristi, 
-      najezdKm, 
-      nakladyCelkem, 
-      provedeno, 
-      dokumenty, 
+      datumUdrzby,
+      cena,
+      nakladyCelkem,
+      stav,
+      servis,
       poznamka 
     } = body
 
+    // Map old field names to new schema field names
+    const finalTypUdrzby = typUdrzby || typ
+    const finalDatumUdrzby = datumUdrzby || datumProvedeni
+    const finalCena = cena !== undefined ? parseFloat(cena.toString()) : (nakladyCelkem !== undefined ? parseFloat(nakladyCelkem.toString()) : undefined)
+
     // Validate required fields
-    if (!typ || !popis || !datumProvedeni || nakladyCelkem === undefined) {
+    if (!finalTypUdrzby || !popis || !finalDatumUdrzby || finalCena === undefined) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: typUdrzby, popis, datumUdrzby, and cena are required' },
         { status: 400 }
       )
     }
@@ -87,15 +94,13 @@ export async function POST(
     const udrzba = await prisma.udrzba.create({
       data: {
         autoId,
-        typ,
+        typUdrzby: finalTypUdrzby,
         popis,
-        datumProvedeni: new Date(datumProvedeni),
-        datumPristi: datumPristi ? new Date(datumPristi) : null,
-        najezdKm: najezdKm || car.najezd, // Use car's current mileage if not provided
-        nakladyCelkem: parseFloat(nakladyCelkem.toString()),
-        provedeno: provedeno ?? false,
-        dokumenty,
-        poznamka
+        datumUdrzby: new Date(finalDatumUdrzby),
+        cena: finalCena,
+        stav: stav || 'PLANNED',
+        servis: servis || null,
+        poznamka: poznamka || null
       }
     })
 

@@ -244,29 +244,34 @@ export default function AutoPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Page Header */}
-      <div className="unified-section-header">
-        <h1 className="unified-section-title">Správa vozidel</h1>
-        <p className="unified-section-description">
+      <div className="unified-section-header space-y-2 text-center sm:text-left">
+        <h1 className="unified-section-title text-3xl">Správa vozidel</h1>
+        <p className="unified-section-description text-base text-muted-foreground">
           Spravujte svůj vozový park, přidávejte nová vozidla a sledujte technické kontroly.
         </p>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setShowForm(true)} className="unified-button-primary">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto unified-button-primary">
             <Plus className="mr-2 h-4 w-4" />
             Přidat auto
           </Button>
-          <Button onClick={addRandomVehicles} variant="outline" size="sm" className="unified-button-outline">
+          <Button 
+            onClick={addRandomVehicles} 
+            variant="outline" 
+            size="sm" 
+            className="w-full sm:w-auto unified-button-outline"
+          >
             Přidat náhodná vozidla
           </Button>
         </div>
 
         {/* STK Alert Button */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -274,16 +279,19 @@ export default function AutoPage() {
                   type="button"
                   aria-label="Expiring STK"
                   tabIndex={0}
-                  className="rounded-full p-2 border border-yellow-300 bg-yellow-50 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition text-yellow-700"
+                  className="flex items-center rounded-full px-4 py-2 border border-yellow-300 bg-yellow-50 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition text-yellow-700"
                   onClick={() => setShowExpiringSTKDialog(true)}
                 >
-                  <AlertTriangle className="h-5 w-5" />
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Blížící se STK
                   {expiringSTKVehicles.length > 0 && (
-                    <span className="ml-1 text-xs font-semibold">{expiringSTKVehicles.length}</span>
+                    <span className="ml-2 text-xs font-semibold rounded-full bg-yellow-200 px-2 py-0.5">
+                      {expiringSTKVehicles.length}
+                    </span>
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">Expiring STK</TooltipContent>
+              <TooltipContent side="top">Seznam vozidel se STK &lt; 30 dní</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -291,8 +299,8 @@ export default function AutoPage() {
 
       {/* STK Dialog */}
       <Dialog open={showExpiringSTKDialog} onOpenChange={setShowExpiringSTKDialog}>
-        <DialogContent className="max-w-4xl w-full max-h-[70vh] flex flex-col p-0">
-          <DialogHeader className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
+        <DialogContent className="max-w-4xl w-full h-[85vh] sm:h-[70vh] flex flex-col p-0">
+          <DialogHeader className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 z-10">
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
               Vozidla s blížícím se STK
@@ -302,7 +310,7 @@ export default function AutoPage() {
             </DialogDescription>
           </DialogHeader>
           {/* Search input */}
-          <div className="px-6 pt-4 pb-2 bg-white sticky top-[72px] z-10">
+          <div className="px-4 sm:px-6 pt-4 pb-2 bg-white sticky top-[72px] z-10">
             <label htmlFor="expiring-stk-search" className="unified-form-label">
               Hledat podle SPZ nebo značky
             </label>
@@ -321,7 +329,7 @@ export default function AutoPage() {
               <div className="text-center text-gray-500 py-8">Žádná vozidla s blížícím se STK</div>
             ) : (
               <div className="space-y-3">
-                <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-white sticky top-0 z-20 border-b shadow-sm font-semibold text-sm text-gray-700">
+                <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-white sticky top-0 z-20 border-b shadow-sm font-semibold text-sm text-gray-700">
                   <div className="col-span-2">SPZ</div>
                   <div className="col-span-4">Vozidlo</div>
                   <div className="col-span-3">Aktuální STK</div>
@@ -332,25 +340,32 @@ export default function AutoPage() {
                   name="vehicles"
                   control={stkForm.control}
                   render={({ field }) => (
-                    <div className="space-y-2 px-6 pb-4">
+                    <div className="space-y-3 px-4 sm:px-6 pb-4">
                       {field.value
                         .filter((vehicle: any) =>
                           filteredVehicles.some(v => v.id === vehicle.id)
                         )
                         .map((vehicle: any, index: number) => (
-                          <div key={vehicle.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="col-span-2">
-                              <span className="font-mono text-sm text-gray-800">{vehicle.spz}</span>
+                          <div 
+                            key={vehicle.id} 
+                            className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center md:gap-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm"
+                          >
+                            <div className="flex flex-col gap-1 md:col-span-2">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground md:hidden">SPZ</p>
+                              <span className="font-mono text-base text-gray-900">{vehicle.spz}</span>
                             </div>
-                            <div className="col-span-4">
-                              <span className="text-gray-700 text-sm">{vehicle.znacka} {vehicle.model}</span>
+                            <div className="flex flex-col gap-1 md:col-span-4">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground md:hidden">Vozidlo</p>
+                              <span className="text-gray-800 text-sm">{vehicle.znacka} {vehicle.model}</span>
                             </div>
-                            <div className="col-span-3">
+                            <div className="flex flex-col gap-1 md:col-span-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground md:hidden">Aktuální STK</p>
                               <span className="text-sm text-gray-600">
                                 {vehicle.currentSTK ? format(new Date(vehicle.currentSTK), "d.M.yyyy", { locale: cs }) : 'Není zadáno'}
                               </span>
                             </div>
-                            <div className="col-span-3">
+                            <div className="md:col-span-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1 md:hidden">Nové STK</p>
                               <Controller
                                 name={`vehicles.${index}.newSTK`}
                                 control={stkForm.control}

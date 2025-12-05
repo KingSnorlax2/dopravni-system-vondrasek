@@ -120,7 +120,7 @@ export function UserModal({ open, onClose, onSave, user }: {
                 name="name"
                 value={form.name}
                 onChange={handleChange}
-                className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="border rounded-lg px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 placeholder="Např. Jan Novák"
               />
             </div>
@@ -131,7 +131,7 @@ export function UserModal({ open, onClose, onSave, user }: {
                 type="email"
                 value={form.email}
                 onChange={handleChange}
-                className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="border rounded-lg px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 placeholder="jan.novak@example.com"
               />
             </div>
@@ -147,7 +147,7 @@ export function UserModal({ open, onClose, onSave, user }: {
                 type="password"
                 value={form.password}
                 onChange={handleChange}
-                className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="border rounded-lg px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 placeholder={user ? '••••••••' : 'Min. 8 znaků'}
                 autoComplete="new-password"
               />
@@ -158,7 +158,7 @@ export function UserModal({ open, onClose, onSave, user }: {
                 name="status"
                 value={form.status}
                 onChange={handleChange}
-                className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="border rounded-lg px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="ACTIVE">Aktivní</option>
                 <option value="DISABLED">Deaktivovaný</option>

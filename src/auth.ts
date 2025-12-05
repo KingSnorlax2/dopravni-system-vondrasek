@@ -13,36 +13,37 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            return null;
+          }
 
-        // Try to find user by email or username
-        const user = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { email: credentials.email },
-              { username: credentials.email }, // 'email' field is used for both
-            ],
-          },
-          include: { 
-            roles: { include: { role: true } },
-            preferences: true // Include user preferences for default landing page
-          },
-        });
+          // Try to find user by email or username
+          const user = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { email: credentials.email },
+                { username: credentials.email }, // 'email' field is used for both
+              ],
+            },
+            include: { 
+              roles: { include: { role: true } },
+              preferences: true // Include user preferences for default landing page
+            },
+          });
 
-        if (!user || !user.password) {
-          return null;
-        }
+          if (!user || !user.password) {
+            return null;
+          }
 
-        const isPasswordValid = await bcryptjs.compare(
-          credentials.password,
-          user.password
-        );
+          const isPasswordValid = await bcryptjs.compare(
+            credentials.password,
+            user.password
+          );
 
-        if (!isPasswordValid) {
-          return null;
-        }
+          if (!isPasswordValid) {
+            return null;
+          }
 
         // Get the highest role (ADMIN > others)
         let userRole = 'USER';
@@ -92,16 +93,20 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
-        // Return user object for session
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: userRole,
-          permissions: userPermissions,
-          allowedPages,
-          defaultLandingPage,
-        };
+          // Return user object for session
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: userRole,
+            permissions: userPermissions,
+            allowedPages,
+            defaultLandingPage,
+          };
+        } catch (error) {
+          console.error('Auth error:', error);
+          return null;
+        }
       },
     }),
   ],

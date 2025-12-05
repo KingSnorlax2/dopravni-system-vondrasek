@@ -189,12 +189,12 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
           placeholder="Search by name or email..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="border rounded-md px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border rounded-md px-3 py-2 w-64 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <select
           value={roleFilter}
           onChange={e => setRoleFilter(e.target.value)}
-          className="border rounded-md px-3 py-2"
+          className="border rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">All Roles</option>
           {allRoles.map(role => (
@@ -204,7 +204,7 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="border rounded-md px-3 py-2"
+          className="border rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {STATUS_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
