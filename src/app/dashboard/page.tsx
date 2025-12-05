@@ -60,26 +60,26 @@ export default function DashboardPage() {
   )?.length || 0
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Přehled vozového parku</h1>
+    <div className="container mx-auto p-4 sm:p-6 md:p-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Přehled vozového parku</h1>
       
       {data.isLoading ? (
         <div className="flex justify-center p-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Fleet Status Overview */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Car className="mr-2 h-5 w-5 text-primary" />
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-base sm:text-lg flex items-center">
+                <Car className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Stav vozového parku
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data.totalVehicles}</div>
-              <div className="text-sm text-muted-foreground mb-4">Celkový počet vozidel</div>
+              <div className="text-xl sm:text-2xl font-bold">{data.totalVehicles}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">Celkový počet vozidel</div>
               
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -105,9 +105,9 @@ export default function DashboardPage() {
 
           {/* STK Overview */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Calendar className="mr-2 h-5 w-5 text-primary" />
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-base sm:text-lg flex items-center">
+                <Calendar className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Technické kontroly
               </CardTitle>
             </CardHeader>
@@ -153,16 +153,16 @@ export default function DashboardPage() {
 
           {/* Mileage & Age Overview */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <TrendingUp className="mr-2 h-5 w-5 text-primary" />
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-base sm:text-lg flex items-center">
+                <TrendingUp className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Stáří a nájezd
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
-                <div className="text-sm text-muted-foreground">Průměrný nájezd</div>
-                <div className="text-2xl font-bold">{(data.averageMileage || 0).toLocaleString()} km</div>
+              <div className="mb-3 sm:mb-4">
+                <div className="text-xs sm:text-sm text-muted-foreground">Průměrný nájezd</div>
+                <div className="text-xl sm:text-2xl font-bold">{(data.averageMileage || 0).toLocaleString()} km</div>
               </div>
               
               <div className="space-y-2">
@@ -199,16 +199,16 @@ export default function DashboardPage() {
 
           {/* Maintenance Overview */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Wrench className="mr-2 h-5 w-5 text-primary" />
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-base sm:text-lg flex items-center">
+                <Wrench className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Údržba a servis
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
-                <div className="text-sm text-muted-foreground">Celkové náklady</div>
-                <div className="text-2xl font-bold">{(data.totalMaintenanceCost || 0).toLocaleString()} Kč</div>
+              <div className="mb-3 sm:mb-4">
+                <div className="text-xs sm:text-sm text-muted-foreground">Celkové náklady</div>
+                <div className="text-xl sm:text-2xl font-bold">{(data.totalMaintenanceCost || 0).toLocaleString()} Kč</div>
               </div>
               
               <div className="text-sm text-muted-foreground mb-2">Poslední záznamy</div>

@@ -365,42 +365,45 @@ export default function TransactionTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row">
         <div className="flex-1">
-          <Label htmlFor="search">Vyhledat</Label>
+          <Label htmlFor="search" className="text-xs sm:text-sm">Vyhledat</Label>
           <Input
             id="search"
-            placeholder="Hledat podle popisu, kategorie..."
+            placeholder="Hledat..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-10 text-sm"
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div>
-            <Label htmlFor="date-from">Od</Label>
+            <Label htmlFor="date-from" className="text-xs sm:text-sm">Od</Label>
             <Input
               id="date-from"
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
+              className="h-10 text-sm"
             />
           </div>
           <div>
-            <Label htmlFor="date-to">Do</Label>
+            <Label htmlFor="date-to" className="text-xs sm:text-sm">Do</Label>
             <Input
               id="date-to"
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
+              className="h-10 text-sm"
             />
           </div>
           <div>
-            <Label htmlFor="filter-type">Typ</Label>
+            <Label htmlFor="filter-type" className="text-xs sm:text-sm">Typ</Label>
             <Select 
               value={filterType} 
               onValueChange={setFilterType}
             >
-              <SelectTrigger>
+              <SelectTrigger id="filter-type" className="h-10 text-sm">
                 <SelectValue placeholder="Všechny" />
               </SelectTrigger>
               <SelectContent>
@@ -411,12 +414,12 @@ export default function TransactionTable({
             </Select>
           </div>
           <div>
-            <Label htmlFor="filter-category">Kategorie</Label>
+            <Label htmlFor="filter-category" className="text-xs sm:text-sm">Kategorie</Label>
             <Select 
               value={filterCategory} 
               onValueChange={setFilterCategory}
             >
-              <SelectTrigger>
+              <SelectTrigger id="filter-category" className="h-10 text-sm">
                 <SelectValue placeholder="Všechny" />
               </SelectTrigger>
               <SelectContent>
@@ -432,9 +435,11 @@ export default function TransactionTable({
         </div>
       </div>
 
-      <Card>
-        <div className="rounded-md border">
-          <Table>
+      {/* Desktop Table */}
+      <Card className="hidden sm:block">
+        <div className="w-full overflow-x-auto">
+          <div className="rounded-md border">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead 
@@ -559,8 +564,95 @@ export default function TransactionTable({
               )}
             </TableBody>
           </Table>
+          </div>
         </div>
       </Card>
+
+      {/* Mobile Card Layout */}
+      <div className="sm:hidden space-y-3">
+        {isLoading ? (
+          <Card className="p-8">
+            <div className="flex flex-col items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <p className="mt-2 text-sm text-gray-500">Načítání transakcí...</p>
+            </div>
+          </Card>
+        ) : paginatedTransactions.length === 0 ? (
+          <Card className="p-8">
+            <div className="text-center text-gray-500">Žádné transakce nebyly nalezeny</div>
+          </Card>
+        ) : (
+          paginatedTransactions.map((transaction) => (
+            <Card key={transaction.id} className="p-4">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {new Date(transaction.datum).toLocaleDateString('cs-CZ')}
+                    </div>
+                    <div className="font-semibold text-base mb-2">
+                      {transaction.popis}
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setDetailTransaction(transaction)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => setEditTransaction(transaction)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Upravit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setDeleteTransaction(transaction)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Smazat
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                  <Badge variant="outline" className="text-xs">
+                    {transaction.kategorie?.nazev || 'Bez kategorie'}
+                  </Badge>
+                  <Badge variant={transaction.typ === 'příjem' ? 'success' : 'destructive'} className="text-xs">
+                    {transaction.typ === 'příjem' ? 'Příjem' : 'Výdaj'}
+                  </Badge>
+                  <div className={`text-sm font-semibold ml-auto ${transaction.typ === 'příjem' ? 'text-green-600' : 'text-red-600'}`}>
+                    {transaction.typ === 'příjem' 
+                      ? `+${transaction.castka.toLocaleString()} Kč`
+                      : `-${Math.abs(transaction.castka).toLocaleString()} Kč`
+                    }
+                  </div>
+                </div>
+                
+                {transaction.poznamka && (
+                  <div className="text-xs text-muted-foreground pt-2 border-t">
+                    {transaction.poznamka}
+                  </div>
+                )}
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
 
       {/* Pagination */}
       {filteredTransactions.length > 0 && (

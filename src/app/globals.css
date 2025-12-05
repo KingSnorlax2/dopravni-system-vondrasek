@@ -94,7 +94,7 @@
   }
   
   .unified-header-content {
-    @apply container mx-auto px-4 py-4;
+    @apply container mx-auto px-3 sm:px-4 py-3 sm:py-4;
   }
   
   .unified-header-main {
@@ -123,11 +123,11 @@
   
   /* Unified Main Content */
   .unified-main {
-    @apply container mx-auto w-full max-w-6xl px-4 py-8;
+    @apply container mx-auto w-full max-w-6xl px-3 sm:px-4 py-4 sm:py-6 md:py-8;
   }
   
   .unified-main-content {
-    @apply flex flex-col gap-6;
+    @apply flex flex-col gap-4 sm:gap-6;
   }
   
   /* Unified Card Styles */

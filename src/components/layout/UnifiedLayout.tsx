@@ -143,20 +143,20 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
     <div className="unified-page">
       {/* Header */}
       {showHeader && (
-        <header className="unified-header">
-          <div className="unified-header-content">
+        <header className="unified-header sticky top-0 z-40">
+          <div className="unified-header-content px-3 sm:px-4">
             <div className="unified-header-main">
               <div className="unified-header-brand">
                 <div className="unified-header-logo">
-                  <Car className="w-6 h-6 text-white" />
+                  <Car className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="unified-header-title">{title}</h1>
+                  <h1 className="unified-header-title text-lg sm:text-2xl">{title}</h1>
                   {description && (
-                    <p className="unified-header-subtitle">{description}</p>
+                    <p className="unified-header-subtitle text-xs sm:text-sm">{description}</p>
                   )}
                   {!description && (
-                    <p className="unified-header-subtitle">
+                    <p className="unified-header-subtitle text-xs sm:text-sm">
                       Vítejte zpět, {session?.user?.name || 'Uživateli'}
                     </p>
                   )}
@@ -172,37 +172,38 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
                         variant="outline"
                         size="sm"
                         className="lg:hidden"
+                        aria-label="Otevřít menu"
                       >
                         <Menu className="h-5 w-5" />
                       </Button>
                     </SheetTrigger>
                     <SheetContent side="left" className="w-full px-0 sm:max-w-sm">
-                      <SheetHeader className="px-6 pt-6">
-                        <SheetTitle className="flex items-center gap-3 text-xl">
+                      <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6">
+                        <SheetTitle className="flex items-center gap-3 text-lg sm:text-xl">
                           <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                             <Car className="h-5 w-5" />
                           </span>
                           {title}
                         </SheetTitle>
-                        <SheetDescription>
+                        <SheetDescription className="text-sm">
                           {description || `Vítejte zpět, ${session?.user?.name || 'uživateli'}`}
                         </SheetDescription>
                       </SheetHeader>
-                      <div className="px-6 py-6">
-                        <nav className="space-y-6">
+                      <div className="px-4 sm:px-6 py-4 sm:py-6">
+                        <nav className="space-y-4 sm:space-y-6">
                           <div className="space-y-1">
                             {navigationItems.map((item) => (
                               <Link
                                 key={item.href}
                                 href={item.href}
-                                className={`flex items-center rounded-xl px-4 py-3 text-base font-medium ${
+                                className={`flex items-center rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base font-medium ${
                                   isActive(item.href)
                                     ? 'bg-blue-50 text-blue-900'
                                     : 'text-gray-700 hover:bg-gray-50'
                                 }`}
                                 onClick={() => setIsMobileMenuOpen(false)}
                               >
-                                <item.icon className="mr-3 h-5 w-5" />
+                                <item.icon className="mr-3 h-4 w-4 sm:h-5 sm:w-5" />
                                 {item.name}
                               </Link>
                             ))}
@@ -210,7 +211,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
 
                           {hasRole('ADMIN') && (
                             <div className="space-y-2">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 px-3 sm:px-4">
                                 Admin
                               </p>
                               <div className="space-y-1 rounded-2xl border border-gray-100 p-2">
@@ -218,14 +219,14 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
                                   <Link
                                     key={item.href}
                                     href={item.href}
-                                    className={`flex items-center rounded-xl px-4 py-3 text-base font-medium ${
+                                    className={`flex items-center rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base font-medium ${
                                       isActive(item.href)
                                         ? 'bg-blue-50 text-blue-900'
                                         : 'text-gray-700 hover:bg-gray-50'
                                     }`}
                                     onClick={() => setIsMobileMenuOpen(false)}
                                   >
-                                    <item.icon className="mr-3 h-5 w-5" />
+                                    <item.icon className="mr-3 h-4 w-4 sm:h-5 sm:w-5" />
                                     {item.name}
                                   </Link>
                                 ))}
@@ -293,13 +294,14 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
                   </nav>
                 )}
 
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                <Badge variant="secondary" className="bg-green-100 text-green-800 hidden sm:inline-flex">
                   Online
                 </Badge>
                 
-                <Button variant="outline" size="sm" onClick={handleSignOut}>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Odhlásit
+                <Button variant="outline" size="sm" onClick={handleSignOut} className="text-xs sm:text-sm">
+                  <LogOut className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Odhlásit</span>
+                  <span className="sm:hidden">Odhl.</span>
                 </Button>
               </div>
             </div>

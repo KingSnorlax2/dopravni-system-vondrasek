@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Search, Filter, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 
 type Repair = {
@@ -223,13 +224,13 @@ export function RepairsTable({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Filters Card */}
       <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Filter className="h-5 w-5" />
+        <CardHeader className="pb-3 sm:pb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+            <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2">
+              <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
               Filtry a vyhledávání
             </CardTitle>
             {hasActiveFilters && (
@@ -248,30 +249,30 @@ export function RepairsTable({
         <CardContent className="space-y-4">
           {/* Search Bar */}
           <div className="space-y-2">
-            <Label htmlFor="search" className="text-sm font-medium">
+            <Label htmlFor="search" className="text-xs sm:text-sm font-medium">
               Vyhledávání
             </Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="search"
-                placeholder="Hledat podle popisu, kategorie, vozidla..."
+                placeholder="Hledat..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-10"
+                className="pl-9 h-10 text-sm"
               />
             </div>
           </div>
 
           {/* Filters Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Category Filter */}
             <div className="space-y-2">
-              <Label htmlFor="kategorie-filter" className="text-sm font-medium">
+              <Label htmlFor="kategorie-filter" className="text-xs sm:text-sm font-medium">
                 Kategorie
               </Label>
               <Select value={filterKategorie} onValueChange={setFilterKategorie}>
-                <SelectTrigger id="kategorie-filter" className="h-10">
+                <SelectTrigger id="kategorie-filter" className="h-10 text-sm">
                   <SelectValue placeholder="Všechny kategorie" />
                 </SelectTrigger>
                 <SelectContent>
@@ -287,7 +288,7 @@ export function RepairsTable({
 
             {/* Date From */}
             <div className="space-y-2">
-              <Label htmlFor="date-from" className="text-sm font-medium">
+              <Label htmlFor="date-from" className="text-xs sm:text-sm font-medium">
                 Datum od
               </Label>
               <Input
@@ -295,13 +296,13 @@ export function RepairsTable({
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="h-10"
+                className="h-10 text-sm"
               />
             </div>
 
             {/* Date To */}
             <div className="space-y-2">
-              <Label htmlFor="date-to" className="text-sm font-medium">
+              <Label htmlFor="date-to" className="text-xs sm:text-sm font-medium">
                 Datum do
               </Label>
               <Input
@@ -309,7 +310,7 @@ export function RepairsTable({
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="h-10"
+                className="h-10 text-sm"
               />
             </div>
           </div>
@@ -324,61 +325,118 @@ export function RepairsTable({
         </CardContent>
       </Card>
 
-      {/* Table Card */}
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+      {/* Desktop Table */}
+      <Card className="overflow-hidden hidden sm:block">
+        <div className="w-full overflow-x-auto">
           <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    )
+                  })}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  Žádné opravy
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    Žádné opravy
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       </Card>
 
+      {/* Mobile Card Layout */}
+      <div className="sm:hidden space-y-3">
+        {table.getRowModel().rows?.length ? (
+          table.getRowModel().rows.map((row) => {
+            const repair = row.original
+            const date = typeof repair.datum === 'string' ? new Date(repair.datum) : repair.datum
+            return (
+              <Card key={row.id} className="p-4">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {format(date, 'dd.MM.yyyy', { locale: cs })}
+                      </div>
+                      <div className="font-semibold text-base mb-2">
+                        {repair.popis}
+                      </div>
+                      {showVehicleColumn && repair.auto && (
+                        <div className="text-sm text-muted-foreground mb-2">
+                          {repair.auto.spz} - {repair.auto.znacka} {repair.auto.model}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                    <Badge variant="outline" className="text-xs">
+                      {repair.kategorie}
+                    </Badge>
+                    <div className="text-xs text-muted-foreground">
+                      {repair.najezd.toLocaleString('cs-CZ')} km
+                    </div>
+                    {repair.cena !== null && repair.cena !== undefined && (
+                      <div className="text-xs font-medium text-green-600 ml-auto">
+                        {repair.cena.toLocaleString('cs-CZ')} Kč
+                      </div>
+                    )}
+                  </div>
+                  
+                  {repair.poznamka && (
+                    <div className="text-xs text-muted-foreground pt-2 border-t">
+                      {repair.poznamka}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )
+          })
+        ) : (
+          <Card className="p-8">
+            <div className="text-center text-muted-foreground">
+              Žádné opravy
+            </div>
+          </Card>
+        )}
+      </div>
+
       {/* Pagination Card */}
       <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <CardContent className="py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
             {/* Left Side: Page Info and Page Size */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               {/* Page Info */}
@@ -448,10 +506,11 @@ export function RepairsTable({
                 size="sm"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                className="h-9 px-3"
+                className="h-9 px-2 sm:px-3 text-xs sm:text-sm"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
-                Předchozí
+                <span className="hidden sm:inline">Předchozí</span>
+                <span className="sm:hidden">Před.</span>
               </Button>
 
               {/* Page Number Buttons */}
@@ -495,9 +554,10 @@ export function RepairsTable({
                 size="sm"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                className="h-9 px-3"
+                className="h-9 px-2 sm:px-3 text-xs sm:text-sm"
               >
-                Další
+                <span className="hidden sm:inline">Další</span>
+                <span className="sm:hidden">Další</span>
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
 

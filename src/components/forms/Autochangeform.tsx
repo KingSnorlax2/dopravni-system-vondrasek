@@ -128,8 +128,8 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
         </SheetHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2">
-            <div className="col-span-2 grid grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+            <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="spz"

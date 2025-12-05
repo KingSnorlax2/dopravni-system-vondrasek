@@ -1899,8 +1899,10 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         )}
 
         {/* Desktop table */}
-        <div className="hidden sm:block overflow-auto max-h-[calc(100vh-16rem)]">
-          <Table className="w-full min-w-[960px] table-fixed divide-y divide-gray-200">
+        <div className="w-full overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+            <div className="hidden sm:block overflow-auto max-h-[calc(100vh-16rem)]">
+              <Table className="w-full min-w-[960px] table-fixed divide-y divide-gray-200">
             <TableHeader className="bg-gray-50">
               <TableRow>
                 <TableHead className="w-[50px] text-center">
@@ -2259,6 +2261,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               })}
             </TableBody>
           </Table>
+            </div>
+          </div>
         </div>
 
         {/* Mobile card layout */}
