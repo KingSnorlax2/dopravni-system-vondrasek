@@ -276,6 +276,7 @@ model User {
   roles           UserRole[]
   assignedVehicles Auto[] @relation("DriverVehicles") // Vehicles assigned to this driver
   preferences     UserPreferences? // User preferences and settings
+  auditLogs       AuditLog[] @relation("ActorAudit") // Audit logs where this user is the actor
   
   // Audit
   createdBy       String?   // User ID who created this user
@@ -422,4 +423,20 @@ model RoleAuditLog {
   timestamp   DateTime @default(now())
   ipAddress   String?  // IP address of the user
   userAgent   String?  // User agent string
+}
+
+// Comprehensive audit log for all admin actions
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // e.g., "USER_UPDATE", "ROLE_CREATE", "USER_STATUS_CHANGE"
+  entity    String   // e.g., "User", "Role"
+  entityId  String   // ID of the affected record
+  details   Json?    // Store old/new values or description
+  actorId   String   // ID of the admin who performed the action
+  actor     User     @relation("ActorAudit", fields: [actorId], references: [id])
+  createdAt DateTime @default(now())
+  
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt])
 }

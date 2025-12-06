@@ -60,6 +60,24 @@ const Sidebar = () => {
     localStorage.setItem('sidebarFavorites', JSON.stringify(updatedFavorites))
   }
 
+  // Helper function to check if a link is allowed based on allowedPages
+  const isLinkAllowed = (href: string, allowedPages: string[]): boolean => {
+    if (!allowedPages || allowedPages.length === 0) return false;
+    
+    // Check exact match
+    if (allowedPages.includes(href)) return true;
+    
+    // Check if href is a prefix of any allowed page (for sub-pages)
+    // e.g., /dashboard/admin matches /dashboard/admin/users
+    if (allowedPages.some(page => page.startsWith(href + "/"))) return true;
+    
+    // Check if any allowed page is a prefix of href (for parent pages)
+    // e.g., /dashboard/admin matches /dashboard/admin/users
+    if (allowedPages.some(page => href.startsWith(page + "/") || href === page)) return true;
+    
+    return false;
+  }
+
   const adminItems: AdminItem[] = [
     {
       title: 'Uživatelé',
@@ -185,30 +203,37 @@ const Sidebar = () => {
     }
   ]
 
-  // Only show admin items to ADMINs
-  const visibleAdminItems = hasRole('ADMIN') ? adminItems : [];
-  // Only show driver section to DRIVERs
+  // Get allowedPages from session
+  const allowedPages: string[] = (session?.user as any)?.allowedPages || [];
+  
+  // Filter admin items based on allowedPages
+  const visibleAdminItems = adminItems.filter(item => 
+    isLinkAllowed(item.href, allowedPages)
+  );
+  
+  // Filter sidebar sections based on allowedPages
   const visibleSidebarSections = sidebarSections.filter(section => {
-    if (section.href.startsWith('/dashboard/admin')) {
-      return hasRole('ADMIN');
+    // Check if the main section href is allowed
+    if (!isLinkAllowed(section.href, allowedPages)) {
+      return false;
     }
-    if (section.href.startsWith('/dashboard/noviny/distribuce/driver-login')) {
-      return hasRole('DRIVER');
+    
+    // If section has subcategories, check if at least one is allowed
+    if (section.subcategories && section.subcategories.length > 0) {
+      return section.subcategories.some(sub => isLinkAllowed(sub.href, allowedPages));
     }
-    // Add more role-based rules as needed
+    
     return true;
   });
 
-  // Helper to check if user can access a section
-  const canAccessSection = (section: SidebarSection) => {
-    if (section.href.startsWith('/dashboard/admin')) {
-      return hasRole('ADMIN');
-    }
-    if (section.href.startsWith('/dashboard/noviny/distribuce/driver-login')) {
-      return hasRole('DRIVER');
-    }
-    // Add more role-based rules as needed
-    return true;
+  // Helper to check if user can access a section based on allowedPages
+  const canAccessSection = (section: SidebarSection): boolean => {
+    return isLinkAllowed(section.href, allowedPages);
+  };
+  
+  // Helper to check if a subcategory is allowed
+  const canAccessSubcategory = (subcategory: Subcategory): boolean => {
+    return isLinkAllowed(subcategory.href, allowedPages);
   };
 
   return (
@@ -221,15 +246,34 @@ const Sidebar = () => {
 
       <nav className="flex flex-col h-[calc(100vh-80px)] justify-between p-3">
         <div className="space-y-2">
-          {sidebarSections.map((section) => {
+          {visibleSidebarSections.map((section) => {
             const canAccess = canAccessSection(section);
             return (
               <div key={section.name} className="group">
                 {canAccess ? (
-                  <Link href={section.href} className={isActive(section.href) + " flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200"}>
-                    {section.icon}
-                    <span>{section.name}</span>
-                  </Link>
+                  <>
+                    <Link href={section.href} className={isActive(section.href) + " flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200"}>
+                      {section.icon}
+                      <span>{section.name}</span>
+                    </Link>
+                    {/* Render subcategories if they exist and are allowed */}
+                    {section.subcategories && section.subcategories.length > 0 && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {section.subcategories
+                          .filter(sub => canAccessSubcategory(sub))
+                          .map((subcategory) => (
+                            <Link
+                              key={subcategory.href}
+                              href={subcategory.href}
+                              className={isActive(subcategory.href) + " flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm"}
+                            >
+                              {subcategory.icon}
+                              <span>{subcategory.name}</span>
+                            </Link>
+                          ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-400 cursor-not-allowed opacity-60">
                     {section.icon}

@@ -2,23 +2,18 @@
 
 import { useState } from 'react'
 import { UserTable } from './UserTable'
-import { RoleManagement } from '@/components/admin/RoleManagement'
+import { RoleTable } from './RoleTable'
+import { AuditLogTab } from './AuditLogTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Users, Shield } from 'lucide-react'
-
-type RolePanelTab = 'roles' | 'userSettings' | 'userPreferences'
+import { Users, Shield, FileText } from 'lucide-react'
 
 export function UsersAdminClient() {
-  const [activeSection, setActiveSection] = useState<'users' | 'roles'>('users')
+  const [activeSection, setActiveSection] = useState<'users' | 'roles' | 'audit'>('users')
   const [userTableKey, setUserTableKey] = useState(0)
-  const [prefillUserId, setPrefillUserId] = useState<string>()
-  const [rolePanelTab, setRolePanelTab] = useState<RolePanelTab>('roles')
 
   const handleManageUser = (user: any) => {
-    if (!user?.id) return
-    setPrefillUserId(String(user.id))
-    setRolePanelTab('userSettings')
-    setActiveSection('roles')
+    // This can be used for future role assignment from user table
+    console.log('Manage user:', user)
   }
 
   const handleRoleChange = () => {
@@ -28,10 +23,10 @@ export function UsersAdminClient() {
   return (
     <Tabs
       value={activeSection}
-      onValueChange={(value) => setActiveSection(value as 'users' | 'roles')}
+      onValueChange={(value) => setActiveSection(value as 'users' | 'roles' | 'audit')}
       className="space-y-6"
     >
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="users" className="flex items-center gap-2">
           <Users className="h-4 w-4" />
           Uživatelé
@@ -39,6 +34,10 @@ export function UsersAdminClient() {
         <TabsTrigger value="roles" className="flex items-center gap-2">
           <Shield className="h-4 w-4" />
           Role & oprávnění
+        </TabsTrigger>
+        <TabsTrigger value="audit" className="flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          Historie změn
         </TabsTrigger>
       </TabsList>
 
@@ -52,12 +51,24 @@ export function UsersAdminClient() {
         </section>
       </TabsContent>
 
-      <TabsContent value="roles">
-        <RoleManagement
-          onRoleChange={handleRoleChange}
-          prefillUserId={prefillUserId}
-          initialTab={rolePanelTab}
-        />
+      <TabsContent value="roles" className="grid grid-cols-1 gap-6">
+        <section className="unified-card p-4">
+          <header className="mb-3">
+            <h2 className="text-lg font-semibold">Role & oprávnění</h2>
+            <p className="text-sm text-gray-500">Správa rolí a jejich oprávnění</p>
+          </header>
+          <RoleTable />
+        </section>
+      </TabsContent>
+
+      <TabsContent value="audit" className="grid grid-cols-1 gap-6">
+        <section className="unified-card p-4">
+          <header className="mb-3">
+            <h2 className="text-lg font-semibold">Historie změn</h2>
+            <p className="text-sm text-gray-500">Audit log všech administračních akcí</p>
+          </header>
+          <AuditLogTab />
+        </section>
       </TabsContent>
     </Tabs>
   )

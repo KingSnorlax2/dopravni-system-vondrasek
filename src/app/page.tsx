@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,8 +65,12 @@ export default function HomePage() {
           variant: 'destructive'
         })
       } else {
-        // Redirect to home page, middleware will handle redirect to user's preferred landing page
-        router.push('/');
+        // Wait for session to update, then redirect to user's defaultLandingPage
+        setTimeout(async () => {
+          const session = await getSession();
+          const defaultLandingPage = (session?.user as any)?.defaultLandingPage || '/dashboard/auta';
+          window.location.href = defaultLandingPage;
+        }, 100);
       }
     } catch (error) {
       console.error('Login error:', error)
