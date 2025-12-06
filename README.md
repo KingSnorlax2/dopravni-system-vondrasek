@@ -383,11 +383,28 @@ dopravni-system-vondrasek/
 └── package.json        # Projektové závislosti
 ```
 
-Pro detailnější popis jednotlivých částí projektu viz příslušné README soubory:
-- [App Router dokumentace](./src/app/README.md)
-- [Databázová dokumentace](./prisma/README.md)
-- [Komponenty dokumentace](./src/components/README.md)
-- [Utility knihovny dokumentace](./src/lib/README.md)
+Pro detailnější popis jednotlivých částí projektu viz příslušné README soubory. 
+
+**Navigace v dokumentaci:**
+- [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) - Kompletní index všech dokumentů
+- [DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md) - Souhrn a statistiky dokumentace
+
+**Hlavní sekce:**
+- [App Router dokumentace](./src/app/README.md) - Routing, stránky, API routes
+- [API Routes dokumentace](./src/app/api/README.md) - RESTful API endpointy
+- [Server Actions dokumentace](./src/app/actions/README.md) - Server-side funkce pro mutace dat
+- [Databázová dokumentace](./prisma/README.md) - Prisma schema, modely, ERD
+- [Komponenty dokumentace](./src/components/README.md) - React komponenty, UI systém
+- [Utility knihovny dokumentace](./src/lib/README.md) - Pomocné funkce a knihovny
+
+**Další dokumentace:**
+- [Middleware dokumentace](./src/MIDDLEWARE.md) - Autentizace a autorizace na úrovni middleware
+- [Custom Hooks dokumentace](./src/hooks/README.md) - React hooks pro znovupoužitelnou logiku
+- [TypeScript Typy dokumentace](./src/types/README.md) - Type definitions a rozhraní
+- [Aplikace-specifické utility](./src/utils/README.md) - Utility funkce specifické pro aplikaci
+- [React Providers dokumentace](./src/providers/README.md) - Context providers pro sdílený stav
+- [Statické soubory dokumentace](./public/README.md) - Statické soubory a uploads
+- [Skripty dokumentace](./scripts/README.md) - Pomocné skripty a utility
 
 ## Licence
 

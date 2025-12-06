@@ -213,7 +213,9 @@ graph TD
 
 ## Související dokumentace
 
-- [Root README](../README.md) - Obecná dokumentace projektu
+- [Root README](../../README.md) - Obecná dokumentace projektu
+- [API Routes dokumentace](./api/README.md) - RESTful API endpointy
+- [Server Actions dokumentace](./actions/README.md) - Server Actions pro mutace dat
 - [Databázová dokumentace](../../prisma/README.md) - Prisma schema a modely
 - [Komponenty dokumentace](../components/README.md) - React komponenty
 - [Utility knihovny](../lib/README.md) - Pomocné funkce
