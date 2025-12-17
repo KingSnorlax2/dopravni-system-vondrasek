@@ -18,7 +18,7 @@ if (!hasPermission(session.user, "manage_users")) {
 Permissions and roles are defined in src/lib/auth.ts (ROLE_PERMISSIONS).
 */
 // Access control utility for roles and permissions
-import { ROLE_PERMISSIONS } from "@/lib/auth";
+import { ROLE_PERMISSIONS } from "@/lib/auth-constants";
 
 export type UserLike = {
   id: string;

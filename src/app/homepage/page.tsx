@@ -112,7 +112,7 @@ export default function Homepage() {
       title: "GPS sledování",
       description: "Sledování polohy vozidel",
       icon: MapPin,
-      href: "/dashboard/auta/mapa",
+      href: "/dashboard/auta",
       color: "bg-orange-500"
     },
     {

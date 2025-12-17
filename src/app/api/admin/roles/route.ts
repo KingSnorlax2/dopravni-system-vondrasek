@@ -2,14 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { PermissionKey } from '@prisma/client'
 
 // GET /api/admin/roles - Get all roles
-export async function GET() {
+// Query param: ?permissions=1 - Returns only list of all available permissions
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
     if (!session || session.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // If permissions=1 query param, return only list of permissions
+    const { searchParams } = new URL(request.url)
+    if (searchParams.get('permissions') === '1') {
+      // Return all available PermissionKey enum values
+      const allPermissions = Object.values(PermissionKey) as string[]
+      return NextResponse.json(allPermissions)
     }
 
     const roles = await prisma.role.findMany({

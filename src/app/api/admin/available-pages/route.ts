@@ -4,14 +4,8 @@ import { authOptions } from '@/auth'
 
 // Define available pages with metadata
 const AVAILABLE_PAGES = [
-  { path: '/welcome', label: 'Uvítací stránka', description: 'Vítejte v systému' },
   { path: '/homepage', label: 'Homepage', description: 'Hlavní přehled' },
-  { path: '/dashboard', label: 'Dashboard', description: 'Klasický dashboard' },
   { path: '/dashboard/auta', label: 'Vozidla', description: 'Správa vozidel' },
-  { path: '/dashboard/auta/mapa', label: 'Mapa vozidel', description: 'GPS mapa vozidel' },
-  { path: '/dashboard/auta/archiv', label: 'Archiv vozidel', description: 'Archivovaná vozidla' },
-  { path: '/dashboard/auta/stk', label: 'STK', description: 'Kontroly STK' },
-  { path: '/dashboard/auta/servis', label: 'Servis', description: 'Servisní záznamy' },
   { path: '/dashboard/opravy', label: 'Opravy', description: 'Správa oprav' },
   { path: '/dashboard/grafy', label: 'Grafy', description: 'Analytika a grafy' },
   { path: '/dashboard/transakce', label: 'Transakce', description: 'Finanční transakce' },

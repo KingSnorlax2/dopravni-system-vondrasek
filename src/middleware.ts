@@ -2,140 +2,162 @@ import { getToken } from "next-auth/jwt"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-// Map of protected routes to required permissions or roles
-const routePermissions: { pattern: RegExp; permission?: string; role?: string }[] = [
-  // Admin routes
-  { pattern: /^\/dashboard\/admin(\/|$)/, role: "ADMIN" },
-  { pattern: /^\/api\/admin\//, role: "ADMIN" },
-  // Driver routes
-  { pattern: /^\/dashboard\/noviny\/distribuce\/driver-route(\/|$)/, role: "DRIVER" },
-  // Add more as needed
-];
+/**
+ * Role type for Edge Runtime compatibility
+ * Note: Cannot import Prisma types in Edge Runtime
+ */
+type Role = "ADMIN" | "DISPECER" | "RIDIC"
 
-// Helper function to check if a path is allowed
-function isPathAllowed(path: string, allowedPages: string[]): boolean {
-  // Check exact match or prefix match
-  return allowedPages.some(page => {
-    // Exact match
-    if (path === page) return true;
-    // Prefix match for sub-pages (e.g., /dashboard/admin matches /dashboard/admin/users)
-    if (path.startsWith(page + "/")) return true;
-    return false;
-  });
-}
-
-// Public paths that don't require authentication
+/**
+ * Public paths that don't require authentication
+ */
 const PUBLIC_PATHS = [
   "/",
+  "/login",
   "/api/auth",
   "/reset-password",
-  "/dashboard/noviny/distribuce/driver-login",
-  "/dashboard/noviny/distribuce/driver-reset-password",
-];
+]
 
-// Note: /welcome is now automatically redirected to defaultLandingPage
+/**
+ * Route protection configuration
+ * Maps route patterns to required roles
+ */
+const PROTECTED_ROUTES: Array<{
+  pattern: RegExp
+  role?: Role
+  requireAuth?: boolean
+}> = [
+  // Admin routes - require ADMIN role
+  { pattern: /^\/dashboard\/admin(\/|$)/, role: "ADMIN" },
+  { pattern: /^\/api\/admin\//, role: "ADMIN" },
+  
+  // Dispatcher routes - require DISPECER or ADMIN
+  { pattern: /^\/dashboard\/dispecer(\/|$)/, role: "DISPECER" },
+  
+  // Driver routes - require RIDIC or higher
+  { pattern: /^\/dashboard\/ridic(\/|$)/, role: "RIDIC" },
+  
+  // All dashboard routes require authentication
+  { pattern: /^\/dashboard(\/|$)/, requireAuth: true },
+]
+
+/**
+ * Check if a path is public
+ */
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(path + "/")
+  )
+}
+
+/**
+ * Check if user has required role for a route
+ */
+function hasRequiredRole(userRole: string, requiredRole?: Role): boolean {
+  if (!requiredRole) return true
+  
+  // Role hierarchy: ADMIN > DISPECER > RIDIC
+  const roleHierarchy: Record<Role, number> = {
+    ADMIN: 3,
+    DISPECER: 2,
+    RIDIC: 1,
+  }
+  
+  const userRoleLevel = roleHierarchy[userRole as Role] || 0
+  const requiredRoleLevel = roleHierarchy[requiredRole]
+  
+  return userRoleLevel >= requiredRoleLevel
+}
+
+/**
+ * Get required role for a path
+ */
+function getRequiredRole(pathname: string): Role | null {
+  for (const route of PROTECTED_ROUTES) {
+    if (route.pattern.test(pathname)) {
+      return route.role || null
+    }
+  }
+  return null
+}
+
+/**
+ * Check if route requires authentication
+ */
+function requiresAuth(pathname: string): boolean {
+  // Check if it's a public path
+  if (isPublicPath(pathname)) {
+    return false
+  }
+  
+  // Check protected routes
+  for (const route of PROTECTED_ROUTES) {
+    if (route.pattern.test(pathname)) {
+      return route.requireAuth !== false // Default to true if not specified
+    }
+  }
+  
+  // Default: require auth for all routes except public ones
+  return true
+}
 
 export async function middleware(request: NextRequest) {
-  const token = await getToken({ req: request });
-  const pathname = request.nextUrl.pathname;
-  const isPublicPath = PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(path + "/"));
-  
+  const { pathname } = request.nextUrl
+  const token = await getToken({ req: request })
+
+  // Redirect /dashboard to /dashboard/auta (main dashboard page was removed)
+  if (pathname === "/dashboard") {
+    return NextResponse.redirect(new URL("/dashboard/auta", request.url))
+  }
+
   // Allow public paths for unauthenticated users
-  if (isPublicPath && !token) {
-    return NextResponse.next();
-  }
-
-  // Scenario A: Already logged in user tries to access login pages
-  if (token && (pathname === "/" || pathname === "/dashboard/noviny/distribuce/driver-login")) {
-    const defaultLandingPage = (token as any).defaultLandingPage || "/dashboard/auta";
-    
-    // Prevent redirect loop - if we're already being redirected to the same page, allow it
-    if (pathname === defaultLandingPage) {
-      return NextResponse.next();
+  if (isPublicPath(pathname)) {
+    // If user is already logged in and tries to access login page, redirect to vehicles page
+    if (token && pathname === "/login") {
+      return NextResponse.redirect(new URL("/dashboard/auta", request.url))
     }
-    
-    return NextResponse.redirect(new URL(defaultLandingPage, request.url));
+    return NextResponse.next()
   }
 
-  // Protect all other routes - require authentication
-  if (!token) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  // Get user's allowed pages and role from token (which is refreshed on every request via JWT callback)
-  const allowedPages: string[] = Array.isArray((token as any).allowedPages) ? (token as any).allowedPages : [];
-  const userRole = (token as any).role as string || 'USER';
-  const defaultLandingPage = (token as any).defaultLandingPage || '/dashboard/auta';
-  
-  // If allowedPages is empty, add defaultLandingPage as fallback
-  if (allowedPages.length === 0) {
-    // This shouldn't happen if JWT callback works correctly, but safety fallback
-    const roleDefaults: Record<string, string> = {
-      'ADMIN': '/dashboard/admin',
-      'DRIVER': '/dashboard/noviny/distribuce/driver-route',
-      'USER': '/dashboard/auta',
-    };
-    const fallbackLandingPage = roleDefaults[userRole] || '/dashboard/auta';
-    if (!allowedPages.includes(fallbackLandingPage)) {
-      allowedPages.push(fallbackLandingPage);
+  // Check if route requires authentication
+  if (requiresAuth(pathname)) {
+    // User not authenticated - redirect to login
+    if (!token) {
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("callbackUrl", pathname)
+      return NextResponse.redirect(loginUrl)
     }
-    if (!allowedPages.includes('/welcome')) {
-      allowedPages.push('/welcome');
+
+    // Check role requirements
+    const requiredRole = getRequiredRole(pathname)
+    if (requiredRole) {
+      const userRole = (token as any).role as string
+      
+      if (!hasRequiredRole(userRole, requiredRole)) {
+        // User doesn't have required role - redirect to vehicles page with error
+        const vehiclesUrl = new URL("/dashboard/auta", request.url)
+        vehiclesUrl.searchParams.set(
+          "error",
+          "Nemáte oprávnění k přístupu na tuto stránku"
+        )
+        return NextResponse.redirect(vehiclesUrl)
+      }
     }
   }
 
-  // Redirect /welcome to defaultLandingPage immediately for authenticated users
-  if (pathname === "/welcome" && token) {
-    // Prevent redirect loop - if defaultLandingPage is /welcome, allow it
-    if (defaultLandingPage === "/welcome") {
-      return NextResponse.next();
-    }
-    // Ensure defaultLandingPage is allowed before redirecting
-    if (isPathAllowed(defaultLandingPage, allowedPages)) {
-      return NextResponse.redirect(new URL(defaultLandingPage, request.url));
-    }
-    // If defaultLandingPage is not allowed (shouldn't happen), allow welcome
-    return NextResponse.next();
-  }
-
-  // Scenario C: Driver Isolation - Strictly prevent DRIVER from accessing admin routes
-  if (userRole === "DRIVER" && pathname.startsWith("/dashboard/admin")) {
-    // Prevent redirect loop
-    if (pathname === defaultLandingPage) {
-      return NextResponse.next();
-    }
-    return NextResponse.redirect(new URL(defaultLandingPage, request.url));
-  }
-
-  // Scenario B: Access Control - Check if path is in allowedPages
-  if (!isPathAllowed(pathname, allowedPages)) {
-    // Prevent redirect loop - if we're trying to redirect to the same page, allow it
-    if (pathname === defaultLandingPage) {
-      return NextResponse.next();
-    }
-    
-    // Redirect directly to defaultLandingPage (not welcome, as welcome will redirect anyway)
-    if (isPathAllowed(defaultLandingPage, allowedPages)) {
-      return NextResponse.redirect(new URL(defaultLandingPage, request.url));
-    }
-    
-    // If defaultLandingPage is not allowed (shouldn't happen), allow current path as fallback
-    return NextResponse.next();
-  }
-
-  return NextResponse.next();
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * - api/auth (handled by NextAuth)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public files (images, etc.)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)"
-  ]
-} 
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
+  ],
+}

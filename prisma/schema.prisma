@@ -198,6 +198,26 @@ enum UserStatus {
   SUSPENDED
 }
 
+// Simple Role enum for Uzivatel model (Czech column names)
+enum UzivatelRole {
+  ADMIN
+  DISPECER
+  RIDIC
+}
+
+// Uzivatel model with Czech column names for authentication
+model Uzivatel {
+  id        Int          @id @default(autoincrement())
+  email     String       @unique
+  heslo     String       // Hashed password (bcrypt)
+  jmeno     String?
+  role      UzivatelRole @default(RIDIC)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  
+  @@index([email])
+}
+
 // Enhanced Role system with dynamic capabilities
 model Role {
   id                    Int    @id @default(autoincrement())

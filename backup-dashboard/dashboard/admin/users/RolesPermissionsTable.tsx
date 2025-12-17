@@ -42,8 +42,25 @@ export function RolesPermissionsTable() {
   useEffect(() => {
     fetchRoles()
     fetch('/api/admin/roles?permissions=1')
-      .then(res => res.json())
-      .then(data => setAllPermissions(data))
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch permissions')
+        }
+        return res.json()
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAllPermissions(data)
+        } else {
+          console.error('Invalid permissions data:', data)
+          setAllPermissions([])
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching permissions:', err)
+        setAllPermissions([])
+        setError('Nepodařilo se načíst oprávnění')
+      })
   }, [])
 
   const handleToggle = (roleIdx: number, permKey: string) => {

@@ -31,28 +31,6 @@ const mainNavItems: NavItem[] = [
     title: 'Vozidla',
     href: '/dashboard/auta',
     icon: <Car className="h-5 w-5" />,
-    subItems: [
-      {
-        title: 'Seznam vozidel',
-        href: '/dashboard/auta',
-        icon: <ChevronRight className="h-4 w-4" />,
-      },
-      {
-        title: 'Mapa vozidel',
-        href: '/dashboard/auta/mapa',
-        icon: <ChevronRight className="h-4 w-4" />,
-      },
-      {
-        title: 'Údržba',
-        href: '/dashboard/auta/servis',
-        icon: <Wrench className="h-5 w-5" />,
-      },
-    ],
-  },
-  {
-    title: 'Údržba',
-    href: '/dashboard/auta/servis',
-    icon: <Wrench className="h-5 w-5" />,
   },
   {
     title: 'Reporty',

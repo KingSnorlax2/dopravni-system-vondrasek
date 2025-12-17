@@ -62,12 +62,32 @@ export default function DriverRoutePage() {
     if (inputRef.current) inputRef.current.focus();
   }, [route]);
 
-  // Auto logout after 5 min inactivity
+  // Auto logout after 5 min inactivity - reset on user interactions
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      signOut({ callbackUrl: "/dashboard/noviny/distribuce/driver-login" });
-    }, 5 * 60 * 1000);
-    return () => clearTimeout(timeout);
+    let timeout: NodeJS.Timeout;
+    
+    const resetTimeout = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        signOut({ callbackUrl: "/dashboard/noviny/distribuce/driver-login" });
+      }, 5 * 60 * 1000);
+    };
+    
+    // Initial timeout
+    resetTimeout();
+    
+    // Reset on user interactions
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, resetTimeout, { passive: true });
+    });
+    
+    return () => {
+      clearTimeout(timeout);
+      events.forEach(event => {
+        document.removeEventListener(event, resetTimeout);
+      });
+    };
   }, []);
 
   const onSubmit = async (data: ScanFormValues) => {

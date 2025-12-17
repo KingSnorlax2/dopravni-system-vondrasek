@@ -21,32 +21,16 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
     name: '',
     email: '',
     password: '',
-    roles: [] as string[],
+    roles: [] as string[], // Keep as array for compatibility, but only first role will be used
     status: 'ACTIVE' as 'ACTIVE' | 'DISABLED' | 'SUSPENDED',
     avatar: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
-  const [roleOptions, setRoleOptions] = useState<string[]>([])
-  const [rolesLoading, setRolesLoading] = useState(true)
+  // UzivatelRole enum values (ADMIN, DISPECER, RIDIC)
+  const roleOptions = ['ADMIN', 'DISPECER', 'RIDIC']
   const [isPending, startTransition] = useTransition()
   const [showPassword, setShowPassword] = useState(false)
-
-  useEffect(() => {
-    if (open) {
-      setRolesLoading(true)
-      fetch('/api/admin/roles')
-        .then(res => res.json())
-        .then(data => {
-          setRoleOptions(data.map((r: any) => r.name))
-          setRolesLoading(false)
-        })
-        .catch(() => {
-          setRoleOptions([])
-          setRolesLoading(false)
-        })
-    }
-  }, [open])
 
   useEffect(() => {
     if (user) {
@@ -80,12 +64,11 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
     setForm(f => ({ ...f, [name]: value }))
   }
 
-  const toggleRoleChip = (role: string) => {
+  const setRole = (role: string) => {
+    // Uzivatel model supports only single role, so we set it as array with one element
     setForm(f => ({
       ...f,
-      roles: f.roles.includes(role)
-        ? f.roles.filter(r => r !== role)
-        : [...f.roles, role]
+      roles: [role] // Only one role allowed
     }))
   }
 
@@ -120,8 +103,14 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
       setError('Heslo musí mít minimálně 8 znaků')
       return
     }
-    if (!form.roles.length) {
-      setError('Musí být vybrána alespoň jedna role')
+    if (!form.roles.length || form.roles.length === 0) {
+      setError('Musí být vybrána role')
+      return
+    }
+    // Validate that role is one of the allowed values
+    const validRoles = ['ADMIN', 'DISPECER', 'RIDIC']
+    if (!form.roles[0] || !validRoles.includes(form.roles[0])) {
+      setError('Neplatná role. Musí být ADMIN, DISPECER nebo RIDIC')
       return
     }
     if (form.avatar && form.avatar.trim() && !/^https?:\/\/.+/.test(form.avatar)) {
@@ -337,38 +326,24 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label>Role *</Label>
-              {rolesLoading && <span className="text-xs text-gray-500">Načítám…</span>}
-            </div>
-            {rolesLoading ? (
-              <div className="text-gray-500 text-sm">Načítám role…</div>
-            ) : roleOptions.length === 0 ? (
-              <div className="text-red-500 text-sm">
-                Nejsou dostupné žádné role. Vytvořte nejdříve roli.
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {roleOptions.map(opt => {
-                  const active = form.roles.includes(opt)
-                  return (
-                    <button
-                      type="button"
-                      key={opt}
-                      onClick={() => toggleRoleChip(opt)}
-                      disabled={isPending}
-                      className={`px-3 py-1 rounded-full text-sm border transition ${
-                        active
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                      } disabled:opacity-50`}
-                    >
-                      {opt}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+            <Label htmlFor="role">Role *</Label>
+            <Select
+              value={form.roles[0] || ''}
+              onValueChange={(value) => setRole(value)}
+              disabled={isPending}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Vyberte roli" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ADMIN">ADMIN - Administrátor</SelectItem>
+                <SelectItem value="DISPECER">DISPECER - Dispečer</SelectItem>
+                <SelectItem value="RIDIC">RIDIC - Řidič</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">
+              Uživatel může mít pouze jednu roli
+            </p>
           </div>
 
           {error && !Object.keys(fieldErrors).length && (
@@ -399,7 +374,7 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
             <button
               type="submit"
               className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
-              disabled={rolesLoading || roleOptions.length === 0 || isPending}
+              disabled={isPending}
             >
               {isPending ? 'Ukládání...' : 'Uložit'}
             </button>

@@ -340,11 +340,20 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
                     <td className="px-2 py-3">
                       {user.roles && user.roles.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
-                          {user.roles.map((r: string) => (
-                            <span key={r} className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs border truncate max-w-full">
-                              {r}
-                            </span>
-                          ))}
+                          {user.roles.map((r: string) => {
+                            // Map UzivatelRole enum values to display names
+                            const roleDisplayNames: Record<string, string> = {
+                              'ADMIN': 'ADMIN',
+                              'DISPECER': 'DISPECER',
+                              'RIDIC': 'RIDIC',
+                            }
+                            const displayName = roleDisplayNames[r] || r
+                            return (
+                              <span key={r} className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs border truncate max-w-full">
+                                {displayName}
+                              </span>
+                            )
+                          })}
                         </div>
                       ) : (
                         <span className="text-gray-400 text-xs">Žádné</span>

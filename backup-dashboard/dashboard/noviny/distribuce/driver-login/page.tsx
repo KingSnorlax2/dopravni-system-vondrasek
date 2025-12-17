@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormMessage, FormControl } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 
 const loginSchema = z.object({
   email: z.string().min(2, "Zadejte jméno nebo email"),
@@ -22,7 +21,7 @@ export default function DriverLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -41,16 +40,19 @@ export default function DriverLoginPage() {
     if (res?.error) {
       setError("Neplatné přihlašovací údaje");
     } else {
-      // Wait for session to update
-      setTimeout(() => {
-        if (session?.user?.role === "DRIVER") {
-          router.push("/dashboard/noviny/distribuce/driver-route");
-        } else if (session?.user?.role === "ADMIN") {
-          router.push("/dashboard");
-        } else {
-          router.push("/");
-        }
-      }, 200);
+      // Update session to get fresh user data
+      await updateSession();
+      // Get updated session after refresh
+      const updatedSession = await fetch('/api/auth/session').then(r => r.json());
+      const userRole = updatedSession?.user?.role;
+      
+      if (userRole === "DRIVER" || userRole === "RIDIC") {
+        router.push("/dashboard/noviny/distribuce/driver-route");
+      } else if (userRole === "ADMIN") {
+        router.push("/dashboard/auta");
+      } else {
+        router.push("/");
+      }
     }
   };
 

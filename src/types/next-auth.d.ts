@@ -1,14 +1,12 @@
 import "next-auth";
 import type { DefaultSession } from "next-auth"
 import "next-auth/jwt"
+import { UzivatelRole } from "@prisma/client"
 
 declare module "next-auth" {
   interface User {
     id: string;
-    role?: string;
-    permissions?: string[]; // List of permission keys for fine-grained access control
-    allowedPages?: string[]; // List of allowed page routes for this user
-    defaultLandingPage?: string; // Default landing page for this user based on role
+    role: UzivatelRole;
   }
   
   interface Session {
@@ -16,10 +14,7 @@ declare module "next-auth" {
       id: string;
       email: string;
       name: string | null;
-      role: string;
-      permissions: string[];
-      allowedPages: string[];
-      defaultLandingPage: string;
+      role: UzivatelRole;
     } & DefaultSession["user"];
   }
 }
@@ -29,9 +24,6 @@ declare module "next-auth/jwt" {
     id: string;
     email: string;
     name: string | null;
-    role: string;
-    permissions: string[];
-    allowedPages: string[];
-    defaultLandingPage: string;
+    role: UzivatelRole;
   }
 } 

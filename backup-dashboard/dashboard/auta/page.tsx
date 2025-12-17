@@ -239,11 +239,21 @@ export default function AutoPage() {
       });
       
       // Revert the form value on error
-      const vehicle = expiringSTKVehicles.find(v => v.id === vehicleId);
-      if (vehicle) {
-        stkForm.setValue(`vehicles.${expiringSTKVehicles.findIndex(v => v.id === vehicleId)}.newSTK`, 
-          vehicle.datumSTK ? new Date(vehicle.datumSTK) : null
-        );
+      // Find the vehicle in the original form data (field.value), not in expiringSTKVehicles
+      // because after a successful update, the vehicle may no longer be in expiringSTKVehicles
+      const formVehicles = stkForm.getValues('vehicles');
+      const vehicleIndex = formVehicles.findIndex((v: any) => v.id === vehicleId);
+      
+      if (vehicleIndex !== -1) {
+        // Find the original vehicle data from auta array to get the original STK date
+        const originalVehicle = auta.find(v => v.id === vehicleId);
+        if (originalVehicle) {
+          const originalSTKDate = originalVehicle.datumSTK 
+            ? new Date(originalVehicle.datumSTK) 
+            : null;
+          
+          stkForm.setValue(`vehicles.${vehicleIndex}.newSTK`, originalSTKDate);
+        }
       }
     } finally {
       setSavingVehicleId(null);
@@ -371,13 +381,19 @@ export default function AutoPage() {
                   <Controller
                     name="vehicles"
                     control={stkForm.control}
-                    render={({ field }) => (
-                      <div className="space-y-2 px-6 pb-4">
-                        {field.value
-                          .filter((vehicle: any) =>
-                            filteredVehicles.some(v => v.id === vehicle.id)
-                          )
-                          .map((vehicle: any, index: number) => (
+                    render={({ field }) => {
+                      // Find the original index in field.value for each filtered vehicle
+                      const filteredWithOriginalIndex = field.value
+                        .map((vehicle: any, originalIndex: number) => ({
+                          vehicle,
+                          originalIndex,
+                          isFiltered: filteredVehicles.some(v => v.id === vehicle.id)
+                        }))
+                        .filter(item => item.isFiltered);
+                      
+                      return (
+                        <div className="space-y-2 px-6 pb-4">
+                          {filteredWithOriginalIndex.map(({ vehicle, originalIndex }) => (
                             <div key={vehicle.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                               <div className="col-span-2">
                                 <span className="font-mono text-sm text-gray-800">{vehicle.spz}</span>
@@ -392,7 +408,7 @@ export default function AutoPage() {
                               </div>
                               <div className="col-span-3">
                                 <Controller
-                                  name={`vehicles.${index}.newSTK`}
+                                  name={`vehicles.${originalIndex}.newSTK`}
                                   control={stkForm.control}
                                   render={({ field: dateField }) => {
                                     const [open, setOpen] = React.useState(false);

@@ -45,3 +45,12 @@ build/
 
 # Ignorování složky uploads
 public/uploads/
+
+# Cursor IDE workspace cache files
+**/workspaceStorage*/
+**/c__Users_*_AppData_Roaming_Cursor_*
+**/*workspaceStorage*.png
+**/*workspaceStorage*.jpg
+**/*workspaceStorage*.jpeg
+**/*workspaceStorage*.gif
+**/*workspaceStorage*.webp

@@ -29,10 +29,30 @@ export default function DriverResetPasswordPage() {
   const onSubmit = async (data: ResetFormValues) => {
     setLoading(true);
     setError("");
-    // TODO: Implement actual reset logic (API call)
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    setSent(true);
+    try {
+      // Call password reset API
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.identifier }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        setError(result.error || 'Nepodařilo se odeslat odkaz pro obnovení hesla');
+        setLoading(false);
+        return;
+      }
+      
+      // Success - show confirmation message
+      setSent(true);
+    } catch (error) {
+      console.error('Error requesting password reset:', error);
+      setError('Došlo k chybě při odesílání požadavku');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

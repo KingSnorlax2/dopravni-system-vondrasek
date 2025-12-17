@@ -11,32 +11,33 @@ function requireAdmin(session: any) {
   return true;
 }
 
-// GET: List all users with roles and status
+// GET: List all users from Uzivatel model (used for authentication)
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
   if (!requireAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
-  const users = await prisma.user.findMany({
-    include: {
-      roles: { include: { role: true } },
-    },
+  
+  // Fetch users from Uzivatel model (authentication model)
+  const uzivatele = await prisma.uzivatel.findMany({
     orderBy: { createdAt: 'desc' },
   })
-  return NextResponse.json(users.map(u => ({
-    id: u.id,
-    name: u.name,
+  
+  // Transform to match expected format
+  return NextResponse.json(uzivatele.map(u => ({
+    id: u.id.toString(),
+    name: u.jmeno || u.email.split('@')[0], // Use jmeno or email prefix as name
     email: u.email,
-    status: u.status,
-    roles: u.roles.map(r => r.role.name),
-    avatar: u.avatar,
-    lastLoginAt: u.lastLoginAt,
+    status: 'ACTIVE', // Uzivatel model doesn't have status, default to ACTIVE
+    roles: [u.role], // Single role from enum
+    avatar: null, // Uzivatel model doesn't have avatar
+    lastLoginAt: null, // Uzivatel model doesn't have lastLoginAt
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   })))
 }
 
-// POST: Create user with multiple roles
+// POST: Create user in Uzivatel model
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   if (!requireAdmin(session)) {
@@ -44,34 +45,44 @@ export async function POST(req: Request) {
   }
   const body = await req.json()
   const { email, password, name, roles } = body
-  if (!email || !password || !name || !Array.isArray(roles) || roles.length === 0) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  
+  if (!email || !password || !name) {
+    return NextResponse.json({ error: 'Email, password and name are required' }, { status: 400 })
   }
-  const existingUser = await prisma.user.findUnique({ where: { email } })
+  
+  // Get first role from array, or default to RIDIC
+  const role = (Array.isArray(roles) && roles.length > 0) ? roles[0] : 'RIDIC'
+  
+  // Validate role is valid UzivatelRole enum value
+  const validRoles = ['ADMIN', 'DISPECER', 'RIDIC']
+  if (!validRoles.includes(role)) {
+    return NextResponse.json({ error: 'Invalid role. Must be ADMIN, DISPECER, or RIDIC' }, { status: 400 })
+  }
+  
+  const existingUser = await prisma.uzivatel.findUnique({ where: { email } })
   if (existingUser) {
     return NextResponse.json({ error: 'User already exists' }, { status: 400 })
   }
+  
   const hashedPassword = await bcryptjs.hash(password, 10)
-  const user = await prisma.user.create({
+  const uzivatel = await prisma.uzivatel.create({
     data: {
       email,
-      name,
-      password: hashedPassword,
-      roles: {
-        create: roles.map((roleName: string) => ({
-          role: { connect: { name: roleName } },
-        })),
-      },
+      heslo: hashedPassword,
+      jmeno: name,
+      role: role as any, // Cast to UzivatelRole enum
     },
-    include: { roles: { include: { role: true } } },
   })
+  
   return NextResponse.json({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    status: user.status,
-    roles: user.roles.map((r) => r.role.name),
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
+    id: uzivatel.id.toString(),
+    name: uzivatel.jmeno || uzivatel.email.split('@')[0],
+    email: uzivatel.email,
+    status: 'ACTIVE',
+    roles: [uzivatel.role],
+    avatar: null,
+    lastLoginAt: null,
+    createdAt: uzivatel.createdAt,
+    updatedAt: uzivatel.updatedAt,
   })
 } 

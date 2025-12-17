@@ -62,12 +62,32 @@ export default function DriverRoutePage() {
     if (inputRef.current) inputRef.current.focus();
   }, [route]);
 
-  // Auto logout after 5 min inactivity
+  // Auto logout after 5 min inactivity - reset on user interactions
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      signOut({ callbackUrl: "/dashboard/noviny/distribuce/driver-login" });
-    }, 5 * 60 * 1000);
-    return () => clearTimeout(timeout);
+    let timeout: NodeJS.Timeout;
+    
+    const resetTimeout = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        signOut({ callbackUrl: "/dashboard/noviny/distribuce/driver-login" });
+      }, 5 * 60 * 1000);
+    };
+    
+    // Initial timeout
+    resetTimeout();
+    
+    // Reset on user interactions
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, resetTimeout, { passive: true });
+    });
+    
+    return () => {
+      clearTimeout(timeout);
+      events.forEach(event => {
+        document.removeEventListener(event, resetTimeout);
+      });
+    };
   }, []);
 
   const onSubmit = async (data: ScanFormValues) => {
@@ -85,10 +105,33 @@ export default function DriverRoutePage() {
 
   const handleConfirm = async () => {
     setConfirming(true);
-    // TODO: Save confirmation to backend (API call)
-    await new Promise((r) => setTimeout(r, 1000));
-    setConfirming(false);
-    router.push("/dashboard/noviny/distribuce/driver-login");
+    try {
+      // Save route confirmation to backend
+      const response = await fetch('/api/driver-login/confirm-route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          barcode: form.getValues('barcode'),
+          routeName: route.name,
+          routeArea: route.area,
+          stops: route.stops,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.error || 'Nepodařilo se uložit potvrzení trasy');
+        setConfirming(false);
+        return;
+      }
+      
+      // Success - redirect to login
+      router.push("/dashboard/noviny/distribuce/driver-login");
+    } catch (error) {
+      console.error('Error confirming route:', error);
+      setError('Došlo k chybě při ukládání potvrzení');
+      setConfirming(false);
+    }
   };
 
   const driverName = session?.user?.name || "";

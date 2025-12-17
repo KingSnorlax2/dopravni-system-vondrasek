@@ -51,7 +51,7 @@ export function RoleTable() {
         // Fallback to basic pages
         setAvailablePages([
           { path: '/homepage', label: 'Homepage', description: 'Hlavní přehled' },
-          { path: '/dashboard', label: 'Dashboard', description: 'Klasický dashboard' },
+          { path: '/dashboard/auta', label: 'Vozidla', description: 'Správa vozidel' },
         ])
       })
   }
