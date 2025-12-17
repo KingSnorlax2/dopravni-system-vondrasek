@@ -1,21 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
 import { NextRequest } from 'next/server';
-
-const autoSchema = z.object({
-  spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
-  znacka: z.string().min(2, "Značka musí mít alespoň 2 znaky").max(20, "Značka může mít maximálně 20 znaků"),
-  model: z.string().min(1, "Model je povinný").max(20, "Model může mít maximálně 20 znaků"),
-  rokVyroby: z.number()
-    .min(1900, "Rok výroby musí být od roku 1900")
-    .max(new Date().getFullYear(), "Rok výroby nemůže být v budoucnosti"),
-  najezd: z.number().min(0, "Nájezd nemůže být záporný"),
-  stav: z.enum(["aktivní", "servis", "vyřazeno"]),
-  datumSTK: z.string().nullable().optional(),
-  poznamka: z.string().nullable().optional(),
-  fotky: z.array(z.object({ id: z.string() })).optional()
-});
+import { partialUpdateVehicleSchema } from '@/lib/schemas/vehicle';
 
 export async function GET(
   request: Request,
@@ -82,11 +68,34 @@ export async function PATCH(
     const data = await request.json();
     console.log('Received update data for vehicle ID:', id, data);
     
-    // Check if SPZ already exists for another car
-    if (data.spz) {
+    // Validate input data with partial update schema (includes ID)
+    const validationResult = partialUpdateVehicleSchema.safeParse({
+      ...data,
+      id,
+    });
+    
+    if (!validationResult.success) {
+      console.error('Validační chyby:', validationResult.error);
+      return NextResponse.json(
+        {
+          error: 'Neplatná data',
+          fields: validationResult.error.flatten().fieldErrors,
+          details: validationResult.error.errors.map(e => ({
+            path: e.path.join('.'),
+            message: e.message
+          }))
+        },
+        { status: 400 }
+      );
+    }
+    
+    const validatedData = validationResult.data;
+    
+    // Check if SPZ already exists for another car (if SPZ is being updated)
+    if (validatedData.spz) {
       const existingCar = await prisma.auto.findFirst({
         where: {
-          spz: data.spz,
+          spz: validatedData.spz,
           id: {
             not: id
           }
@@ -94,30 +103,33 @@ export async function PATCH(
       });
       
       if (existingCar) {
-        console.log('Duplicate SPZ found:', data.spz, 'for existing car ID:', existingCar.id);
+        console.log('Duplicate SPZ found:', validatedData.spz, 'for existing car ID:', existingCar.id);
         return NextResponse.json(
           { 
             error: 'SPZ již existuje',
-            message: `SPZ ${data.spz} je již použita u jiného vozidla.`
+            message: `SPZ ${validatedData.spz} je již použita u jiného vozidla.`
           },
           { status: 409 }
         );
       }
     }
     
-    // Format the data properly
-    const updateData = {
-      ...data,
-      // Ensure numeric fields are numbers
-      rokVyroby: typeof data.rokVyroby === 'string' ? parseInt(data.rokVyroby) : data.rokVyroby,
-      najezd: typeof data.najezd === 'string' ? parseInt(data.najezd) : data.najezd,
-      // Convert datumSTK from Date object to ISO string if it exists
-      datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
+    // Prepare update data (exclude ID and fotky from Prisma update)
+    const updateData: any = {};
+    if (validatedData.spz !== undefined) updateData.spz = validatedData.spz;
+    if (validatedData.znacka !== undefined) updateData.znacka = validatedData.znacka;
+    if (validatedData.model !== undefined) updateData.model = validatedData.model;
+    if (validatedData.rokVyroby !== undefined) updateData.rokVyroby = validatedData.rokVyroby;
+    if (validatedData.najezd !== undefined) updateData.najezd = validatedData.najezd;
+    if (validatedData.stav !== undefined) updateData.stav = validatedData.stav;
+    if (validatedData.poznamka !== undefined) updateData.poznamka = validatedData.poznamka || null;
+    if (validatedData.datumSTK !== undefined) {
+      updateData.datumSTK = validatedData.datumSTK instanceof Date 
+        ? validatedData.datumSTK 
+        : validatedData.datumSTK 
+          ? new Date(validatedData.datumSTK) 
+          : null;
     }
-    
-    // Remove any fields that shouldn't be updated
-    delete updateData.id
-    delete updateData.fotky
     
     console.log('Updating vehicle with data:', updateData);
     

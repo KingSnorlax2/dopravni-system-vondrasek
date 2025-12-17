@@ -24,11 +24,12 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { Calendar } from "@/components/ui/calendar"
 import { CalendarIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import cs from 'date-fns/locale/cs'
+import React from "react"
+import { DatePickerWithPresets } from "@/components/ui/calendar"
 
 const formSchema = z.object({
   spz: z.string().min(1, "SPZ je povinná").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -43,12 +44,17 @@ const formSchema = z.object({
 
 interface AutoDetailFormProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  onOpenChangeAction: (open: boolean) => void
   initialData: z.infer<typeof formSchema> & { id: string }
   onSubmit: (data: z.infer<typeof formSchema>) => Promise<void>
 }
 
-export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: AutoDetailFormProps) {
+export function AutoDetailForm({
+  open,
+  onOpenChangeAction = () => {},
+  initialData,
+  onSubmit
+}: AutoDetailFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -57,16 +63,18 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
     }
   })
 
+  const [popoverOpen, setPopoverOpen] = React.useState(false);
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChangeAction}>
       <SheetContent className="w-full sm:max-w-[540px] h-full flex flex-col">
         <SheetHeader className="mb-4">
           <SheetTitle>Upravit vozidlo</SheetTitle>
         </SheetHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2">
-            <div className="col-span-2 grid grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+            <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="spz"
@@ -185,7 +193,7 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Datum STK</FormLabel>
-                    <Popover>
+                    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -205,12 +213,15 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                          locale={cs}
+                        <DatePickerWithPresets
+                          date={field.value}
+                          setDate={(date) => {
+                            field.onChange(date);
+                            if (date) setPopoverOpen(false);
+                          }}
+                          fromYear={2020}
+                          toYear={new Date().getFullYear() + 10}
+                          inline={true}
                         />
                       </PopoverContent>
                     </Popover>
@@ -245,7 +256,7 @@ export function AutoDetailForm({ open, onOpenChange, initialData, onSubmit }: Au
             </div>
 
             <div className="col-span-2 flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => onOpenChange(false)} type="button">
+              <Button variant="outline" onClick={() => onOpenChangeAction(false)} type="button">
                 Zrušit
               </Button>
               <Button type="submit">

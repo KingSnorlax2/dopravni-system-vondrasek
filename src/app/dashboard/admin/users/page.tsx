@@ -1,30 +1,35 @@
 import { Suspense } from 'react'
-import { prisma } from "@/lib/prisma"
-import { UsersClient } from './users-client'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/auth'
+import { redirect } from 'next/navigation'
+import { UsersAdminClient } from './users-admin-client'
 
-async function getUsers() {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-    },
-  })
-  return users.map(user => ({
-    ...user,
-    name: user.name || undefined,
-    email: user.email || undefined,
-    role: user.role as "ADMIN" | "USER"
-  }))
-}
-
-export default async function UsersPage() {
-  const users = await getUsers()
-
+export default async function AdminUsersPage() {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user?.role !== 'ADMIN') {
+    redirect('/403')
+  }
+  
   return (
-    <Suspense fallback={<div>Načítání...</div>}>
-      <UsersClient users={users} />
-    </Suspense>
+    <div>
+      {/* Page Header */}
+      <div className="unified-section-header">
+        <h1 className="unified-section-title">Správa uživatelů</h1>
+        <p className="unified-section-description">
+          Spravujte uživatele systému, role a oprávnění
+        </p>
+      </div>
+
+      {/* Main Content */}
+      <div className="unified-card p-6">
+        <Suspense fallback={
+          <div className="unified-loading">
+            <div className="unified-spinner"></div>
+          </div>
+        }>
+          <UsersAdminClient />
+        </Suspense>
+      </div>
+    </div>
   )
 } 

@@ -4,12 +4,19 @@ import { prisma } from "@/lib/prisma"
 import bcryptjs from "bcryptjs"
 import { authOptions } from "@/auth"
 
+function requireAdmin(session: any) {
+  if (!session || session.user.role !== 'ADMIN') {
+    return false;
+  }
+  return true;
+}
+
 // Get all users
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!requireAdmin(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -18,11 +25,17 @@ export async function GET() {
         id: true,
         email: true,
         name: true,
-        role: true
+        roles: { include: { role: true } },
       }
     })
 
-    return NextResponse.json(users)
+    // Map roles to role names for response
+    const usersWithRoles = users.map(u => ({
+      ...u,
+      roles: u.roles.map(r => r.role.name)
+    }))
+
+    return NextResponse.json(usersWithRoles)
   } catch (error) {
     console.error("Error fetching users:", error)
     return NextResponse.json(
@@ -37,7 +50,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!requireAdmin(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -67,23 +80,31 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcryptjs.hash(password, 10)
 
-    // Create user
+    // Create user with default or provided role
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        role: role || 'USER'
+        roles: {
+          create: [{ role: { connect: { name: role || 'USER' } } }]
+        }
       },
       select: {
         id: true,
         email: true,
         name: true,
-        role: true
+        roles: { include: { role: true } },
       }
     })
 
-    return NextResponse.json(user)
+    // Map roles to role names for response
+    const userWithRoles = {
+      ...user,
+      roles: user.roles.map(r => r.role.name)
+    }
+
+    return NextResponse.json(userWithRoles)
   } catch (error) {
     console.error("Error creating user:", error)
     return NextResponse.json(

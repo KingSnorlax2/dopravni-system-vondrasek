@@ -1,26 +1,49 @@
 'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { AutoForm } from "@/components/forms/AutoForm"
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Pencil, ImageIcon, X, CalendarIcon } from "lucide-react"
+import { Pencil, ImageIcon, CalendarIcon, MoreHorizontal, Eye, Trash2, AlertTriangle, AlertCircle, Check, Edit3, CircleDot, Search, Filter, X, ChevronDown } from "lucide-react"
 import { AutoDetailForm, type AutoDetailValues } from "@/components/forms/Autochangeform"
+import { BulkActionToolbar } from "@/components/dashboard/BulkActionToolbar"
 import Image from 'next/image'
 import { Badge } from "@/components/ui/badge"
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { loadSettings, saveSettings } from '@/utils/settings'
 import { Calendar } from "@/components/ui/calendar"
+import { Input } from "@/components/ui/input"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { format } from "date-fns"
 import { cs } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { DatePickerWithPresets } from '@/components/ui/calendar';
 
 interface Auto {
   id: string;
@@ -29,7 +52,7 @@ interface Auto {
   model: string;
   rokVyroby: number;
   najezd: number;
-  stav: 'aktivní' | 'servis' | 'vyřazeno';
+  stav: 'Aktivní' | 'Neaktivní' | 'V servisu';
   datumSTK?: string | null;
   thumbnailUrl?: string;
   thumbnailFotoId?: string;
@@ -47,7 +70,7 @@ interface Auto {
 
 interface AutoTableProps {
   auta: Auto[]
-  onRefresh: () => void
+  onRefresh: () => void | Promise<void>
 }
 
 const formatNumber = (num: number): string => {
@@ -56,12 +79,12 @@ const formatNumber = (num: number): string => {
 
 const getStatusColor = (stav: string): string => {
   switch (stav) {
-    case 'aktivní':
+    case 'Aktivní':
       return 'bg-green-100 text-green-800'
-    case 'servis':
+    case 'Neaktivní':
+      return 'bg-gray-100 text-gray-800'
+    case 'V servisu':
       return 'bg-orange-100 text-orange-800'
-    case 'vyřazeno':
-      return 'bg-red-100 text-red-800'
     default:
       return 'bg-gray-100 text-black'
   }
@@ -105,6 +128,29 @@ const exportToCSV = (auta: Auto[]) => {
 
 const MAX_POZNAMKA_LENGTH = 300;
 
+type STKStatus = 'expired' | 'upcoming' | 'normal' | 'missing';
+
+function getSTKStatus(datumSTK: string | null | undefined): STKStatus {
+  if (!datumSTK) return 'missing';
+  
+  const stk = new Date(datumSTK);
+  const today = new Date();
+  const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+  
+  // Reset time to compare only dates
+  const stkDate = new Date(stk.getFullYear(), stk.getMonth(), stk.getDate());
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const thirtyDaysDate = new Date(thirtyDaysFromNow.getFullYear(), thirtyDaysFromNow.getMonth(), thirtyDaysFromNow.getDate());
+  
+  if (stkDate < todayDate) {
+    return 'expired';
+  } else if (stkDate <= thirtyDaysDate) {
+    return 'upcoming';
+  } else {
+    return 'normal';
+  }
+}
+
 function isSTKExpiring(datumSTK: string | undefined) {
   if (!datumSTK) return false
   const stk = new Date(datumSTK)
@@ -112,6 +158,414 @@ function isSTKExpiring(datumSTK: string | undefined) {
   const oneMonthFromNow = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
   return stk <= oneMonthFromNow
 }
+
+// Validation schema for inline editing
+const inlineEditSchema = z.object({
+  najezd: z.coerce.number()
+    .int("Nájezd musí být celé číslo")
+    .min(0, "Nájezd nemůže být záporný")
+    .max(999999, "Nájezd je příliš vysoký (max. 999 999 km)"),
+  datumSTK: z.string().optional().nullable(),
+})
+
+type InlineEditValues = z.infer<typeof inlineEditSchema>
+
+// Inline editing components
+const InlineMileageEditor = ({ 
+  auto, 
+  onSave, 
+  onCancel 
+}: { 
+  auto: Auto; 
+  onSave: (value: number) => Promise<void>; 
+  onCancel: () => void; 
+}) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasChanged, setHasChanged] = useState(false);
+  const [localValue, setLocalValue] = useState(auto.najezd);
+  
+  const form = useForm<{ najezd: number }>({
+    resolver: zodResolver(z.object({ 
+      najezd: z.coerce.number()
+        .int("Nájezd musí být celé číslo")
+        .min(0, "Nájezd nemůže být záporný")
+        .max(999999, "Nájezd je příliš vysoký (max. 999 999 km)")
+    })),
+    defaultValues: { najezd: auto.najezd },
+    mode: "onChange"
+  });
+
+  // Reset form when auto changes to ensure proper isolation
+  useEffect(() => {
+    form.reset({ najezd: auto.najezd });
+    setLocalValue(auto.najezd);
+    setHasChanged(false);
+  }, [auto.id, auto.najezd, form]);
+
+  const onSubmit = async (data: { najezd: number }) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onSave(data.najezd);
+    } catch (error) {
+      console.error('Error saving mileage:', error);
+      // Revert local value on error
+      setLocalValue(auto.najezd);
+      form.reset({ najezd: auto.najezd });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBlur = () => {
+    // Only save on blur if the form is valid and has changed
+    if (form.formState.isValid && hasChanged) {
+      form.handleSubmit(onSubmit)();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      // Revert to original value on cancel
+      setLocalValue(auto.najezd);
+      form.reset({ najezd: auto.najezd });
+      setHasChanged(false);
+      onCancel();
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (form.formState.isValid) {
+        form.handleSubmit(onSubmit)();
+      }
+    }
+  };
+
+  // Use useEffect to handle outside clicks
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const formElement = document.querySelector(`[data-mileage-editor="${auto.id}"]`);
+      if (formElement && !formElement.contains(target)) {
+        // Revert to original value on outside click
+        setLocalValue(auto.najezd);
+        form.reset({ najezd: auto.najezd });
+        setHasChanged(false);
+        onCancel();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onCancel, auto.id, auto.najezd, form]);
+
+  return (
+    <div data-mileage-editor={auto.id} className="flex items-center gap-2">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-2">
+        <Controller
+          name="najezd"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <div className="relative">
+              <Input
+                {...field}
+                type="number"
+                min="0"
+                max="999999"
+                step="100"
+                className={cn(
+                  "w-28 h-8 text-sm transition-all duration-200",
+                  "focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+                  fieldState.error && "border-red-500 focus:ring-red-500 focus:border-red-500"
+                )}
+                autoFocus
+                onKeyDown={handleKeyDown}
+                onBlur={handleBlur}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? 0 : Number(e.target.value);
+                  field.onChange(value);
+                  setLocalValue(value);
+                  setHasChanged(true);
+                }}
+                disabled={isSubmitting}
+                aria-label="Nájezd vozidla v kilometrech"
+                placeholder="0"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                km
+              </div>
+              {fieldState.error && (
+                <div className="absolute -bottom-6 left-0 text-xs text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 z-10 shadow-sm">
+                  {fieldState.error.message}
+                </div>
+              )}
+            </div>
+          )}
+        />
+        <div className="flex gap-1">
+          <Button
+            type="submit"
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0 hover:bg-green-50 transition-colors"
+            disabled={isSubmitting || !form.formState.isValid || !hasChanged}
+            aria-label="Uložit nájezd"
+          >
+            {isSubmitting ? (
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
+            ) : (
+              <Check className="h-3 w-3 text-green-600" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0 hover:bg-red-50 transition-colors"
+            onClick={() => {
+              setLocalValue(auto.najezd);
+              form.reset({ najezd: auto.najezd });
+              setHasChanged(false);
+              onCancel();
+            }}
+            disabled={isSubmitting}
+            aria-label="Zrušit úpravu"
+          >
+            <X className="h-3 w-3 text-red-600" />
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const InlineSTKEditor = ({ 
+  auto, 
+  onSave, 
+  onCancel 
+}: { 
+  auto: Auto; 
+  onSave: (value: string | null) => Promise<void>; 
+  onCancel: () => void; 
+}) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasChanged, setHasChanged] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [localDate, setLocalDate] = useState<Date | null>(
+    auto.datumSTK ? new Date(auto.datumSTK) : null
+  );
+  
+  // Use form for STK date management to ensure proper isolation
+  const form = useForm<{ datumSTK?: Date | null }>({
+    resolver: zodResolver(z.object({
+      datumSTK: z.date().optional().nullable()
+    })),
+    defaultValues: { 
+      datumSTK: auto.datumSTK ? new Date(auto.datumSTK) : null 
+    },
+    mode: "onChange"
+  });
+
+  // Reset form when auto changes to ensure proper isolation
+  // But don't reset if we're currently submitting (saving)
+  useEffect(() => {
+    if (isSubmitting) return; // Don't reset during save operation
+    
+    const newDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+    const currentFormDate = form.getValues("datumSTK");
+    
+    // Only reset if the date actually changed (to avoid unnecessary resets)
+    const formDateStr = currentFormDate ? currentFormDate.toISOString() : null;
+    const autoDateStr = auto.datumSTK || null;
+    
+    if (formDateStr !== autoDateStr) {
+      form.reset({ datumSTK: newDate });
+      setLocalDate(newDate);
+      setHasChanged(false);
+    }
+  }, [auto.id, auto.datumSTK, form, isSubmitting]);
+
+  // Get today's date for minimum validation
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const handleSave = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const currentDate = form.getValues("datumSTK");
+      const dateValue = currentDate ? currentDate.toISOString() : null;
+      await onSave(dateValue);
+      // Close editor after successful save
+      setHasChanged(false);
+    } catch (error) {
+      console.error('Error saving STK date:', error);
+      // Revert local value on error
+      const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+      setLocalDate(originalDate);
+      form.reset({ datumSTK: originalDate });
+      setHasChanged(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (isOpen) {
+        setIsOpen(false);
+      } else {
+        // Revert to original value on cancel
+        const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+        setLocalDate(originalDate);
+        form.reset({ datumSTK: originalDate });
+        setHasChanged(false);
+        onCancel();
+      }
+    }
+    if (e.key === 'Enter' && !isOpen) {
+      handleSave();
+    }
+  };
+
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring date select');
+      return; // Prevent multiple simultaneous saves
+    }
+    
+    const newDate = date || null;
+    console.log('handleDateSelect called with date:', newDate, 'for auto:', auto.id);
+    setIsSubmitting(true);
+    
+    try {
+      // Update form state immediately for visual feedback
+      form.setValue("datumSTK", newDate, { shouldDirty: true, shouldValidate: true });
+      setLocalDate(newDate);
+      setHasChanged(true);
+      
+      // Convert to ISO string for API
+      const dateValue = newDate ? newDate.toISOString() : null;
+      console.log('Saving date value:', dateValue, 'for auto:', auto.id);
+      
+      // Save to server
+      await onSave(dateValue);
+      console.log('Date saved successfully for auto:', auto.id);
+      
+      // Success - close popover and reset flags
+      setHasChanged(false);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Error saving STK date:', error);
+      // Revert to original value on error
+      const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+      setLocalDate(originalDate);
+      form.reset({ datumSTK: originalDate });
+      setHasChanged(false);
+      // Show error to user
+      alert('Chyba při ukládání data STK. Zkuste to znovu.');
+      // Keep popover open on error so user can try again
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Use useEffect to handle outside clicks
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const formElement = document.querySelector(`[data-stk-editor="${auto.id}"]`);
+      if (formElement && !formElement.contains(target) && !isOpen) {
+        // Revert to original value on outside click
+        const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+        setLocalDate(originalDate);
+        form.reset({ datumSTK: originalDate });
+        setHasChanged(false);
+        onCancel();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onCancel, isOpen, auto.id, auto.datumSTK, form]);
+
+  const selectedDate = form.watch("datumSTK");
+
+  return (
+    <div data-stk-editor={auto.id} className="flex items-center gap-2 min-w-0 relative z-10 isolate">
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              "h-8 min-w-[140px] max-w-[160px] justify-start text-left font-normal transition-all duration-200",
+              "focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+              "hover:bg-gray-50 overflow-hidden relative z-10 pointer-events-auto"
+            )}
+            onKeyDown={handleKeyDown}
+            disabled={isSubmitting}
+            aria-label="Vybrat datum STK"
+            type="button"
+          >
+            <span className="truncate flex-1 text-left">
+              {selectedDate ? (
+                format(selectedDate, "d.M.yyyy", { locale: cs })
+              ) : (
+                <span className="text-muted-foreground">Vyberte datum</span>
+              )}
+            </span>
+            <CalendarIcon className="ml-2 h-3 w-3 opacity-50 flex-shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="w-auto p-0 z-[9999]" 
+          align="start" 
+          side="bottom" 
+          sideOffset={4} 
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            // Prevent closing when clicking inside the calendar
+            const target = e.target as HTMLElement;
+            const calendarBox = target.closest('.calendar-box');
+            const dayButton = target.closest('[role="gridcell"]') || target.closest('button');
+            
+            // If clicking inside calendar, prevent popover from closing
+            if (calendarBox || (dayButton && calendarBox?.contains(dayButton))) {
+              e.preventDefault();
+              return;
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            // Allow escape to close
+            setIsOpen(false);
+          }}
+        >
+          <div 
+            onClick={(e) => {
+              // Stop propagation to prevent any parent handlers
+              e.stopPropagation();
+            }}
+            onMouseDown={(e) => {
+              // Prevent mousedown from closing popover
+              e.stopPropagation();
+            }}
+          >
+            <DatePickerWithPresets
+              date={selectedDate || undefined}
+              setDate={handleDateSelect}
+              fromYear={2020}
+              toYear={new Date().getFullYear() + 10}
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
 
 const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const router = useRouter()
@@ -129,20 +583,16 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
-  const [showStateChangeModal, setShowStateChangeModal] = useState(false)
-  const [showSTKChangeModal, setShowSTKChangeModal] = useState(false)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [editedNote, setEditedNote] = useState<{ id: string; note: string } | null>(null)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [showBulkStateChangeModal, setShowBulkStateChangeModal] = useState(false)
-  const [newBulkState, setNewBulkState] = useState('aktivní')
   const [showPoznamky, setShowPoznamky] = useState(false)
   const [novaPoznamka, setNovaPoznamka] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [newDate, setNewDate] = useState<string>('');
   const [selectedToArchive, setSelectedToArchive] = useState<Auto[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Auto | null>(null);
 
   const [showPictureUploadModal, setShowPictureUploadModal] = useState(false)
   const [selectedAuto, setSelectedAuto] = useState<Auto | null>(null)
@@ -153,12 +603,18 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [currentPictures, setCurrentPictures] = useState<{ id: string }[]>([])
 
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [editingAuto, setEditingAuto] = useState<Auto | null>(null)
 
   const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
 
   // Add a state to track thumbnail updates
   const [thumbnailVersion, setThumbnailVersion] = useState(0);
+
+  // Inline editing state
+  const [editingCell, setEditingCell] = useState<{ id: string; field: 'najezd' | 'datumSTK' } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // STK warning filter state
+  const [showSTKWarningFilter, setShowSTKWarningFilter] = useState(false);
 
   // Load saved settings on component mount
   const savedSettings = useMemo(() => loadSettings(), []);
@@ -217,6 +673,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   // Generate unique model options only
   const modelOptions = useMemo(() => Array.from(new Set(auta.map(a => a.model))).sort(), [auta])
 
+  // Count vehicles with expiring STK
+  const expiringSTKCount = useMemo(() => {
+    return auta.filter(auto => auto.datumSTK && getSTKStatus(auto.datumSTK) === 'upcoming').length;
+  }, [auta]);
+
   const filteredAuta = useMemo(() => {
     return auta.filter(auto => {
       // Search term filter
@@ -240,7 +701,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       // Model filter
       const matchesModel = selectedModels.length === 0 || selectedModels.includes(auto.model);
 
-      return matchesSearch && matchesStatus && matchesDate && matchesMileage && matchesModel;
+      // STK warning filter
+      const matchesSTKWarning = !showSTKWarningFilter || 
+        (auto.datumSTK && getSTKStatus(auto.datumSTK) === 'upcoming');
+
+      return matchesSearch && matchesStatus && matchesDate && matchesMileage && matchesModel && matchesSTKWarning;
     }).sort((a, b) => {
       // Sorting logic
       const order = sortOrder === 'asc' ? 1 : -1;
@@ -271,7 +736,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           return 0;
       }
     });
-  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder, selectedModels]);
+  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder, selectedModels, showSTKWarningFilter]);
 
   // Then use it in the useEffect
   useEffect(() => {
@@ -371,7 +836,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     setSelectedRows(newSelected);
   };
 
+  // Improved checkbox state management
   const isAllSelected = paginatedAuta.length > 0 && paginatedAuta.every(auto => selectedRows.has(auto.id.toString()));
+  const isIndeterminate = selectedRows.size > 0 && selectedRows.size < paginatedAuta.length;
 
   const handleBulkDelete = async () => {
     try {
@@ -412,14 +879,14 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
   };
 
-  const handleBulkStateChange = async () => {
+  const handleBulkStateChange = async (newState: string) => {
     try {
       const response = await fetch('/api/auta/bulk-update', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ids: Array.from(selectedRows),
-          stav: newBulkState,
+          stav: newState,
           datumSTK: 'N/A'  // Set STK date to 'N/A' when changing status
         })
       });
@@ -430,7 +897,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         throw new Error(errorText || 'Chyba při změně stavu vozidel');
       }
 
-      setShowBulkStateChangeModal(false);
       setSelectedRows(new Set());
       onRefresh();
       setNotification({ type: 'success', message: 'Stav vozidel byl úspěšně změněn' });
@@ -440,10 +906,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         type: 'error', 
         message: error instanceof Error ? error.message : 'Chyba při změně stavu vozidel' 
       });
+      throw error; // Re-throw to let the toolbar handle the error
     }
   };
 
-  const handleBulkSTKChange = async () => {
+  const handleBulkSTKChange = async (newDate: Date | null) => {
     try {
       const response = await fetch('/api/auta/bulk-update', {
         method: 'PUT',
@@ -452,7 +919,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         },
         body: JSON.stringify({
           ids: Array.from(selectedRows),
-          datumSTK: newDate ? new Date(newDate) : 'N/A',
+          datumSTK: newDate ? newDate.toISOString() : 'N/A',
         }),
       });
 
@@ -462,7 +929,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         throw new Error(errorText || 'Chyba při aktualizaci STK');
       }
 
-      setShowSTKChangeModal(false);
       setSelectedRows(new Set());
       onRefresh();
       setNotification({
@@ -475,6 +941,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         type: 'error', 
         message: error instanceof Error ? error.message : 'Chyba při aktualizaci STK'
       });
+      throw error; // Re-throw to let the toolbar handle the error
     }
   };
 
@@ -576,32 +1043,60 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   };
 
   const handleArchive = async () => {
+    if (selectedRows.size === 0) {
+      toast({
+        title: "Chyba",
+        description: "Nebyla vybrána žádná vozidla k archivaci",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      // Get the selected vehicle IDs
+      const selectedIds = Array.from(selectedRows);
+      
+      // Optimistic update - remove selected vehicles from the local state
+      const originalAuta = [...auta];
+      const updatedAuta = auta.filter(auto => !selectedIds.includes(auto.id.toString()));
+      
+      // Store original state for rollback in case of error
+      const originalSelectedRows = new Set(selectedRows);
+      
+      // Optimistically clear selection
+      setSelectedRows(new Set());
+      
       const response = await fetch('/api/auta/bulk-archivovat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ ids: selectedToArchive.map(auto => auto.id) })
+        body: JSON.stringify({ ids: selectedIds })
       });
 
       const data = await response.json();
+      
       if (!response.ok) {
+        // Rollback optimistic update on error
+        setSelectedRows(originalSelectedRows);
         throw new Error(data.error || 'Chyba při archivaci vozidel');
       }
 
-      setSelectedToArchive([]);
-      setSelectedRows(new Set());
+      // Success - refresh data to get updated state from server
       onRefresh();
-      setNotification({ 
-        type: 'success', 
-        message: 'Vozidla byla úspěšně archivována' 
+      
+      toast({
+        title: "Archivace úspěšná",
+        description: `${selectedIds.length} vozidel bylo úspěšně archivováno`,
       });
     } catch (error) {
-      setNotification({ 
-        type: 'error', 
-        message: error instanceof Error ? error.message : 'Chyba při archivaci vozidel'
+      console.error('Chyba při archivaci vozidel:', error);
+      toast({
+        title: "Chyba při archivaci",
+        description: error instanceof Error ? error.message : 'Nepodařilo se archivovat vybraná vozidla',
+        variant: "destructive",
       });
+      throw error; // Re-throw to let the toolbar handle the error
     }
   }
 
@@ -670,44 +1165,26 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
-    setEditedAuto(null);
+    setSelectedVehicle(null);
   };
 
-  const handleEdit = (auto: Auto) => {
-    console.log('Editing auto:', auto);
-    
-    // Make sure we reset any existing state first
-    setEditingAuto(null);
-    
-    // Use setTimeout to ensure state is updated before setting new state
-    setTimeout(() => {
-      // Deep clone the auto object to avoid reference issues
-      const autoClone = JSON.parse(JSON.stringify(auto));
-      
-      setEditingAuto({
-        ...autoClone,
-        // Make sure ID is properly formatted as string
-        id: String(auto.id),
-        datumSTK: auto.datumSTK ? new Date(auto.datumSTK).toISOString().split('T')[0] : undefined
-      });
-      setIsEditOpen(true);
-    }, 50);
-  }
+  // Defensive: debounce handleEdit to prevent race conditions
+  const handleEdit = useCallback((auto: Auto) => {
+    setSelectedVehicle({ ...JSON.parse(JSON.stringify(auto)), id: String(auto.id), datumSTK: auto.datumSTK ? new Date(auto.datumSTK).toISOString().split('T')[0] : undefined });
+    setIsEditModalOpen(true);
+  }, []);
 
   const handleEditSubmit = async (data: AutoDetailValues) => {
+    if (!selectedVehicle) return;
+    
     try {
-      if (!editingAuto) {
-        console.error('No auto being edited');
-        return;
-      }
-      
       console.log('Original form data:', data);
-      console.log('Current editing auto:', editingAuto);
+      console.log('Current editing auto:', selectedVehicle);
       
       // Format the data for the API with proper type handling
       const formattedData = {
         ...data,
-        id: editingAuto.id,
+        id: selectedVehicle.id,
         // Convert string values to numbers where needed
         rokVyroby: typeof data.rokVyroby === 'string' ? parseInt(data.rokVyroby) : data.rokVyroby,
         najezd: typeof data.najezd === 'string' ? parseInt(data.najezd) : data.najezd,
@@ -716,9 +1193,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       };
       
       console.log('Submitting updated vehicle data:', formattedData);
-      console.log('API endpoint:', `/api/auta/${editingAuto.id}`);
+      console.log('API endpoint:', `/api/auta/${selectedVehicle.id}`);
       
-      const response = await fetch(`/api/auta/${editingAuto.id}`, {
+      const response = await fetch(`/api/auta/${selectedVehicle.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -751,8 +1228,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       });
 
       // Reset state and close the form
-      setEditingAuto(null);
-      setIsEditOpen(false);
+      setIsEditModalOpen(false);
+      setSelectedVehicle(null);
       
       // Refresh data
       onRefresh();
@@ -953,6 +1430,97 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     }
   };
 
+  // Inline editing handlers
+  const handleInlineSave = async (autoId: string, field: 'najezd' | 'datumSTK', value: number | string | null) => {
+    console.log('handleInlineSave called:', { autoId, field, value });
+    setIsSaving(true);
+    try {
+      // Find the current auto to preserve all existing data
+      const currentAuto = auta.find(a => a.id === autoId);
+      if (!currentAuto) {
+        throw new Error('Vehicle not found');
+      }
+
+      // Create update payload with all existing data plus the updated field
+      const updatePayload = {
+        spz: currentAuto.spz,
+        znacka: currentAuto.znacka,
+        model: currentAuto.model,
+        rokVyroby: currentAuto.rokVyroby,
+        najezd: currentAuto.najezd,
+        stav: currentAuto.stav,
+        datumSTK: currentAuto.datumSTK,
+        poznamka: currentAuto.poznamka,
+        // Override only the specific field being updated
+        [field]: value
+      };
+
+      console.log('Sending PATCH request to /api/auta/' + autoId, updatePayload);
+
+      const response = await fetch(`/api/auta/${autoId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(`Failed to update vehicle: ${response.status} ${errorText}`);
+      }
+
+      const updatedData = await response.json();
+      console.log('Vehicle updated successfully:', updatedData);
+
+      // Refresh data from server first to ensure consistency
+      if (typeof onRefresh === 'function') {
+        try {
+          console.log('Calling onRefresh...');
+          const refreshResult = onRefresh();
+          if (refreshResult instanceof Promise) {
+            await refreshResult;
+            console.log('onRefresh completed');
+          }
+        } catch (error) {
+          console.error('Error refreshing data:', error);
+        }
+      }
+      
+      // Close editor after refresh completes
+      setEditingCell(null);
+      
+      toast({
+        title: "Úspěšně aktualizováno",
+        description: `${field === 'najezd' ? 'Nájezd' : 'Datum STK'} bylo úspěšně změněno`,
+      });
+    } catch (error) {
+      console.error('Error updating vehicle:', error);
+      toast({
+        title: "Chyba při aktualizaci",
+        description: "Nepodařilo se aktualizovat vozidlo",
+        variant: "destructive",
+      });
+      // Re-throw error so InlineSTKEditor can handle it
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInlineCancel = () => {
+    setEditingCell(null);
+  };
+  <AutoDetailForm
+    open={isEditModalOpen}
+    onOpenChangeAction={(open: boolean) => {
+      if (!open) handleCloseEditModal();
+    }}
+    initialData={selectedVehicle as unknown as AutoDetailValues & { id: string }}
+    onSubmit={handleEditSubmit}
+  />
+
   return (
     <div className="w-full h-full p-2">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -1031,12 +1599,12 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                   <label className="block text-sm font-medium text-gray-700">Stav</label>
                   <select 
                     value={editedAuto.stav}
-                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, stav: e.target.value as "aktivní" | "servis" | "vyřazeno"} : null)}
+                    onChange={(e) => setEditedAuto(prev => prev ? {...prev, stav: e.target.value as "Aktivní" | "Neaktivní" | "V servisu"} : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                   >
-                    <option value="aktivní">Aktivní</option>
-                    <option value="servis">V servisu</option>
-                    <option value="vyřazeno">Vyřazené</option>
+                    <option value="Aktivní">Aktivní</option>
+                    <option value="Neaktivní">Neaktivní</option>
+                    <option value="V servisu">V servisu</option>
                   </select>
                 </div>
                 <div>
@@ -1059,26 +1627,12 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <div className="p-2 bg-white rounded-md">
-                        <Calendar
-                          mode="single"
-                          selected={editedAuto.datumSTK ? new Date(editedAuto.datumSTK) : undefined}
-                          onSelect={(date) => setEditedAuto(prev => prev ? {...prev, datumSTK: date ? date.toISOString() : undefined} : null)}
-                          initialFocus
-                          className="rounded-md"
-                          locale={cs}
-                          showOutsideDays={false}
-                          classNames={{
-                            head_row: "flex justify-between",
-                            head_cell: "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem] mx-0.5",
-                            row: "flex w-full mt-2 justify-between",
-                            cell: "h-10 w-10 text-center p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
-                            day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100 rounded-md transition-colors hover:bg-primary hover:text-primary-foreground",
-                            caption: "flex justify-center pt-2 pb-3 relative items-center",
-                            caption_label: "text-base font-medium capitalize"
-                          }}
-                        />
-                      </div>
+                      <DatePickerWithPresets
+                        date={editedAuto.datumSTK ? new Date(editedAuto.datumSTK) : undefined}
+                        setDate={(date) => setEditedAuto(prev => prev ? {...prev, datumSTK: date ? date.toISOString() : undefined} : null)}
+                        fromYear={2020}
+                        toYear={new Date().getFullYear() + 10}
+                      />
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -1117,149 +1671,324 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           </div>
         )}
         
-        <div className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Vyhledat..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border rounded-lg px-4 py-3 w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-            />
-            <select
-              value={filterStav}
-              onChange={(e) => setFilterStav(e.target.value)}
-              className="border rounded-lg px-4 py-3 w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-            >
-              <option value="vse">Všechny stavy</option>
-              <option value="aktivní">Aktivní</option>
-              <option value="servis">V servisu</option>
-              <option value="vyřazeno">Vyřazené</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600 text-lg whitespace-nowrap">Datum:</span>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="border rounded-lg px-4 py-3 w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-              />
-              <span className="text-gray-600">-</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="border rounded-lg px-4 py-3 w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600 text-lg whitespace-nowrap">Nájezd (km):</span>
-              <input
-                type="number"
-                placeholder="Od"
-                value={mileageFrom}
-                onChange={(e) => setMileageFrom(e.target.value)}
-                className="border rounded-lg px-4 py-3 w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-              />
-              <span className="text-gray-600">-</span>
-              <input
-                type="number"
-                placeholder="Do"
-                value={mileageTo}
-                onChange={(e) => setMileageTo(e.target.value)}
-                className="border rounded-lg px-4 py-3 w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-              />
-              <span className="text-gray-600 ml-1">km</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-sm text-gray-600 mr-2">Model:</span>
-              {modelOptions.map(m => (
-                <Badge
-                  key={m}
-                  variant={selectedModels.includes(m) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setSelectedModels(selectedModels.includes(m) ? selectedModels.filter(val => val !== m) : [...selectedModels, m])}
+        {/* Filters Card */}
+        <Card className="m-4">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filtry a vyhledávání
+              </CardTitle>
+              {(searchTerm || filterStav !== 'vse' || dateFrom || dateTo || mileageFrom || mileageTo || selectedModels.length > 0 || showSTKWarningFilter) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('')
+                    setFilterStav('vse')
+                    setDateFrom('')
+                    setDateTo('')
+                    setMileageFrom('')
+                    setMileageTo('')
+                    setSelectedModels([])
+                    setShowSTKWarningFilter(false)
+                  }}
+                  className="h-8 text-xs"
                 >
-                  {m}
+                  <X className="h-3 w-3 mr-1" />
+                  Vymazat filtry
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Search Bar */}
+            <div className="space-y-2">
+              <Label htmlFor="search" className="text-sm font-medium">
+                Vyhledávání
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Hledat podle značky, modelu..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-10"
+                />
+              </div>
+            </div>
+
+            {/* Filters Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="filter-stav" className="text-sm font-medium">
+                  Stav
+                </Label>
+                <Select value={filterStav} onValueChange={setFilterStav}>
+                  <SelectTrigger id="filter-stav" className="h-10">
+                    <SelectValue placeholder="Všechny stavy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vse">Všechny stavy</SelectItem>
+                    <SelectItem value="Aktivní">Aktivní</SelectItem>
+                    <SelectItem value="Neaktivní">Neaktivní</SelectItem>
+                    <SelectItem value="V servisu">V servisu</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date From */}
+              <div className="space-y-2">
+                <Label htmlFor="date-from" className="text-sm font-medium">
+                  STK od
+                </Label>
+                <Input
+                  id="date-from"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Date To */}
+              <div className="space-y-2">
+                <Label htmlFor="date-to" className="text-sm font-medium">
+                  STK do
+                </Label>
+                <Input
+                  id="date-to"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Mileage From */}
+              <div className="space-y-2">
+                <Label htmlFor="mileage-from" className="text-sm font-medium">
+                  Nájezd od (km)
+                </Label>
+                <Input
+                  id="mileage-from"
+                  type="number"
+                  placeholder="Od"
+                  value={mileageFrom}
+                  onChange={(e) => setMileageFrom(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+            </div>
+
+            {/* Second Row of Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Mileage To */}
+              <div className="space-y-2">
+                <Label htmlFor="mileage-to" className="text-sm font-medium">
+                  Nájezd do (km)
+                </Label>
+                <Input
+                  id="mileage-to"
+                  type="number"
+                  placeholder="Do"
+                  value={mileageTo}
+                  onChange={(e) => setMileageTo(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Model Filter - Compact Multi-Select */}
+              <div className="space-y-2">
+                <Label htmlFor="model-filter" className="text-sm font-medium">
+                  Model
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full h-10 justify-between text-left font-normal"
+                      id="model-filter"
+                    >
+                      <span className="truncate">
+                        {selectedModels.length === 0
+                          ? 'Všechny modely'
+                          : selectedModels.length === 1
+                          ? selectedModels[0]
+                          : `${selectedModels.length} modelů`}
+                      </span>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0" align="start">
+                    <div className="max-h-[300px] overflow-y-auto p-2">
+                      <div className="space-y-1">
+                        <div
+                          className="flex items-center space-x-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent"
+                          onClick={() => setSelectedModels([])}
+                        >
+                          <Checkbox
+                            checked={selectedModels.length === 0}
+                            onCheckedChange={() => setSelectedModels([])}
+                          />
+                          <span>Všechny modely</span>
+                        </div>
+                        {modelOptions.map((model) => {
+                          const isSelected = selectedModels.includes(model)
+                          return (
+                            <div
+                              key={model}
+                              className="flex items-center space-x-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedModels(selectedModels.filter((m) => m !== model))
+                                } else {
+                                  setSelectedModels([...selectedModels, model])
+                                }
+                              }}
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedModels([...selectedModels, model])
+                                  } else {
+                                    setSelectedModels(selectedModels.filter((m) => m !== model))
+                                  }
+                                }}
+                              />
+                              <span>{model}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {selectedModels.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedModels.slice(0, 2).map((m) => (
+                      <Badge key={m} variant="secondary" className="text-xs h-5 px-1.5">
+                        {m}
+                      </Badge>
+                    ))}
+                    {selectedModels.length > 2 && (
+                      <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                        +{selectedModels.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* STK Warning Filter */}
+            {expiringSTKCount > 0 && (
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={showSTKWarningFilter ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setShowSTKWarningFilter(!showSTKWarningFilter)}
+                          className={cn(
+                            "flex items-center gap-2",
+                            showSTKWarningFilter 
+                              ? "bg-orange-500 hover:bg-orange-600 text-white" 
+                              : "border-orange-300 text-orange-700 hover:bg-orange-50"
+                          )}
+                        >
+                          <CircleDot className="h-4 w-4" />
+                          STK vyprší ({expiringSTKCount})
+                          {showSTKWarningFilter && (
+                            <Badge variant="secondary" className="ml-1 bg-white/20 text-white">
+                              Aktivní
+                            </Badge>
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <div className="space-y-1">
+                          <p className="font-medium">
+                            {showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s končícím STK (do 30 dnů)"}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {showSTKWarningFilter 
+                              ? "Klikněte pro zobrazení všech vozidel" 
+                              : `Klikněte pro zobrazení ${expiringSTKCount} vozidel s STK končícím do 30 dnů`
+                            }
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
+            )}
+
+            {/* Results count */}
+            <div className="pt-2 border-t">
+              <div className="text-sm text-muted-foreground">
+                Zobrazeno <span className="font-semibold text-foreground">{paginatedAuta.length}</span> z{' '}
+                <span className="font-semibold text-foreground">{filteredAuta.length}</span> vozidel
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Selection Indicator - only show when items are selected */}
+        {selectedRows.size > 0 && (
+          <div className="bg-purple-50 border-b border-purple-200 px-4 py-2 shadow-sm sticky top-0 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Badge variant="secondary" className="text-sm">
+                  {selectedRows.size} vybráno
                 </Badge>
-              ))}
+                <span className="text-sm text-gray-600">
+                  z {filteredAuta.length} vozidel
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedRows(new Set())}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Zrušit výběr
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="bg-gray-200 border-b border-gray-200 px-4 py-2 shadow-sm sticky top-0 z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Vybráno položek: {selectedRows.size}
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowSTKChangeModal(true)}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Změnit STK
-              </button>
-              <button
-                onClick={() => setShowStateChangeModal(true)}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Změnit stav
-              </button>
-              <button
-                onClick={handleBulkExport}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Exportovat
-              </button>
-              <button
-                onClick={handlePrint}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Vytisknout
-              </button>
-              <button
-                onClick={() => {
-                  const selectedAutoIds = Array.from(selectedRows)
-                  const selectedAuta = auta.filter(auto => selectedAutoIds.includes(auto.id.toString()))
-                  
-                  if (selectedAuta.length > 0) {
-                    setSelectedToArchive(selectedAuta)
-                  }
-                }}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Archivovat
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-auto max-h-[calc(100vh-16rem)]">
-          <Table className="w-full table-fixed divide-y divide-gray-200
-          ">
+        {/* Desktop table */}
+        <div className="w-full overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+            <div className="hidden sm:block overflow-visible max-h-[calc(100vh-16rem)]">
+              <Table className="w-full min-w-[960px] table-fixed divide-y divide-gray-200">
             <TableHeader className="bg-gray-50">
               <TableRow>
                 <TableHead className="w-[50px] text-center">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-gray-300 w-5 h-5 cursor-pointer"
-                  />
+                  <div className="flex justify-center">
+                    <Checkbox
+                      checked={isAllSelected}
+                      indeterminate={isIndeterminate}
+                      onCheckedChange={(checked) => handleSelectAll(checked === true)}
+                      aria-label={isAllSelected ? "Odznačit vše" : "Označit vše"}
+                    />
+                  </div>
                 </TableHead>
-                <TableHead className="w-[80px]">Foto</TableHead>
-                <TableHead className="w-[20px]"></TableHead>
+                <TableHead className="w-[80px] text-left">Foto</TableHead>
+                <TableHead className="w-[20px] text-left"></TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-100 transition-colors px-4"
+                  className="text-left cursor-pointer hover:bg-gray-100 transition-colors px-4"
                   onClick={() => handleSortChange('spz')}
                 >
                   <div className="flex items-center gap-1">
@@ -1269,240 +1998,585 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                     )}
                   </div>
                 </TableHead>
-                <TableHead>Značka</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Rok výroby</TableHead>
-                <TableHead>Nájezd</TableHead>
-                <TableHead>Stav</TableHead>
-                <TableHead>STK</TableHead>
-                <TableHead className="text-right">Akce</TableHead>
+                <TableHead className="text-left">Značka</TableHead>
+                <TableHead className="text-left">Model</TableHead>
+                <TableHead className="text-left">Rok výroby</TableHead>
+                <TableHead className="text-left">Nájezd</TableHead>
+                <TableHead className="text-left">Stav</TableHead>
+                <TableHead className="text-left">STK</TableHead>
+                <TableHead className="text-left">Akce</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedAuta.map((auto) => (
-                <TableRow 
-                  key={auto.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <TableCell className="text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.has(auto.id.toString())}
-                      onChange={(e) => handleSelectRow(auto.id.toString(), e.target.checked)}
-                      className="rounded border-gray-300 w-5 h-5 cursor-pointer"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {(() => {
-                      // Get the thumbnail URL with a timestamp to prevent caching
-                      const timestamp = new Date().getTime();
-                      const thumbnailUrl = auto.thumbnailUrl 
-                        ? `${auto.thumbnailUrl}?t=${timestamp}` 
-                        : auto.thumbnailFotoId 
-                          ? `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`
-                          : null;
-                      
-                      return thumbnailUrl ? (
-                        <>
-                          <div 
-                            className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md"
-                            onClick={() => setFullscreenPhoto(thumbnailUrl)}
-                          >
-                            <img 
-                              src={thumbnailUrl}
-                              alt={`${auto.znacka} ${auto.model}`}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                              onError={(e) => {
-                                console.error('Image failed to load:', thumbnailUrl);
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
-                          </div>
-                          
-                          {/* Fullscreen Photo Dialog */}
-                          <Dialog open={!!fullscreenPhoto} onOpenChange={(open) => !open && setFullscreenPhoto(null)}>
-                            <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none">
-                              <div className="relative w-full h-full flex items-center justify-center">
-                                <button 
-                                  onClick={() => setFullscreenPhoto(null)}
-                                  className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-white/20 z-10 transition-all duration-200 backdrop-blur-sm"
-                                  aria-label="Close"
-                                >
-                                  <X className="h-6 w-6" />
-                                </button>
-                                
-                                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
-                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
-                                
-                                {fullscreenPhoto && (
-                                  <div className="transition-all duration-300 ease-out transform scale-100">
-                                    <img 
-                                      src={fullscreenPhoto}
-                                      alt={`${auto.znacka} ${auto.model}`}
-                                      className="max-w-full max-h-[80vh] object-contain shadow-2xl"
-                                    />
-                                    <div className="mt-4 text-center text-white/80 text-sm">
-                                      {auto.znacka} {auto.model} • {auto.spz}
+              {paginatedAuta.map((auto) => {
+                const stkStatus = getSTKStatus(auto.datumSTK);
+                const getRowBackgroundClass = () => {
+                  switch (stkStatus) {
+                    case 'expired':
+                      return 'bg-red-50 hover:bg-red-100';
+                    case 'upcoming':
+                      return 'bg-yellow-50 hover:bg-yellow-100';
+                    default:
+                      return 'hover:bg-gray-50';
+                  }
+                };
+
+                return (
+                  <TableRow 
+                    key={auto.id}
+                    className={`transition-colors ${getRowBackgroundClass()}`}
+                  >
+                    <TableCell className="text-center">
+                      <div className="flex justify-center">
+                        <Checkbox
+                          checked={selectedRows.has(auto.id.toString())}
+                          onCheckedChange={(checked) => handleSelectRow(auto.id.toString(), checked === true)}
+                          aria-label={`Označit vozidlo ${auto.spz}`}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-left">
+                      {(() => {
+                        // Get the thumbnail URL with a timestamp to prevent caching
+                        const timestamp = new Date().getTime();
+                        const thumbnailUrl = auto.thumbnailUrl 
+                          ? `${auto.thumbnailUrl}?t=${timestamp}` 
+                          : auto.thumbnailFotoId 
+                            ? `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`
+                            : null;
+                        
+                        return thumbnailUrl ? (
+                          <>
+                            <div 
+                              className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md"
+                              onClick={() => setFullscreenPhoto(thumbnailUrl)}
+                            >
+                              <img 
+                                src={thumbnailUrl}
+                                alt={`${auto.znacka} ${auto.model}`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  console.error('Image failed to load:', thumbnailUrl);
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
+                            </div>
+                            
+                            {/* Fullscreen Photo Dialog */}
+                            <Dialog open={!!fullscreenPhoto} onOpenChange={(open) => !open && setFullscreenPhoto(null)}>
+                              <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none">
+                                <div className="relative w-full h-full flex items-center justify-center">
+                                  <button 
+                                    onClick={() => setFullscreenPhoto(null)}
+                                    className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-white/20 z-10 transition-all duration-200 backdrop-blur-sm"
+                                    aria-label="Close"
+                                  >
+                                    <X className="h-6 w-6" />
+                                  </button>
+                                  
+                                  <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
+                                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
+                                  
+                                  {fullscreenPhoto && (
+                                    <div className="transition-all duration-300 ease-out transform scale-100">
+                                      <img 
+                                        src={fullscreenPhoto}
+                                        alt={`${auto.znacka} ${auto.model}`}
+                                        className="max-w-full max-h-[80vh] object-contain shadow-2xl"
+                                      />
+                                      <div className="mt-4 text-center text-white/80 text-sm">
+                                        {auto.znacka} {auto.model} • {auto.spz}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </>
+                        ) : (
+                          <div 
+                            className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 shadow-sm"
+                          >
+                            <ImageIcon className="h-8 w-8 text-gray-400" />
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell className="text-left"></TableCell>
+                    <TableCell className="text-left font-medium">{auto.spz}</TableCell>
+                    <TableCell className="text-left">{auto.znacka}</TableCell>
+                    <TableCell className="text-left">{auto.model}</TableCell>
+                    <TableCell className="text-left">{auto.rokVyroby}</TableCell>
+                    <TableCell className="text-left">
+                      {editingCell?.id === auto.id && editingCell?.field === 'najezd' ? (
+                        <InlineMileageEditor
+                          auto={auto}
+                          onSave={async (value) => {
+                            await handleInlineSave(auto.id, 'najezd', value);
+                          }}
+                          onCancel={handleInlineCancel}
+                        />
                       ) : (
-                        <div 
-                          className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 shadow-sm"
-                        >
-                          <ImageIcon className="h-8 w-8 text-gray-400" />
-                        </div>
-                      );
-                    })()}
-                  </TableCell>
-                  <TableCell></TableCell>
-                  <TableCell className="font-medium">{auto.spz}</TableCell>
-                  <TableCell>{auto.znacka}</TableCell>
-                  <TableCell>{auto.model}</TableCell>
-                  <TableCell>{auto.rokVyroby}</TableCell>
-                  <TableCell>{formatNumber(auto.najezd)}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(auto.stav)}>
-                      {auto.stav}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {auto.datumSTK ? new Date(auto.datumSTK).toLocaleDateString('cs-CZ') : '-'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(auto)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <button
-                      onClick={() => setDeleteModalData({ auto, isOpen: true })}
-                      className="text-red-600 hover:text-red-800 font-medium text-sm"
-                    >
-                      Vyřadit
-                    </button>
-                    <button 
-                      onClick={() => handleCarDetail(auto.id)}
-                      className="text-green-600 hover:text-green-900 hover:underline font-medium text-sm"
-                    >
-                      Detail
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        <TooltipProvider>
+                          <Tooltip delayDuration={300}>
+                            <TooltipTrigger asChild>
+                              <div 
+                                className={cn(
+                                  "group flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded transition-all duration-200 focus-within:bg-gray-50 focus-within:ring-2 focus-within:ring-purple-500 focus-within:ring-opacity-50",
+                                  editingCell && editingCell.id === auto.id && editingCell.field === 'najezd' && "bg-purple-50 ring-2 ring-purple-200"
+                                )}
+                                onClick={() => {
+                                  if (editingCell && editingCell.id !== auto.id) {
+                                    handleInlineCancel();
+                                  }
+                                  setEditingCell({ id: auto.id, field: 'najezd' });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    if (editingCell && editingCell.id !== auto.id) {
+                                      handleInlineCancel();
+                                    }
+                                    setEditingCell({ id: auto.id, field: 'najezd' });
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label="Klikněte pro úpravu nájezdu"
+                              >
+                                <span className="font-medium">{formatNumber(auto.najezd)}</span>
+                                <Edit3 className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <div className="space-y-1">
+                                <p className="font-medium">Upravit nájezd</p>
+                                <p className="text-xs text-gray-400">
+                                  Klikněte pro úpravu nájezdu vozidla
+                                </p>
+                                <div className="text-xs text-gray-400 space-y-1">
+                                  <p>• Enter = uložit změny</p>
+                                  <p>• Esc = zrušit úpravu</p>
+                                  <p>• Tab = přepnout na další pole</p>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-left">
+                      <Badge className={getStatusColor(auto.stav)}>
+                        {auto.stav}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-left relative">
+                      {editingCell?.id === auto.id && editingCell?.field === 'datumSTK' ? (
+                        <InlineSTKEditor
+                          auto={auto}
+                          onSave={async (value) => {
+                            await handleInlineSave(auto.id, 'datumSTK', value);
+                          }}
+                          onCancel={handleInlineCancel}
+                        />
+                      ) : (
+                        <TooltipProvider>
+                          <Tooltip delayDuration={300}>
+                            <TooltipTrigger asChild>
+                              <div 
+                                className={cn(
+                                  "group flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded transition-all duration-200 focus-within:bg-gray-50 focus-within:ring-2 focus-within:ring-purple-500 focus-within:ring-opacity-50",
+                                  editingCell && editingCell.id === auto.id && editingCell.field === 'datumSTK' && "bg-purple-50 ring-2 ring-purple-200"
+                                )}
+                                onClick={() => {
+                                  if (editingCell && editingCell.id !== auto.id) {
+                                    handleInlineCancel();
+                                  }
+                                  setEditingCell({ id: auto.id, field: 'datumSTK' });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    if (editingCell && editingCell.id !== auto.id) {
+                                      handleInlineCancel();
+                                    }
+                                    setEditingCell({ id: auto.id, field: 'datumSTK' });
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label="Klikněte pro úpravu data STK"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {stkStatus === 'expired' && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="flex items-center">
+                                            <CircleDot className="h-4 w-4 text-red-600 mr-2" aria-hidden="true" />
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">STK vypršela</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  {stkStatus === 'upcoming' && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="flex items-center">
+                                            <CircleDot className="h-4 w-4 text-yellow-600 mr-2" aria-hidden="true" />
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">STK brzy vyprší</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  {stkStatus === 'normal' && auto.datumSTK && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="flex items-center">
+                                            <Check className="h-4 w-4 text-green-600" />
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">STK platná</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                  {auto.datumSTK ? (
+                                    <span className={cn(
+                                      "font-medium",
+                                      stkStatus === 'expired' && 'text-red-600',
+                                      stkStatus === 'upcoming' && 'text-yellow-700'
+                                    )}>
+                                      {new Date(auto.datumSTK).toLocaleDateString('cs-CZ')}
+                                    </span>
+                                  ) : (
+                                    <Badge className="bg-amber-100 text-amber-800 border-amber-200">Není zadáno</Badge>
+                                  )}
+                                </div>
+                                <Edit3 className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <div className="space-y-1">
+                                <p className="font-medium">Upravit datum STK</p>
+                                <p className="text-xs text-gray-400">
+                                  Klikněte pro úpravu data technické kontroly
+                                </p>
+                                {stkStatus === 'expired' && (
+                                  <p className="text-xs text-red-600 font-medium">
+                                    ⚠️ STK vypršelo
+                                  </p>
+                                )}
+                                {stkStatus === 'upcoming' && (
+                                  <p className="text-xs text-yellow-600 font-medium">
+                                    ⚠️ STK brzy vyprší
+                                  </p>
+                                )}
+                                <div className="text-xs text-gray-400 space-y-1">
+                                  <p>• Enter = uložit změny</p>
+                                  <p>• Esc = zrušit úpravu</p>
+                                  <p>• Tab = přepnout na další pole</p>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-left">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label="Otevřít menu akcí"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(auto)}
+                            className="cursor-pointer"
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Upravit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleCarDetail(auto.id)}
+                            className="cursor-pointer"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Detail
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDeleteModalData({ auto, isOpen: true })}
+                            className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Vyřadit
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile card layout */}
+        <div className="sm:hidden space-y-4 px-4 pb-4">
+          {paginatedAuta.map((auto) => {
+            const stkStatus = getSTKStatus(auto.datumSTK);
+            const getRowBackgroundClass = () => {
+              switch (stkStatus) {
+                case 'expired':
+                  return 'bg-red-50';
+                case 'upcoming':
+                  return 'bg-yellow-50';
+                default:
+                  return 'bg-white';
+              }
+            };
+
+            const thumbnailUrl = (() => {
+              const timestamp = new Date().getTime();
+              if (auto.thumbnailUrl) return `${auto.thumbnailUrl}?t=${timestamp}`;
+              if (auto.thumbnailFotoId) return `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`;
+              return null;
+            })();
+
+            return (
+              <div
+                key={auto.id}
+                className={`rounded-2xl border border-gray-200 shadow-sm ${getRowBackgroundClass()} p-4 space-y-4`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1">
+                      <Checkbox
+                        checked={selectedRows.has(auto.id.toString())}
+                        onCheckedChange={(checked) => handleSelectRow(auto.id.toString(), checked === true)}
+                        aria-label={`Označit vozidlo ${auto.spz}`}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm uppercase tracking-wide text-gray-500">{auto.spz}</p>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {auto.znacka} {auto.model}
+                      </p>
+                      <Badge className={`mt-2 ${getStatusColor(auto.stav)}`}>{auto.stav}</Badge>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onClick={() => handleEdit(auto)}>Upravit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleCarDetail(auto.id)}>Detail</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setDeleteModalData({ auto, isOpen: true })}
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      >
+                        Vyřadit
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex gap-3">
+                  {thumbnailUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setFullscreenPhoto(thumbnailUrl)}
+                      className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100"
+                      aria-label="Zvětšit fotografii"
+                    >
+                      <img src={thumbnailUrl} alt={`${auto.znacka} ${auto.model}`} className="h-full w-full object-cover" />
+                    </button>
+                  ) : (
+                    <div className="h-24 w-24 flex items-center justify-center rounded-xl bg-gray-100 flex-shrink-0">
+                      <ImageIcon className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3 text-sm w-full">
+                    <div>
+                      <p className="text-xs uppercase text-gray-500">Rok výroby</p>
+                      <p className="font-medium text-gray-900">{auto.rokVyroby}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase text-gray-500">Nájezd</p>
+                      {editingCell?.id === auto.id && editingCell?.field === 'najezd' ? (
+                        <InlineMileageEditor
+                          auto={auto}
+                          onSave={(value) => handleInlineSave(auto.id, 'najezd', value)}
+                          onCancel={handleInlineCancel}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="font-semibold text-gray-900 underline-offset-2 hover:underline"
+                          onClick={() => setEditingCell({ id: auto.id, field: 'najezd' })}
+                        >
+                          {formatNumber(auto.najezd)}
+                        </button>
+                      )}
+                    </div>
+                    <div className="col-span-2 relative z-10">
+                      <p className="text-xs uppercase text-gray-500">Datum STK</p>
+                      {editingCell?.id === auto.id && editingCell?.field === 'datumSTK' ? (
+                        <InlineSTKEditor
+                          auto={auto}
+                          onSave={async (value) => {
+                            await handleInlineSave(auto.id, 'datumSTK', value);
+                          }}
+                          onCancel={handleInlineCancel}
+                        />
+                      ) : auto.datumSTK ? (
+                        <button
+                          type="button"
+                          className="flex items-center gap-2 font-semibold text-gray-900 underline-offset-2 hover:underline"
+                          onClick={() => setEditingCell({ id: auto.id, field: 'datumSTK' })}
+                        >
+                          {new Date(auto.datumSTK).toLocaleDateString('cs-CZ')}
+                          {stkStatus === 'expired' && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                          {stkStatus === 'upcoming' && <AlertCircle className="h-4 w-4 text-yellow-500" />}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingCell({ id: auto.id, field: 'datumSTK' })}
+                          className="text-sm text-amber-700 underline underline-offset-2"
+                        >
+                          Není zadáno
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="px-4 py-4 bg-gray-50 border-t border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              <span className="text-sm text-gray-700 whitespace-nowrap">
                 Zobrazeno {paginatedAuta.length} z {filteredAuta.length} vozidel
               </span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className="border rounded px-2 py-1"
-              >
-                <option value={5}>5 / stránka</option>
-                <option value={10}>10 / stránka</option>
-                <option value={25}>25 / stránka</option>
-                <option value={50}>50 / stránka</option>
-                <option value={100}>100 / stránka</option>
-              </select>
-            </div>
-            <div className="flex items-center space-x-2">
-              {Array.from({ length: Math.ceil(filteredAuta.length / itemsPerPage) }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => handlePageChange(i + 1)}
-                  className={`px-3 py-1 rounded ${
-                    currentPage === i + 1
-                      ? 'bg-purple-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="items-per-page" className="text-sm text-gray-700 whitespace-nowrap">
+                  Záznamů na stránku:
+                </Label>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value))
+                    setCurrentPage(1)
+                  }}
                 >
-                  {i + 1}
-                </button>
-              ))}
+                  <SelectTrigger id="items-per-page" className="h-9 w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex items-center space-x-1 flex-wrap gap-1 min-w-0">
+              {(() => {
+                const totalPages = Math.ceil(filteredAuta.length / itemsPerPage);
+                const maxVisiblePages = 7;
+                const pages: (number | string)[] = [];
+                
+                if (totalPages <= maxVisiblePages) {
+                  // Show all pages if total is less than max
+                  for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i);
+                  }
+                } else {
+                  // Always show first page
+                  pages.push(1);
+                  
+                  let startPage = Math.max(2, currentPage - 1);
+                  let endPage = Math.min(totalPages - 1, currentPage + 1);
+                  
+                  // Adjust range to show more pages around current
+                  if (currentPage <= 3) {
+                    endPage = Math.min(totalPages - 1, 5);
+                  } else if (currentPage >= totalPages - 2) {
+                    startPage = Math.max(2, totalPages - 4);
+                  }
+                  
+                  // Add ellipsis after first page if needed
+                  if (startPage > 2) {
+                    pages.push('ellipsis-start');
+                  }
+                  
+                  // Add pages around current
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(i);
+                  }
+                  
+                  // Add ellipsis before last page if needed
+                  if (endPage < totalPages - 1) {
+                    pages.push('ellipsis-end');
+                  }
+                  
+                  // Always show last page
+                  pages.push(totalPages);
+                }
+                
+                return pages.map((page, index) => {
+                  if (page === 'ellipsis-start' || page === 'ellipsis-end') {
+                    return (
+                      <span key={`ellipsis-${index}`} className="px-2 text-gray-500">
+                        ...
+                      </span>
+                    );
+                  }
+                  
+                  const pageNum = page as number;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
+                        currentPage === pageNum
+                          ? 'bg-purple-600 text-white'
+                          : 'text-gray-700 hover:bg-gray-100 border border-gray-200'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
       </div>
-
-      {showSTKChangeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">Změnit datum STK</h2>
-            <p className="mb-4">Vyberte nové datum STK pro {selectedRows.size} vozidel:</p>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex w-full justify-between rounded-md border border-input bg-background px-3 py-2 text-sm mb-6 shadow-sm",
-                    !newDate && "text-muted-foreground"
-                  )}
-                >
-                  {newDate ? (
-                    format(new Date(newDate), "d. MMMM yyyy", { locale: cs })
-                  ) : (
-                    <span>Vyberte datum STK</span>
-                  )}
-                  <CalendarIcon className="h-4 w-4 opacity-50" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <div className="p-2 bg-white rounded-md">
-                  <Calendar
-                    mode="single"
-                    selected={newDate ? new Date(newDate) : undefined}
-                    onSelect={(date) => setNewDate(date ? date.toISOString().split('T')[0] : '')}
-                    initialFocus
-                    className="rounded-md"
-                    locale={cs}
-                    showOutsideDays={false}
-                    classNames={{
-                      head_row: "flex justify-between",
-                      head_cell: "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem] mx-0.5",
-                      row: "flex w-full mt-2 justify-between",
-                      cell: "h-10 w-10 text-center p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
-                      day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100 rounded-md transition-colors hover:bg-primary hover:text-primary-foreground",
-                      caption: "flex justify-center pt-2 pb-3 relative items-center",
-                      caption_label: "text-base font-medium capitalize"
-                    }}
-                  />
-                </div>
-              </PopoverContent>
-            </Popover>
-            
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowSTKChangeModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 w-full"
-              >
-                Zrušit
-              </button>
-              <button
-                onClick={handleBulkSTKChange}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full"
-              >
-                Uložit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showForm && (
         <AutoForm 
@@ -1566,39 +2640,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         </div>
       )}
 
-      {/* Bulk State Change Modal */}
-      {showStateChangeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-10">
-          <div className="bg-gray-200 rounded-lg shadow-xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">Změnit stav vozidel</h2>
-            <p className="mb-4">Vyberte nový stav pro {selectedRows.size} vozidel:</p>
-            <select
-              value={newBulkState}
-              onChange={(e) => setNewBulkState(e.target.value)}
-              className="w-full border rounded-lg px-4 py-2 mb-6 bg-white"
-            >
-              <option value="aktivní">Aktivní</option>
-              <option value="servis">V servisu</option>
-              <option value="vyřazeno">Vyřazené</option>
-            </select>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowStateChangeModal(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 w-full"
-              >
-                Zrušit
-              </button>
-              <button
-                onClick={handleBulkStateChange}
-                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full"
-              >
-                Uložit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Old archive modal - removed since we now use bulk toolbar */}
       {selectedToArchive.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto">
           <div className="relative w-full max-w-xl max-h-full">
@@ -1677,17 +2719,58 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       )}
 
       {/* Add back the AutoDetailForm component */}
-      {editingAuto && (
-        <AutoDetailForm
-          open={isEditOpen}
-          onOpenChangeAction={async (open: boolean) => {
-            setIsEditOpen(open)
-            return Promise.resolve()
-          }}
-          initialData={editingAuto as unknown as AutoDetailValues & { id: string }}
-          onSubmit={handleEditSubmit}
-        />
-      )}
+      <AutoDetailForm
+        open={isEditModalOpen}
+        onOpenChangeAction={(open: boolean) => {
+          if (!open) handleCloseEditModal();
+        }}
+        initialData={selectedVehicle as unknown as AutoDetailValues & { id: string }}
+        onSubmit={handleEditSubmit}
+      />
+
+      {/* Inline Editing Legend */}
+      <div className="mt-3 pt-3 border-t border-gray-200">
+        <div className="flex flex-wrap items-center gap-6 text-xs text-gray-600">
+          <div className="flex items-center gap-2">
+            <Edit3 className="h-3 w-3 text-gray-400" />
+            <span>Klikněte na nájezd nebo datum STK pro úpravu</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono bg-gray-100 px-1 rounded">Enter</span>
+            <span>uložit změny</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono bg-gray-100 px-1 rounded">Esc</span>
+            <span>zrušit úpravu</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono bg-gray-100 px-1 rounded">Tab</span>
+            <span>přepínat mezi poli</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-3 w-3 text-red-500" />
+            <span>STK vypršelo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-3 w-3 text-yellow-500" />
+            <span>STK brzy vyprší</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bulk Action Toolbar */}
+      <BulkActionToolbar
+        selectedCount={selectedRows.size}
+        totalCount={filteredAuta.length}
+        onClearSelectionAction={() => setSelectedRows(new Set())}
+        onBulkDelete={handleBulkDelete}
+        onBulkStateChange={handleBulkStateChange}
+        onBulkSTKChange={handleBulkSTKChange}
+        onBulkExport={handleBulkExport}
+        onBulkPrint={handlePrint}
+        onBulkArchive={handleArchive}
+        isLoading={isSaving}
+      />
     </div>
   )
 }

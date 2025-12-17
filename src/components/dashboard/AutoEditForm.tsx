@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -13,6 +12,8 @@ import { cs } from 'date-fns/locale';
 import { CalendarIcon } from 'lucide-react';
 import { Auto } from '@prisma/client';
 import { useEffect } from 'react';
+import React from 'react';
+import { DatePickerWithPresets } from '@/components/ui/calendar';
 
 const formSchema = z.object({
   spz: z.string().min(1, "SPZ je povinná").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -67,6 +68,8 @@ export function AutoEditForm({ auto, onSubmit, onCancel }: {
       poznamka: auto.poznamka || '',
     });
   }, [auto, form]);
+
+  const [open, setOpen] = React.useState(false);
 
   return (
     <Form {...form}>
@@ -195,7 +198,7 @@ export function AutoEditForm({ auto, onSubmit, onCancel }: {
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Datum STK</FormLabel>
-              <Popover>
+              <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
@@ -214,18 +217,18 @@ export function AutoEditForm({ auto, onSubmit, onCancel }: {
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date < new Date("1900-01-01") || date > new Date("2100-12-31")
-                    }
-                    initialFocus
-                    locale={cs}
-                  />
-                </PopoverContent>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <DatePickerWithPresets
+                          date={field.value}
+                          setDate={(date) => {
+                            field.onChange(date);
+                            if (date) setOpen(false);
+                          }}
+                          fromYear={2020}
+                          toYear={new Date().getFullYear() + 10}
+                          inline={true}
+                        />
+                      </PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>

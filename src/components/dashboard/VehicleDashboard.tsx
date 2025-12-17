@@ -126,11 +126,11 @@ export function VehicleDashboard({ vehicles, maintenanceAlerts }: VehicleDashboa
                   <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
                     <MapPin className="h-8 w-8 text-muted-foreground" />
                     <Link
-                      href="/dashboard/auta/mapa"
+                      href="/dashboard/auta"
                       className="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 hover:opacity-100 transition-opacity"
                     >
                       <span className="px-4 py-2 bg-white rounded-md shadow-sm font-medium">
-                        Zobrazit mapu
+                        Zobrazit vozidla
                       </span>
                     </Link>
                   </div>

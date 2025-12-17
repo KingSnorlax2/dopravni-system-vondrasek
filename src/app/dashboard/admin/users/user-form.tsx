@@ -32,8 +32,9 @@ import * as z from "zod"
 const userFormSchema = z.object({
   name: z.string().min(2, "Jméno musí mít alespoň 2 znaky"),
   email: z.string().email("Neplatný email"),
-  password: z.string().min(6, "Heslo musí mít alespoň 6 znaků"),
-  role: z.enum(["USER", "ADMIN"])
+  // Password is optional for edit; when provided must be >= 6
+  password: z.string().min(6, "Heslo musí mít alespoň 6 znaků").optional(),
+  role: z.enum(["USER", "ADMIN"]) 
 })
 
 type UserFormValues = z.infer<typeof userFormSchema>
@@ -46,7 +47,6 @@ interface UserFormProps {
 }
 
 export function UserForm({ open, onOpenChange, initialData, mode }: UserFormProps) {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<UserFormValues>({
@@ -62,20 +62,34 @@ export function UserForm({ open, onOpenChange, initialData, mode }: UserFormProp
   async function onSubmit(data: UserFormValues) {
     setIsLoading(true)
     try {
-      const url = mode === "add" ? "/api/users" : `/api/users/${initialData?.id}`
+      const url = mode === "add" ? "/api/admin/users" : `/api/admin/users/${initialData?.id}`
       const method = mode === "add" ? "POST" : "PATCH"
       
+      // Shape payload according to admin API: roles as array; omit empty password on edit
+      const payload: any = {
+        name: data.name,
+        email: data.email,
+        roles: [data.role],
+      }
+      if (mode === 'add') {
+        if (!data.password) {
+          throw new Error('Password is required for new users')
+        }
+        payload.password = data.password
+      } else if (data.password && data.password.trim().length > 0) {
+        payload.password = data.password
+      }
+
       const response = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) throw new Error("Failed to save user")
       
-      router.refresh()
       onOpenChange(false)
     } catch (error) {
       console.error("Error saving user:", error)

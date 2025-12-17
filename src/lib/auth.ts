@@ -1,7 +1,20 @@
+import 'server-only'
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import { compare } from "bcryptjs"
+
+/**
+ * ⚠️ SERVER-ONLY FILE
+ * 
+ * This file imports Prisma and can only be used in:
+ * - Server Components
+ * - Server Actions
+ * - API Routes
+ * - Middleware
+ * 
+ * For client-safe constants, import from @/lib/auth-constants instead.
+ */
 
 export const authConfig: NextAuthOptions = {
   providers: [

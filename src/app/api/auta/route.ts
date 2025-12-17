@@ -1,30 +1,19 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
-
-const autoSchema = z.object({
-  spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
-  znacka: z.string().min(2, "Značka musí mít alespoň 2 znaky").max(20, "Značka může mít maximálně 20 znaků"),
-  model: z.string().min(1, "Model je povinný").max(20, "Model může mít maximálně 20 znaků"),
-  rokVyroby: z.number()
-    .min(1900, "Rok výroby musí být od roku 1900")
-    .max(new Date().getFullYear(), "Rok výroby nemůže být v budoucnosti"),
-  najezd: z.number().min(0, "Nájezd nemůže být záporný"),
-  stav: z.enum(["aktivní", "servis", "vyřazeno"]),
-  datumSTK: z.string().nullable().optional(),
-  poznamka: z.string().nullable().optional(),
-  fotky: z.array(z.object({ id: z.string() })).optional()
-});
+import { db, prisma } from '@/lib/prisma';
+import { createVehicleSchema } from '@/lib/schemas/vehicle';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const showAll = searchParams.get('showAll') === 'true';
     
-    const auta = await prisma.auto.findMany({
-      where: showAll ? undefined : {
-        aktivni: true
-      },
+    // If showAll=true, use base client to get ALL vehicles (active + inactive)
+    // If showAll=false or not provided, use extended client to get only active vehicles
+    const client = showAll ? prisma : db;
+    
+    const auta = await client.auto.findMany({
+      // When showAll=true, prisma (base client) returns all vehicles
+      // When showAll=false, db (extended client) automatically filters aktivni: true
       orderBy: {
         id: 'desc'
       },
@@ -49,7 +38,7 @@ export async function GET(request: Request) {
     for (const auto of auta) {
       if (!auto.thumbnailFotoId && auto.fotky.length > 0) {
         // Update the database to set the first photo as thumbnail
-        await prisma.auto.update({
+        await db.auto.update({
           where: { id: auto.id },
           data: { thumbnailFotoId: auto.fotky[0].id }
         });
@@ -96,12 +85,13 @@ export async function POST(request: Request) {
     const data = await request.json();
     console.log('Přijatá data:', data);
 
-    const validationResult = autoSchema.safeParse(data);
+    const validationResult = createVehicleSchema.safeParse(data);
     if (!validationResult.success) {
       console.error('Validační chyby:', validationResult.error);
       return NextResponse.json(
         { 
           error: 'Neplatná data',
+          fields: validationResult.error.flatten().fieldErrors,
           details: validationResult.error.errors.map(e => ({
             path: e.path.join('.'),
             message: e.message
@@ -114,7 +104,7 @@ export async function POST(request: Request) {
     const validatedData = validationResult.data;
     
     // Kontrola duplicitní SPZ
-    const existingAuto = await prisma.auto.findUnique({
+    const existingAuto = await db.auto.findUnique({
       where: { spz: validatedData.spz }
     });
 
@@ -125,10 +115,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const vehicle = await prisma.auto.create({
+    const vehicle = await db.auto.create({
       data: {
-        ...validatedData,
-        datumSTK: validatedData.datumSTK ? new Date(validatedData.datumSTK) : null,
+        spz: validatedData.spz,
+        znacka: validatedData.znacka,
+        model: validatedData.model,
+        rokVyroby: validatedData.rokVyroby,
+        najezd: validatedData.najezd,
+        stav: validatedData.stav,
+        poznamka: validatedData.poznamka || null,
+        datumSTK: validatedData.datumSTK instanceof Date ? validatedData.datumSTK : validatedData.datumSTK ? new Date(validatedData.datumSTK) : null,
         aktivni: true,
         fotky: validatedData.fotky?.length ? {
           connect: validatedData.fotky.map(foto => ({ id: foto.id }))

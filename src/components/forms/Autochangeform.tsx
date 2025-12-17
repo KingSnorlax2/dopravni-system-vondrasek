@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
+import { DatePickerWithPresets } from "@/components/ui/calendar"
 import {
   Popover,
   PopoverContent,
@@ -41,6 +41,7 @@ import { cs } from "date-fns/locale"
 import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { useTransition, useEffect } from 'react'
+import React from 'react'
 
 const autoDetailSchema = z.object({
   spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -66,7 +67,8 @@ interface AutoDetailFormProps {
 
 export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData }: AutoDetailFormProps) {
   const [isPending, startTransition] = useTransition()
-  
+  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false)
+
   const form = useForm<AutoDetailValues>({
     resolver: zodResolver(autoDetailSchema),
     defaultValues: initialData
@@ -112,12 +114,8 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
 
   return (
     <Sheet 
-      open={open} 
-      onOpenChange={(value) => {
-        startTransition(() => {
-          void onOpenChangeAction(value);
-        });
-      }}
+      open={open}
+      onOpenChange={onOpenChangeAction}
     >
       <SheetContent 
         className="w-full sm:max-w-[540px] h-full flex flex-col"
@@ -130,8 +128,8 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
         </SheetHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2">
-            <div className="col-span-2 grid grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+            <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="spz"
@@ -244,7 +242,7 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
                 render={({ field }) => (
                   <FormItem className="flex flex-col space-y-1">
                     <FormLabel>Datum STK</FormLabel>
-                    <Popover>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -265,23 +263,14 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 bg-white rounded-md shadow-lg border border-gray-200" align="start">
                         <div className="p-2 bg-white rounded-md">
-                          <Calendar
-                            mode="single"
-                            selected={field.value ? new Date(field.value) : undefined}
-                            onSelect={field.onChange}
-                            initialFocus
-                            className="rounded-md"
-                            locale={cs}
-                            showOutsideDays={false}
-                            classNames={{
-                              head_row: "flex justify-between",
-                              head_cell: "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem] mx-0.5",
-                              row: "flex w-full mt-2 justify-between",
-                              cell: "h-10 w-10 text-center p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
-                              day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100 rounded-md transition-colors hover:bg-primary hover:text-primary-foreground",
-                              caption: "flex justify-center pt-2 pb-3 relative items-center",
-                              caption_label: "text-base font-medium capitalize"
+                          <DatePickerWithPresets
+                            date={field.value ? new Date(field.value) : undefined}
+                            setDate={(date) => {
+                              field.onChange(date);
+                              if (date) setIsDatePickerOpen(false);
                             }}
+                            fromYear={2020}
+                            toYear={new Date().getFullYear() + 10}
                           />
                         </div>
                       </PopoverContent>

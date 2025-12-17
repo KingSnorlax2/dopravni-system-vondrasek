@@ -12,6 +12,24 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import { loadSettings, saveSettings, AppSettings } from '@/utils/settings'
+import { useAccessControl } from "@/hooks/useAccessControl";
+import { useRouter } from "next/navigation";
+import DriverLoginControl from '@/components/newspaper/DriverLoginControl'
+
+const ROLES = [
+  { key: 'USER', label: 'Uživatel' },
+  { key: 'ADMIN', label: 'Administrátor' },
+  { key: 'DRIVER', label: 'Řidič' },
+  { key: 'MANAGER', label: 'Manažer' },
+];
+const PERMISSIONS = [
+  { key: 'view_dashboard', label: 'Zobrazit dashboard' },
+  { key: 'manage_users', label: 'Spravovat uživatele' },
+  { key: 'manage_vehicles', label: 'Spravovat vozidla' },
+  { key: 'view_reports', label: 'Zobrazit reporty' },
+  { key: 'manage_distribution', label: 'Spravovat distribuci novin' },
+  { key: 'driver_access', label: 'Přístup pro řidiče' },
+];
 
 const settingsSchema = z.object({
   itemsPerPage: z.preprocess(
@@ -33,6 +51,13 @@ type SettingsFormValues = z.infer<typeof settingsSchema>
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
+  const { hasRole, loading } = useAccessControl();
+  const router = useRouter();
+  useEffect(() => {
+    if (!loading && !hasRole("ADMIN")) {
+      router.replace("/403");
+    }
+  }, [loading, hasRole, router]);
   
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -87,6 +112,38 @@ export default function SettingsPage() {
     }
   }
   
+  // Role permissions state
+  const [rolePermissions, setRolePermissions] = useState<Record<string, string[]>>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('rolePermissions')
+      if (stored) return JSON.parse(stored)
+    }
+    // Default: all roles have no permissions
+    return {
+      USER: [],
+      ADMIN: [],
+      DRIVER: [],
+      MANAGER: [],
+    };
+  })
+
+  const handlePermissionChange = (role: string, perm: string, checked: boolean) => {
+    setRolePermissions(prev => {
+      const perms = new Set(prev[role] || [])
+      if (checked) perms.add(perm)
+      else perms.delete(perm)
+      return { ...prev, [role]: Array.from(perms) }
+    })
+  }
+
+  const saveRolePermissions = () => {
+    localStorage.setItem('rolePermissions', JSON.stringify(rolePermissions))
+    toast({
+      title: 'Role nastavení uloženo',
+      description: 'Oprávnění rolí byla uložena (lokálně pro demo).',
+    })
+  }
+  
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Načítání...</div>
   }
@@ -96,6 +153,18 @@ export default function SettingsPage() {
       <h1 className="text-3xl font-bold mb-6">Nastavení aplikace</h1>
       
       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nastavení přihlášení řidičů</CardTitle>
+            <CardDescription>
+              Správa uzamčení přihlášení a omezení navigace pro řidiče
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DriverLoginControl />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Obecná nastavení</CardTitle>
@@ -227,6 +296,45 @@ export default function SettingsPage() {
                 <Button type="submit">Uložit nastavení</Button>
               </form>
             </Form>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Správa rolí a oprávnění</CardTitle>
+            <CardDescription>
+              Nastavte, ke kterým funkcím mají jednotlivé role přístup
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="min-w-full border text-sm">
+                <thead>
+                  <tr>
+                    <th className="border px-2 py-1 text-left">Role</th>
+                    {PERMISSIONS.map(perm => (
+                      <th key={perm.key} className="border px-2 py-1">{perm.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ROLES.map(role => (
+                    <tr key={role.key}>
+                      <td className="border px-2 py-1 font-semibold">{role.label}</td>
+                      {PERMISSIONS.map(perm => (
+                        <td key={perm.key} className="border px-2 py-1 text-center">
+                          <input
+                            type="checkbox"
+                            checked={rolePermissions[role.key]?.includes(perm.key) || false}
+                            onChange={e => handlePermissionChange(role.key, perm.key, e.target.checked)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Button className="mt-4" onClick={saveRolePermissions}>Uložit oprávnění rolí</Button>
+            </div>
           </CardContent>
         </Card>
       </div>

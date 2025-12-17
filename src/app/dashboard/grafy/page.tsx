@@ -121,8 +121,8 @@ export default function GrafyPage() {
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Stav vozového parku</h2>
           </div>
-          <div className="flex justify-center">
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={stavVozidel}
@@ -149,18 +149,20 @@ export default function GrafyPage() {
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Náklady a výdaje</h2>
           </div>
-          <div className="flex justify-center">
-            <BarChart width={300} height={300} data={transakce}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="datum" />
-              <YAxis />
-              <Tooltip 
-                formatter={(value: number) => formatCastka(value)}
-                labelFormatter={(label: string) => new Date(label).toLocaleDateString('cs-CZ')}
-              />
-              <Legend />
-              <Bar dataKey="castka" fill="#8884d8" />
-            </BarChart>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={transakce}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="datum" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value: number) => formatCastka(value)}
+                  labelFormatter={(label: string) => new Date(label).toLocaleDateString('cs-CZ')}
+                />
+                <Legend />
+                <Bar dataKey="castka" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 

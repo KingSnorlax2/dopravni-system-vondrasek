@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { AutoDetailForm } from "@/components/forms/AutoDetailForm";
 import { 
   Car, Calendar, Wrench, MapPin, Clock, FileText, 
   ArrowLeft, AlertCircle, BarChart, Activity, History, 
@@ -52,6 +53,7 @@ interface VehicleDetailCardProps {
 
 export function VehicleDetailCard({ vehicle, maintenanceItems, fuelRecords }: VehicleDetailCardProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [isEditOpen, setIsEditOpen] = useState(false);
   
   // Status color mapping
   const statusColor = {
@@ -106,11 +108,9 @@ export function VehicleDetailCard({ vehicle, maintenanceItems, fuelRecords }: Ve
           </div>
           
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/dashboard/auta/${vehicle.id}/edit`}>
-                <Settings size={16} className="mr-1" />
-                Upravit
-              </Link>
+            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
+              <Settings size={16} className="mr-1" />
+              Upravit
             </Button>
             <Button variant="default" size="sm" asChild>
               <Link href={`/dashboard/auta/${vehicle.id}/map`}>
@@ -398,6 +398,42 @@ export function VehicleDetailCard({ vehicle, maintenanceItems, fuelRecords }: Ve
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      {isEditOpen && (
+        <AutoDetailForm
+          open={isEditOpen}
+          onOpenChangeAction={(open) => {
+            if (!open) setIsEditOpen(false);
+          }}
+          initialData={{
+            id: vehicle.id,
+            spz: vehicle.spz,
+            znacka: vehicle.znacka,
+            model: vehicle.model,
+            rokVyroby: vehicle.rokVyroby,
+            najezd: vehicle.najezd,
+            stav: vehicle.stav,
+            datumSTK: vehicle.datumSTK ? new Date(vehicle.datumSTK) : undefined,
+            poznamka: vehicle.poznamka || undefined,
+          }}
+          onSubmit={async (data) => {
+            try {
+              const response = await fetch(`/api/auta/${vehicle.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+              });
+              
+              if (!response.ok) throw new Error('Failed to update');
+              
+              // Reload the page to show updated data
+              window.location.reload();
+            } catch (error) {
+              console.error('Update failed:', error);
+            }
+          }}
+        />
+      )}
     </Card>
   );
 } 

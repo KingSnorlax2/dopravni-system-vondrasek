@@ -1,48 +1,88 @@
 import { NextResponse } from 'next/server'
 import bcryptjs from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/auth'
 
-export async function POST(req: Request) {
-  try {
-    if (process.env.NODE_ENV !== 'development') {
-      return new NextResponse('Not allowed in production', { status: 403 })
-    }
-
-    const body = await req.json()
-    const { email, password, name, role } = body
-
-    if (!email || !password || !name) {
-      return new NextResponse('Missing required fields', { status: 400 })
-    }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    })
-
-    if (existingUser) {
-      return new NextResponse('User already exists', { status: 400 })
-    }
-
-    const hashedPassword = await bcryptjs.hash(password, 10)
-
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name,
-        password: hashedPassword,
-        role: role || 'USER'
-      }
-    })
-
-    return NextResponse.json({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role
-    })
-  } catch (error) {
-    console.error('[ADMIN_USERS_POST]', error)
-    return new NextResponse('Internal error', { status: 500 })
+function requireAdmin(session: any) {
+  if (!session || !session.user || !session.user.role || session.user.role !== 'ADMIN') {
+    return false;
   }
+  return true;
+}
+
+// GET: List all users from Uzivatel model (used for authentication)
+export async function GET(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!requireAdmin(session)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+  
+  // Fetch users from Uzivatel model (authentication model)
+  const uzivatele = await prisma.uzivatel.findMany({
+    orderBy: { createdAt: 'desc' },
+  })
+  
+  // Transform to match expected format
+  return NextResponse.json(uzivatele.map(u => ({
+    id: u.id.toString(),
+    name: u.jmeno || u.email.split('@')[0], // Use jmeno or email prefix as name
+    email: u.email,
+    status: 'ACTIVE', // Uzivatel model doesn't have status, default to ACTIVE
+    roles: [u.role], // Single role from enum
+    avatar: null, // Uzivatel model doesn't have avatar
+    lastLoginAt: null, // Uzivatel model doesn't have lastLoginAt
+    createdAt: u.createdAt,
+    updatedAt: u.updatedAt,
+  })))
+}
+
+// POST: Create user in Uzivatel model
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!requireAdmin(session)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+  const body = await req.json()
+  const { email, password, name, roles } = body
+  
+  if (!email || !password || !name) {
+    return NextResponse.json({ error: 'Email, password and name are required' }, { status: 400 })
+  }
+  
+  // Get first role from array, or default to RIDIC
+  const role = (Array.isArray(roles) && roles.length > 0) ? roles[0] : 'RIDIC'
+  
+  // Validate role is valid UzivatelRole enum value
+  const validRoles = ['ADMIN', 'DISPECER', 'RIDIC']
+  if (!validRoles.includes(role)) {
+    return NextResponse.json({ error: 'Invalid role. Must be ADMIN, DISPECER, or RIDIC' }, { status: 400 })
+  }
+  
+  const existingUser = await prisma.uzivatel.findUnique({ where: { email } })
+  if (existingUser) {
+    return NextResponse.json({ error: 'User already exists' }, { status: 400 })
+  }
+  
+  const hashedPassword = await bcryptjs.hash(password, 10)
+  const uzivatel = await prisma.uzivatel.create({
+    data: {
+      email,
+      heslo: hashedPassword,
+      jmeno: name,
+      role: role as any, // Cast to UzivatelRole enum
+    },
+  })
+  
+  return NextResponse.json({
+    id: uzivatel.id.toString(),
+    name: uzivatel.jmeno || uzivatel.email.split('@')[0],
+    email: uzivatel.email,
+    status: 'ACTIVE',
+    roles: [uzivatel.role],
+    avatar: null,
+    lastLoginAt: null,
+    createdAt: uzivatel.createdAt,
+    updatedAt: uzivatel.updatedAt,
+  })
 } 

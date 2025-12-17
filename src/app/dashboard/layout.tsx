@@ -3,7 +3,7 @@
 import React from 'react'
 import { useSession } from 'next-auth/react'
 import { redirect } from 'next/navigation'
-import Sidebar from '@/components/layout/Sidebar'
+import UnifiedLayout from '@/components/layout/UnifiedLayout'
 
 export default function DashboardLayout({
   children,
@@ -14,8 +14,8 @@ export default function DashboardLayout({
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-900" />
+      <div className="unified-loading">
+        <div className="unified-spinner"></div>
       </div>
     )
   }
@@ -25,11 +25,8 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 ml-64">
-        {children}
-      </div>
-    </div>
+    <UnifiedLayout>
+      {children}
+    </UnifiedLayout>
   )
 }

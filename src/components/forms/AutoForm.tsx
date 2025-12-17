@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from "@/components/ui/button"
 import {
@@ -15,12 +14,14 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -29,33 +30,19 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useTransition } from 'react'
-
-const autoSchema = z.object({
-  spz: z.string().min(7, "SPZ musí mít minimálně 7 znaků").max(8, "SPZ může mít maximálně 8 znaků"),
-  znacka: z.string().min(2, "Značka musí mít alespoň 2 znaky").max(20, "Značka může mít maximálně 20 znaků"),
-  model: z.string().min(1, "Model je povinný").max(20, "Model může mít maximálně 20 znaků"),
-  rokVyroby: z.number()
-    .min(1900, "Rok výroby musí být od roku 1900")
-    .max(new Date().getFullYear(), "Rok výroby nemůže být v budoucnosti"),
-  najezd: z.number().min(0, "Nájezd nemůže být záporný"),
-  stav: z.enum(["aktivní", "servis", "vyřazeno"]),
-  poznamka: z.string().max(300, "Poznámka může mít maximálně 300 znaků").optional().or(z.literal('')),
-  datumSTK: z.string().optional().or(z.literal(''))
-})
-
-type AutoFormData = z.infer<typeof autoSchema>
+import { vehicleFormSchema, VehicleFormValues, VehicleStatus } from '@/lib/schemas/vehicle'
 
 interface AutoFormProps {
   open: boolean
   onOpenChangeClientAction: (open: boolean) => Promise<void>
-  onSubmit?: (data: AutoFormData) => void
-  initialData?: Partial<AutoFormData> & { id?: string }
+  onSubmit?: (data: VehicleFormValues) => void
+  initialData?: Partial<VehicleFormValues> & { id?: string }
 }
 
 const STATUS_OPTIONS = [
-  { value: "aktivní", label: "Aktivní" },
-  { value: "servis", label: "V servisu" },
-  { value: "vyřazeno", label: "Vyřazeno" }
+  { value: VehicleStatus.AKTIVNI, label: "Aktivní" },
+  { value: VehicleStatus.SERVIS, label: "V servisu" },
+  { value: VehicleStatus.VYRAZENO, label: "Vyřazeno" }
 ];
 
 export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData }: AutoFormProps) {
@@ -64,15 +51,15 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
   const [showSpzError, setShowSpzError] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const form = useForm<AutoFormData>({
-    resolver: zodResolver(autoSchema),
+  const form = useForm<VehicleFormValues>({
+    resolver: zodResolver(vehicleFormSchema),
     defaultValues: {
       spz: initialData?.spz || '',
       znacka: initialData?.znacka || '',
       model: initialData?.model || '',
       rokVyroby: initialData?.rokVyroby || new Date().getFullYear(),
       najezd: initialData?.najezd || 0,
-      stav: initialData?.stav || 'aktivní',
+      stav: initialData?.stav || VehicleStatus.AKTIVNI,
       poznamka: initialData?.poznamka || '',
       datumSTK: initialData?.datumSTK || ''
     }
@@ -93,7 +80,7 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
     }
   };
 
-  const handleSubmit = async (data: AutoFormData) => {
+  const handleSubmit = async (data: VehicleFormValues) => {
     setLoading(true)
     setError(null)
     try {
@@ -106,12 +93,27 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
         }
       }
 
-      const submitData = {
-        ...data,
-        rokVyroby: Number(data.rokVyroby),
-        najezd: Number(data.najezd),
-        poznamka: data.poznamka || '',
-        datumSTK: data.datumSTK || null
+      // Data are already validated and transformed by Zod schema (z.coerce handles number conversion)
+      // Transform for API submission
+      const submitData: any = {
+        spz: data.spz,
+        znacka: data.znacka,
+        model: data.model,
+        rokVyroby: data.rokVyroby,
+        najezd: data.najezd,
+        stav: data.stav,
+        poznamka: data.poznamka || null,
+      }
+      
+      // Handle datumSTK - convert Date to ISO string or keep as null
+      if (data.datumSTK) {
+        if (data.datumSTK instanceof Date) {
+          submitData.datumSTK = data.datumSTK.toISOString()
+        } else if (typeof data.datumSTK === 'string') {
+          submitData.datumSTK = data.datumSTK
+        }
+      } else {
+        submitData.datumSTK = null
       }
 
       const url = initialData ? `/api/auta/${initialData.id}` : '/api/auta';
@@ -307,13 +309,17 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                         <FormItem>
                           <FormLabel className="text-sm mb-2">Poznámka</FormLabel>
                           <FormControl>
-                            <textarea
+                            <Textarea
                               {...field}
                               maxLength={300}
-                              className="w-full border rounded px-2 py-1 min-h-[60px] text-sm"
                               placeholder="Zde můžete napsat poznámku k vozidlu..."
+                              className="resize-none min-h-[60px]"
+                              value={field.value || ''}
                             />
                           </FormControl>
+                          <FormDescription className="text-xs">
+                            {(field.value?.length || 0)}/300 znaků
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
