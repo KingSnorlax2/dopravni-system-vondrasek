@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import cs from 'date-fns/locale/cs'
 import React from "react"
-import { CustomDatePicker } from "@/components/ui/calendar"
+import { DatePickerWithPresets } from "@/components/ui/calendar"
 
 const formSchema = z.object({
   spz: z.string().min(1, "SPZ je povinná").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -213,12 +213,15 @@ export function AutoDetailForm({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <CustomDatePicker
-                          value={field.value}
-                          onChange={(date) => {
+                        <DatePickerWithPresets
+                          date={field.value}
+                          setDate={(date) => {
                             field.onChange(date);
                             if (date) setPopoverOpen(false);
                           }}
+                          fromYear={2020}
+                          toYear={new Date().getFullYear() + 10}
+                          inline={true}
                         />
                       </PopoverContent>
                     </Popover>

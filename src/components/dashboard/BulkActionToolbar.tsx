@@ -4,21 +4,20 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Trash2, 
-  Edit3, 
-  Download, 
-  Printer, 
-  Archive, 
   Calendar, 
   Users, 
   X,
-  Check,
+  ChevronDown,
+  Settings,
+  Download,
+  Printer,
+  Archive,
   AlertTriangle,
   Loader2,
-  ChevronDown,
-  Settings
+  Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CustomDatePicker } from '@/components/ui/calendar'
+import { DatePickerWithPresets } from '@/components/ui/calendar'
 import {
   Popover,
   PopoverContent,
@@ -130,161 +129,130 @@ export function BulkActionToolbar({
 
   return (
     <>
-      {/* Enhanced Floating Bulk Action Toolbar */}
+      {/* New Floating Action Bar */}
       <AnimatePresence>
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ 
-            type: "spring", 
-            stiffness: 300, 
-            damping: 30,
-            duration: 0.3 
-          }}
-          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50"
-        >
-          <div className="bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-4 min-w-[500px] max-w-[800px]">
-            {/* Enhanced Selection Info */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Badge 
-                  variant="default" 
-                  className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-full shadow-lg"
+        {selectedCount > 0 && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-fit z-50 px-4">
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white border border-gray-200 rounded-xl shadow-2xl p-3 flex items-center gap-4 mx-auto"
+            >
+              {/* Selection Indicator */}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                    {selectedCount}
+                  </div>
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-gray-900 text-sm leading-tight">
+                    Vybrano vozidel
+                  </span>
+                  <span className="text-xs text-gray-500 leading-tight">
+                    z {totalCount} celkem
+                  </span>
+                </div>
+              </div>
+
+              <Separator orientation="vertical" className="h-8" />
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                {/* Delete Button */}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={isLoading || isActionLoading}
+                  className="h-9 px-4"
                 >
-                  {selectedCount}
-                </Badge>
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring" }}
-                  className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-900">
-                  Vybrano vozidel
-                </span>
-                <span className="text-xs text-gray-500">
-                  z {totalCount} celkem
-                </span>
-              </div>
-            </div>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Smazat
+                </Button>
 
-            <div className="h-8 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent" />
-
-            {/* Primary Action Buttons */}
-            <div className="flex items-center gap-2">
-              {/* Delete - Primary Destructive Action */}
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowDeleteDialog(true)}
-                disabled={isLoading || isActionLoading}
-                className="bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                aria-label="Smazat vybrana vozidla"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Smazat
-              </Button>
-
-              {/* State Change */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowStateDialog(true)}
-                disabled={isLoading || isActionLoading}
-                className="border-gray-300 hover:border-purple-500 hover:bg-purple-50 transition-all duration-200"
-                aria-label="Zmenit stav vybranych vozidel"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Stav
-              </Button>
-
-              {/* STK Change */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSTKDialog(true)}
-                disabled={isLoading || isActionLoading}
-                className="border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
-                aria-label="Zmenit datum STK vybranych vozidel"
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                STK
-              </Button>
-            </div>
-
-            {/* Secondary Actions Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+                {/* Status Button */}
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => setShowStateDialog(true)}
                   disabled={isLoading || isActionLoading}
-                  className="border-gray-300 hover:border-gray-400 transition-all duration-200"
-                  aria-label="Dalsi akce pro vybrana vozidla"
+                  className="h-9 px-4"
                 >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Dalsi
-                  <ChevronDown className="h-3 w-3 ml-1" />
+                  <Users className="h-4 w-4 mr-2" />
+                  Stav
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem
-                  onClick={onBulkExport}
-                  disabled={isLoading || isActionLoading}
-                  className="cursor-pointer hover:bg-green-50"
-                >
-                  <Download className="h-4 w-4 mr-3 text-green-600" />
-                  <div>
-                    <div className="font-medium">Exportovat</div>
-                    <div className="text-xs text-gray-500">Stahnout jako CSV</div>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={onBulkPrint}
-                  disabled={isLoading || isActionLoading}
-                  className="cursor-pointer hover:bg-blue-50"
-                >
-                  <Printer className="h-4 w-4 mr-3 text-blue-600" />
-                  <div>
-                    <div className="font-medium">Vytisknout</div>
-                    <div className="text-xs text-gray-500">Vytvorit tiskovy prehled</div>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setShowArchiveDialog(true)}
-                  disabled={isLoading || isActionLoading}
-                  className="cursor-pointer hover:bg-orange-50 text-orange-600 focus:text-orange-600"
-                >
-                  <Archive className="h-4 w-4 mr-3" />
-                  <div>
-                    <div className="font-medium">Archivovat</div>
-                    <div className="text-xs text-gray-500">Presunout do archivu</div>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
 
-            {/* Clear Selection Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClearSelectionAction}
-              disabled={isLoading || isActionLoading}
-              className="ml-auto text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all duration-200"
-              aria-label="Zrusit vyber vsech vozidel"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Zrusit vyber
-            </Button>
+                {/* STK Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSTKDialog(true)}
+                  disabled={isLoading || isActionLoading}
+                  className="h-9 px-4"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  STK
+                </Button>
+
+                {/* More Actions Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isLoading || isActionLoading}
+                      className="h-9 px-4"
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Dalsi
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      onClick={onBulkExport}
+                      disabled={isLoading || isActionLoading}
+                    >
+                      Exportovat
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={onBulkPrint}
+                      disabled={isLoading || isActionLoading}
+                    >
+                      Tisknout
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowArchiveDialog(true)}
+                      disabled={isLoading || isActionLoading}
+                    >
+                      Archivovat
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Close Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearSelectionAction}
+                disabled={isLoading || isActionLoading}
+                className="h-9 px-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Zrusit vyber
+              </Button>
+            </motion.div>
           </div>
-        </motion.div>
+        )}
       </AnimatePresence>
 
-      {/* Enhanced Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -330,7 +298,7 @@ export function BulkActionToolbar({
         </DialogContent>
       </Dialog>
 
-      {/* Enhanced State Change Dialog */}
+      {/* State Change Dialog */}
       <Dialog open={showStateDialog} onOpenChange={setShowStateDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -401,7 +369,7 @@ export function BulkActionToolbar({
         </DialogContent>
       </Dialog>
 
-      {/* Enhanced STK Change Dialog */}
+      {/* STK Change Dialog */}
       <Dialog open={showSTKDialog} onOpenChange={setShowSTKDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -416,33 +384,16 @@ export function BulkActionToolbar({
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal h-12",
-                    !newSTKDate && "text-muted-foreground"
-                  )}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {newSTKDate ? (
-                    format(newSTKDate, "d. MMMM yyyy", { locale: cs })
-                  ) : (
-                    <span>Vyberte datum STK</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CustomDatePicker
-                  value={newSTKDate || undefined}
-                  onChange={(date) => {
-                    setNewSTKDate(date || null);
-                    if (date) setOpen(false);
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
+            <DatePickerWithPresets
+              date={newSTKDate || undefined}
+              setDate={(date) => {
+                setNewSTKDate(date || null);
+                if (date) setOpen(false);
+              }}
+              placeholder="Vyberte datum STK"
+              fromYear={2020}
+              toYear={new Date().getFullYear() + 10}
+            />
           </div>
           <DialogFooter className="gap-3">
             <Button
@@ -474,7 +425,7 @@ export function BulkActionToolbar({
         </DialogContent>
       </Dialog>
 
-      {/* Enhanced Archive Confirmation Dialog */}
+      {/* Archive Confirmation Dialog */}
       <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -521,4 +472,4 @@ export function BulkActionToolbar({
       </Dialog>
     </>
   )
-} 
+}

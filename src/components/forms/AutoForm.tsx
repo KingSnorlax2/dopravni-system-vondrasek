@@ -15,12 +15,14 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -307,13 +309,17 @@ export function AutoForm({ open, onOpenChangeClientAction, onSubmit, initialData
                         <FormItem>
                           <FormLabel className="text-sm mb-2">Poznámka</FormLabel>
                           <FormControl>
-                            <textarea
+                            <Textarea
                               {...field}
                               maxLength={300}
-                              className="w-full border rounded px-2 py-1 min-h-[60px] text-sm"
                               placeholder="Zde můžete napsat poznámku k vozidlu..."
+                              className="resize-none min-h-[60px]"
+                              value={field.value || ''}
                             />
                           </FormControl>
+                          <FormDescription className="text-xs">
+                            {(field.value?.length || 0)}/300 znaků
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}

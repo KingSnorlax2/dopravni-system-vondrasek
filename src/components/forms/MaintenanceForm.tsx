@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CustomDatePicker } from '@/components/ui/calendar'
+import { DatePickerWithPresets } from '@/components/ui/calendar'
 import {
   Popover,
   PopoverContent,
@@ -214,12 +214,15 @@ export function MaintenanceForm({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <CustomDatePicker
-                          value={field.value}
-                          onChange={(date) => {
+                        <DatePickerWithPresets
+                          date={field.value}
+                          setDate={(date) => {
                             field.onChange(date);
                             if (date) setOpen1(false);
                           }}
+                          fromYear={2020}
+                          toYear={new Date().getFullYear() + 10}
+                          inline={true}
                         />
                       </PopoverContent>
                     </Popover>
@@ -272,12 +275,15 @@ export function MaintenanceForm({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <CustomDatePicker
-                          value={field.value || undefined}
-                          onChange={(date) => {
+                        <DatePickerWithPresets
+                          date={field.value || undefined}
+                          setDate={(date) => {
                             field.onChange(date);
                             if (date) setOpen2(false);
                           }}
+                          fromYear={2020}
+                          toYear={new Date().getFullYear() + 10}
+                          inline={true}
                         />
                       </PopoverContent>
                     </Popover>

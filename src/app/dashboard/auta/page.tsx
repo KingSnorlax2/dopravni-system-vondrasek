@@ -12,7 +12,7 @@ import { cs } from "date-fns/locale"
 import { generateRandomVehicleData } from "@/lib/mock-data"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { CustomDatePicker } from '@/components/ui/calendar'
+import { DatePickerWithPresets } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -300,7 +300,7 @@ export default function AutoPage() {
       {/* STK Dialog */}
       <Dialog open={showExpiringSTKDialog} onOpenChange={setShowExpiringSTKDialog}>
         <DialogContent className="max-w-4xl w-full h-[85vh] sm:h-[70vh] flex flex-col p-0">
-          <DialogHeader className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 z-10">
+          <DialogHeader className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 z-10 pr-12">
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
               Vozidla s blížícím se STK
@@ -331,9 +331,9 @@ export default function AutoPage() {
               <div className="space-y-3">
                 <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-white sticky top-0 z-20 border-b shadow-sm font-semibold text-sm text-gray-700">
                   <div className="col-span-2">SPZ</div>
-                  <div className="col-span-4">Vozidlo</div>
-                  <div className="col-span-3">Aktuální STK</div>
-                  <div className="col-span-3">Nové STK</div>
+                  <div className="col-span-3">Vozidlo</div>
+                  <div className="col-span-2">Aktuální STK</div>
+                  <div className="col-span-5">Nové STK</div>
                 </div>
                 {/* Table rows */}
                 <Controller
@@ -348,23 +348,23 @@ export default function AutoPage() {
                         .map((vehicle: any, index: number) => (
                           <div 
                             key={vehicle.id} 
-                            className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center md:gap-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm"
+                            className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center md:gap-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
                           >
-                            <div className="flex flex-col gap-1 md:col-span-2">
+                            <div className="flex flex-col gap-1 md:col-span-2 min-w-0">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground md:hidden">SPZ</p>
-                              <span className="font-mono text-base text-gray-900">{vehicle.spz}</span>
+                              <span className="font-mono text-base text-gray-900 truncate">{vehicle.spz}</span>
                             </div>
-                            <div className="flex flex-col gap-1 md:col-span-4">
+                            <div className="flex flex-col gap-1 md:col-span-3 min-w-0">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground md:hidden">Vozidlo</p>
-                              <span className="text-gray-800 text-sm">{vehicle.znacka} {vehicle.model}</span>
+                              <span className="text-gray-800 text-sm truncate">{vehicle.znacka} {vehicle.model}</span>
                             </div>
-                            <div className="flex flex-col gap-1 md:col-span-3">
+                            <div className="flex flex-col gap-1 md:col-span-2 min-w-0">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground md:hidden">Aktuální STK</p>
-                              <span className="text-sm text-gray-600">
+                              <span className="text-sm text-gray-600 truncate">
                                 {vehicle.currentSTK ? format(new Date(vehicle.currentSTK), "d.M.yyyy", { locale: cs }) : 'Není zadáno'}
                               </span>
                             </div>
-                            <div className="md:col-span-3">
+                            <div className="md:col-span-5 min-w-0">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1 md:hidden">Nové STK</p>
                               <Controller
                                 name={`vehicles.${index}.newSTK`}
@@ -379,38 +379,42 @@ export default function AutoPage() {
                                           size="sm"
                                           disabled={savingVehicleId === vehicle.id}
                                           className={cn(
-                                            "w-full justify-start text-left font-normal h-8",
+                                            "w-full justify-start text-left font-normal h-8 min-w-0",
                                             !dateField.value && "text-muted-foreground",
                                             savingVehicleId === vehicle.id && "opacity-50 cursor-not-allowed"
                                           )}
                                         >
                                           {savingVehicleId === vehicle.id ? (
                                             <>
-                                              <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent" />
-                                              Ukládám...
+                                              <div className="h-3 w-3 mr-2 animate-spin rounded-full border-2 border-gray-600 border-t-transparent flex-shrink-0" />
+                                              <span className="truncate">Ukládám...</span>
                                             </>
                                           ) : (
                                             <>
-                                              <Calendar className="mr-2 h-3 w-3" />
-                                              {dateField.value ? (
-                                                format(dateField.value, "d.M.yyyy", { locale: cs })
-                                              ) : (
-                                                <span>Vyberte datum</span>
-                                              )}
+                                              <Calendar className="mr-2 h-3 w-3 flex-shrink-0" />
+                                              <span>
+                                                {dateField.value ? (
+                                                  format(dateField.value, "d.M.yyyy", { locale: cs })
+                                                ) : (
+                                                  "Vyberte datum"
+                                                )}
+                                              </span>
                                             </>
                                           )}
                                         </Button>
                                       </PopoverTrigger>
                                       <PopoverContent className="w-auto p-0" align="start">
-                                        <CustomDatePicker
-                                          value={dateField.value || undefined}
-                                          onChange={(date) => {
+                                        <DatePickerWithPresets
+                                          date={dateField.value || undefined}
+                                          setDate={(date) => {
                                             dateField.onChange(date);
                                             if (date !== undefined) {
                                               handleDateSelect(vehicle.id, date);
                                               setOpen(false);
                                             }
                                           }}
+                                          fromYear={2020}
+                                          toYear={new Date().getFullYear() + 10}
                                         />
                                       </PopoverContent>
                                     </Popover>

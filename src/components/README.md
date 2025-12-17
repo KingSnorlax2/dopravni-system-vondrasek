@@ -45,7 +45,7 @@ Komponenty jsou organizovány do následujících kategorií:
 ```
 src/components/
 ├── ui/                    # Základní UI komponenty (Shadcn/ui)
-├── layout/                # Layout komponenty (Sidebar, Nav, Header)
+├── layout/                # Layout komponenty (UnifiedLayout, Nav, Header)
 ├── forms/                 # Formulářové komponenty
 ├── dashboard/             # Dashboard specifické komponenty
 ├── auta/                  # Komponenty pro správu vozidel
@@ -78,12 +78,11 @@ Základní stavební kameny uživatelského rozhraní. Tyto komponenty jsou zalo
 
 Komponenty pro strukturu stránky a navigaci.
 
-- `Sidebar.tsx` - Boční navigační panel
+- `UnifiedLayout.tsx` - Sjednocený layout pro celou aplikaci (s responzivním hamburger menu)
 - `MainSidebar.tsx` - Hlavní sidebar s menu
 - `DashboardNav.tsx` - Navigace pro dashboard
 - `HomepageNav.tsx` - Navigace pro homepage
 - `PageHeader.tsx` - Hlavička stránky s titulkem a akcemi
-- `UnifiedLayout.tsx` - Sjednocený layout pro celou aplikaci
 
 ### Formulářové Komponenty (`/forms`)
 

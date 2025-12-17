@@ -42,7 +42,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { toast } from '@/components/ui/use-toast'
-import { CustomDatePicker } from '@/components/ui/calendar'
+import { DatePickerWithPresets } from '@/components/ui/calendar'
 
 // Form schema validation
 const serviceFormSchema = z.object({
@@ -193,9 +193,12 @@ export function ServiceForm({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <CustomDatePicker
-                          value={field.value || undefined}
-                          onChange={field.onChange}
+                        <DatePickerWithPresets
+                          date={field.value || undefined}
+                          setDate={field.onChange}
+                          fromYear={2020}
+                          toYear={new Date().getFullYear() + 10}
+                          inline={true}
                         />
                       </PopoverContent>
                     </Popover>

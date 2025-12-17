@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { CustomDatePicker } from '@/components/ui/calendar';
+import { DatePickerWithPresets } from '@/components/ui/calendar';
 
 interface Auto {
   id: string;
@@ -70,7 +70,7 @@ interface Auto {
 
 interface AutoTableProps {
   auta: Auto[]
-  onRefresh: () => void
+  onRefresh: () => void | Promise<void>
 }
 
 const formatNumber = (num: number): string => {
@@ -368,12 +368,23 @@ const InlineSTKEditor = ({
   });
 
   // Reset form when auto changes to ensure proper isolation
+  // But don't reset if we're currently submitting (saving)
   useEffect(() => {
+    if (isSubmitting) return; // Don't reset during save operation
+    
     const newDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
-    form.reset({ datumSTK: newDate });
-    setLocalDate(newDate);
-    setHasChanged(false);
-  }, [auto.id, auto.datumSTK, form]);
+    const currentFormDate = form.getValues("datumSTK");
+    
+    // Only reset if the date actually changed (to avoid unnecessary resets)
+    const formDateStr = currentFormDate ? currentFormDate.toISOString() : null;
+    const autoDateStr = auto.datumSTK || null;
+    
+    if (formDateStr !== autoDateStr) {
+      form.reset({ datumSTK: newDate });
+      setLocalDate(newDate);
+      setHasChanged(false);
+    }
+  }, [auto.id, auto.datumSTK, form, isSubmitting]);
 
   // Get today's date for minimum validation
   const today = new Date();
@@ -384,13 +395,17 @@ const InlineSTKEditor = ({
     setIsSubmitting(true);
     try {
       const currentDate = form.getValues("datumSTK");
-      await onSave(currentDate ? currentDate.toISOString() : null);
+      const dateValue = currentDate ? currentDate.toISOString() : null;
+      await onSave(dateValue);
+      // Close editor after successful save
+      setHasChanged(false);
     } catch (error) {
       console.error('Error saving STK date:', error);
       // Revert local value on error
       const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
       setLocalDate(originalDate);
       form.reset({ datumSTK: originalDate });
+      setHasChanged(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -414,11 +429,46 @@ const InlineSTKEditor = ({
     }
   };
 
-  const handleDateSelect = (date: Date | undefined) => {
-    form.setValue("datumSTK", date || null, { shouldDirty: true, shouldValidate: true });
-    setLocalDate(date || null);
-    setIsOpen(false);
-    setHasChanged(true);
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring date select');
+      return; // Prevent multiple simultaneous saves
+    }
+    
+    const newDate = date || null;
+    console.log('handleDateSelect called with date:', newDate, 'for auto:', auto.id);
+    setIsSubmitting(true);
+    
+    try {
+      // Update form state immediately for visual feedback
+      form.setValue("datumSTK", newDate, { shouldDirty: true, shouldValidate: true });
+      setLocalDate(newDate);
+      setHasChanged(true);
+      
+      // Convert to ISO string for API
+      const dateValue = newDate ? newDate.toISOString() : null;
+      console.log('Saving date value:', dateValue, 'for auto:', auto.id);
+      
+      // Save to server
+      await onSave(dateValue);
+      console.log('Date saved successfully for auto:', auto.id);
+      
+      // Success - close popover and reset flags
+      setHasChanged(false);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Error saving STK date:', error);
+      // Revert to original value on error
+      const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
+      setLocalDate(originalDate);
+      form.reset({ datumSTK: originalDate });
+      setHasChanged(false);
+      // Show error to user
+      alert('Chyba při ukládání data STK. Zkuste to znovu.');
+      // Keep popover open on error so user can try again
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Use useEffect to handle outside clicks
@@ -445,68 +495,74 @@ const InlineSTKEditor = ({
   const selectedDate = form.watch("datumSTK");
 
   return (
-    <div data-stk-editor={auto.id} className="flex items-center gap-2">
+    <div data-stk-editor={auto.id} className="flex items-center gap-2 min-w-0 relative z-10 isolate">
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             size="sm"
             className={cn(
-              "h-8 w-36 justify-start text-left font-normal transition-all duration-200",
+              "h-8 min-w-[140px] max-w-[160px] justify-start text-left font-normal transition-all duration-200",
               "focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
-              "hover:bg-gray-50"
+              "hover:bg-gray-50 overflow-hidden relative z-10 pointer-events-auto"
             )}
             onKeyDown={handleKeyDown}
             disabled={isSubmitting}
             aria-label="Vybrat datum STK"
+            type="button"
           >
-            {selectedDate ? (
-              format(selectedDate, "d.M.yyyy", { locale: cs })
-            ) : (
-              <span className="text-muted-foreground">Vyberte datum</span>
-            )}
-            <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
+            <span className="truncate flex-1 text-left">
+              {selectedDate ? (
+                format(selectedDate, "d.M.yyyy", { locale: cs })
+              ) : (
+                <span className="text-muted-foreground">Vyberte datum</span>
+              )}
+            </span>
+            <CalendarIcon className="ml-2 h-3 w-3 opacity-50 flex-shrink-0" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <CustomDatePicker
-            value={selectedDate || undefined}
-            onChange={handleDateSelect}
-          />
+        <PopoverContent 
+          className="w-auto p-0 z-[9999]" 
+          align="start" 
+          side="bottom" 
+          sideOffset={4} 
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            // Prevent closing when clicking inside the calendar
+            const target = e.target as HTMLElement;
+            const calendarBox = target.closest('.calendar-box');
+            const dayButton = target.closest('[role="gridcell"]') || target.closest('button');
+            
+            // If clicking inside calendar, prevent popover from closing
+            if (calendarBox || (dayButton && calendarBox?.contains(dayButton))) {
+              e.preventDefault();
+              return;
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            // Allow escape to close
+            setIsOpen(false);
+          }}
+        >
+          <div 
+            onClick={(e) => {
+              // Stop propagation to prevent any parent handlers
+              e.stopPropagation();
+            }}
+            onMouseDown={(e) => {
+              // Prevent mousedown from closing popover
+              e.stopPropagation();
+            }}
+          >
+            <DatePickerWithPresets
+              date={selectedDate || undefined}
+              setDate={handleDateSelect}
+              fromYear={2020}
+              toYear={new Date().getFullYear() + 10}
+            />
+          </div>
         </PopoverContent>
       </Popover>
-      <div className="flex gap-1">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-6 w-6 p-0 hover:bg-green-50 transition-colors"
-          onClick={handleSave}
-          disabled={isSubmitting || !hasChanged}
-          aria-label="Uložit datum STK"
-        >
-          {isSubmitting ? (
-            <div className="h-3 w-3 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
-          ) : (
-            <Check className="h-3 w-3 text-green-600" />
-          )}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-6 w-6 p-0 hover:bg-red-50 transition-colors"
-          onClick={() => {
-            const originalDate = auto.datumSTK ? new Date(auto.datumSTK) : null;
-            setLocalDate(originalDate);
-            form.reset({ datumSTK: originalDate });
-            setHasChanged(false);
-            onCancel();
-          }}
-          disabled={isSubmitting}
-          aria-label="Zrušit úpravu"
-        >
-          <X className="h-3 w-3 text-red-600" />
-        </Button>
-      </div>
     </div>
   );
 };
@@ -1376,6 +1432,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   // Inline editing handlers
   const handleInlineSave = async (autoId: string, field: 'najezd' | 'datumSTK', value: number | string | null) => {
+    console.log('handleInlineSave called:', { autoId, field, value });
     setIsSaving(true);
     try {
       // Find the current auto to preserve all existing data
@@ -1398,6 +1455,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         [field]: value
       };
 
+      console.log('Sending PATCH request to /api/auta/' + autoId, updatePayload);
+
       const response = await fetch(`/api/auta/${autoId}`, {
         method: 'PATCH',
         headers: {
@@ -1407,21 +1466,30 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update vehicle');
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(`Failed to update vehicle: ${response.status} ${errorText}`);
       }
 
-      // Optimistic update - update only the specific field in the local data
-      const updatedAuto = auta.find(a => a.id === autoId);
-      if (updatedAuto) {
-        if (field === 'najezd') {
-          updatedAuto.najezd = value as number;
-        } else if (field === 'datumSTK') {
-          updatedAuto.datumSTK = value as string | null;
+      const updatedData = await response.json();
+      console.log('Vehicle updated successfully:', updatedData);
+
+      // Refresh data from server first to ensure consistency
+      if (typeof onRefresh === 'function') {
+        try {
+          console.log('Calling onRefresh...');
+          const refreshResult = onRefresh();
+          if (refreshResult instanceof Promise) {
+            await refreshResult;
+            console.log('onRefresh completed');
+          }
+        } catch (error) {
+          console.error('Error refreshing data:', error);
         }
       }
-
+      
+      // Close editor after refresh completes
       setEditingCell(null);
-      onRefresh();
       
       toast({
         title: "Úspěšně aktualizováno",
@@ -1434,6 +1502,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         description: "Nepodařilo se aktualizovat vozidlo",
         variant: "destructive",
       });
+      // Re-throw error so InlineSTKEditor can handle it
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -1442,8 +1512,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const handleInlineCancel = () => {
     setEditingCell(null);
   };
-
-  console.log('Modal open:', isEditModalOpen, selectedVehicle);
   <AutoDetailForm
     open={isEditModalOpen}
     onOpenChangeAction={(open: boolean) => {
@@ -1559,9 +1627,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <CustomDatePicker
-                        value={editedAuto.datumSTK ? new Date(editedAuto.datumSTK) : undefined}
-                        onChange={(date) => setEditedAuto(prev => prev ? {...prev, datumSTK: date ? date.toISOString() : undefined} : null)}
+                      <DatePickerWithPresets
+                        date={editedAuto.datumSTK ? new Date(editedAuto.datumSTK) : undefined}
+                        setDate={(date) => setEditedAuto(prev => prev ? {...prev, datumSTK: date ? date.toISOString() : undefined} : null)}
+                        fromYear={2020}
+                        toYear={new Date().getFullYear() + 10}
                       />
                     </PopoverContent>
                   </Popover>
@@ -1845,12 +1915,12 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       <TooltipContent side="top" className="max-w-xs">
                         <div className="space-y-1">
                           <p className="font-medium">
-                            {showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s vypršelým STK"}
+                            {showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s končícím STK (do 30 dnů)"}
                           </p>
                           <p className="text-xs text-gray-400">
                             {showSTKWarningFilter 
                               ? "Klikněte pro zobrazení všech vozidel" 
-                              : `Klikněte pro zobrazení ${expiringSTKCount} vozidel s STK vypršelým do 30 dnů`
+                              : `Klikněte pro zobrazení ${expiringSTKCount} vozidel s STK končícím do 30 dnů`
                             }
                           </p>
                         </div>
@@ -1901,7 +1971,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         {/* Desktop table */}
         <div className="w-full overflow-x-auto -mx-4 sm:mx-0">
           <div className="inline-block min-w-full align-middle px-4 sm:px-0">
-            <div className="hidden sm:block overflow-auto max-h-[calc(100vh-16rem)]">
+            <div className="hidden sm:block overflow-visible max-h-[calc(100vh-16rem)]">
               <Table className="w-full min-w-[960px] table-fixed divide-y divide-gray-200">
             <TableHeader className="bg-gray-50">
               <TableRow>
@@ -2102,7 +2172,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                         {auto.stav}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-left">
+                    <TableCell className="text-left relative">
                       {editingCell?.id === auto.id && editingCell?.field === 'datumSTK' ? (
                         <InlineSTKEditor
                           auto={auto}
@@ -2367,12 +2437,14 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                         </button>
                       )}
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-2 relative z-10">
                       <p className="text-xs uppercase text-gray-500">Datum STK</p>
                       {editingCell?.id === auto.id && editingCell?.field === 'datumSTK' ? (
                         <InlineSTKEditor
                           auto={auto}
-                          onSave={(value) => handleInlineSave(auto.id, 'datumSTK', value)}
+                          onSave={async (value) => {
+                            await handleInlineSave(auto.id, 'datumSTK', value);
+                          }}
                           onCancel={handleInlineCancel}
                         />
                       ) : auto.datumSTK ? (
@@ -2403,9 +2475,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         </div>
 
         <div className="px-4 py-4 bg-gray-50 border-t border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              <span className="text-sm text-gray-700 whitespace-nowrap">
                 Zobrazeno {paginatedAuta.length} z {filteredAuta.length} vozidel
               </span>
               <div className="flex items-center gap-2">
@@ -2432,20 +2504,75 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                 </Select>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              {Array.from({ length: Math.ceil(filteredAuta.length / itemsPerPage) }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => handlePageChange(i + 1)}
-                  className={`px-3 py-1 rounded ${
-                    currentPage === i + 1
-                      ? 'bg-purple-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+            <div className="flex items-center space-x-1 flex-wrap gap-1 min-w-0">
+              {(() => {
+                const totalPages = Math.ceil(filteredAuta.length / itemsPerPage);
+                const maxVisiblePages = 7;
+                const pages: (number | string)[] = [];
+                
+                if (totalPages <= maxVisiblePages) {
+                  // Show all pages if total is less than max
+                  for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i);
+                  }
+                } else {
+                  // Always show first page
+                  pages.push(1);
+                  
+                  let startPage = Math.max(2, currentPage - 1);
+                  let endPage = Math.min(totalPages - 1, currentPage + 1);
+                  
+                  // Adjust range to show more pages around current
+                  if (currentPage <= 3) {
+                    endPage = Math.min(totalPages - 1, 5);
+                  } else if (currentPage >= totalPages - 2) {
+                    startPage = Math.max(2, totalPages - 4);
+                  }
+                  
+                  // Add ellipsis after first page if needed
+                  if (startPage > 2) {
+                    pages.push('ellipsis-start');
+                  }
+                  
+                  // Add pages around current
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(i);
+                  }
+                  
+                  // Add ellipsis before last page if needed
+                  if (endPage < totalPages - 1) {
+                    pages.push('ellipsis-end');
+                  }
+                  
+                  // Always show last page
+                  pages.push(totalPages);
+                }
+                
+                return pages.map((page, index) => {
+                  if (page === 'ellipsis-start' || page === 'ellipsis-end') {
+                    return (
+                      <span key={`ellipsis-${index}`} className="px-2 text-gray-500">
+                        ...
+                      </span>
+                    );
+                  }
+                  
+                  const pageNum = page as number;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
+                        currentPage === pageNum
+                          ? 'bg-purple-600 text-white'
+                          : 'text-gray-700 hover:bg-gray-100 border border-gray-200'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>

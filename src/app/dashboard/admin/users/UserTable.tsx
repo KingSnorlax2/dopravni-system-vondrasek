@@ -394,7 +394,7 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
                         {onManageUser && (
                           <button
                             className="px-2 py-1 text-xs rounded-md border text-slate-700 border-slate-200 hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap"
-                            onClick={() => onManageUser(user)}
+                            onClick={() => handleEdit(user)}
                             disabled={isPending}
                           >
                             Role

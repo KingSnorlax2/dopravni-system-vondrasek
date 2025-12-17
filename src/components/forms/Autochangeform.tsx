@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CustomDatePicker } from "@/components/ui/calendar"
+import { DatePickerWithPresets } from "@/components/ui/calendar"
 import {
   Popover,
   PopoverContent,
@@ -263,12 +263,14 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 bg-white rounded-md shadow-lg border border-gray-200" align="start">
                         <div className="p-2 bg-white rounded-md">
-                          <CustomDatePicker
-                            value={field.value ? new Date(field.value) : undefined}
-                            onChange={(date) => {
+                          <DatePickerWithPresets
+                            date={field.value ? new Date(field.value) : undefined}
+                            setDate={(date) => {
                               field.onChange(date);
                               if (date) setIsDatePickerOpen(false);
                             }}
+                            fromYear={2020}
+                            toYear={new Date().getFullYear() + 10}
                           />
                         </div>
                       </PopoverContent>

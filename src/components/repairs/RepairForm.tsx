@@ -31,7 +31,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { CustomDatePicker } from '@/components/ui/calendar'
+import { DatePickerWithPresets } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
 import { createRepair, type CreateRepairInput } from '@/app/actions/repairs'
 import { toast } from '@/components/ui/use-toast'
@@ -331,9 +331,12 @@ export function RepairForm({ preselectedCarId, onSuccess }: RepairFormProps) {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <CustomDatePicker
-                    value={field.value}
-                    onChange={field.onChange}
+                  <DatePickerWithPresets
+                    date={field.value}
+                    setDate={field.onChange}
+                    fromYear={2020}
+                    toYear={new Date().getFullYear() + 10}
+                    inline={true}
                   />
                 </PopoverContent>
               </Popover>

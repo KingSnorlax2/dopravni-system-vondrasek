@@ -13,7 +13,7 @@ import { CalendarIcon } from 'lucide-react';
 import { Auto } from '@prisma/client';
 import { useEffect } from 'react';
 import React from 'react';
-import { CustomDatePicker } from '@/components/ui/calendar';
+import { DatePickerWithPresets } from '@/components/ui/calendar';
 
 const formSchema = z.object({
   spz: z.string().min(1, "SPZ je povinná").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -217,15 +217,18 @@ export function AutoEditForm({ auto, onSubmit, onCancel }: {
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CustomDatePicker
-                    value={field.value}
-                    onChange={(date) => {
-                      field.onChange(date);
-                      if (date) setOpen(false);
-                    }}
-                  />
-                </PopoverContent>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <DatePickerWithPresets
+                          date={field.value}
+                          setDate={(date) => {
+                            field.onChange(date);
+                            if (date) setOpen(false);
+                          }}
+                          fromYear={2020}
+                          toYear={new Date().getFullYear() + 10}
+                          inline={true}
+                        />
+                      </PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>

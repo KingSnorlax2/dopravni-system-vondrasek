@@ -192,12 +192,16 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
+          if (!currentUser) {
+            return token;
+          }
+
           // Fetch user preferences
           const userPreferences = await prisma.userPreferences.findUnique({
             where: { userId: currentUser.id }
           });
 
-          if (currentUser && currentUser.roles && currentUser.roles.length > 0) {
+          if (currentUser.roles && currentUser.roles.length > 0) {
             // Get the highest role (ADMIN > others)
             const adminRole = currentUser.roles.find(r => r.role.name === 'ADMIN');
             const mainRole = adminRole || currentUser.roles[0];

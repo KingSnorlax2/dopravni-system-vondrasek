@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CustomDatePicker } from "@/components/ui/calendar"
+import { DatePickerWithPresets } from "@/components/ui/calendar"
 import {
   Popover,
   PopoverContent,
@@ -193,9 +193,12 @@ export function CarForm() {
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <CustomDatePicker
-                    value={field.value}
-                    onChange={field.onChange}
+                  <DatePickerWithPresets
+                    date={field.value}
+                    setDate={field.onChange}
+                    fromYear={2020}
+                    toYear={new Date().getFullYear() + 10}
+                    inline={true}
                   />
                 </PopoverContent>
               </Popover>
