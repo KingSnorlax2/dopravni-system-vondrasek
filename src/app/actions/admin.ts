@@ -104,11 +104,26 @@ export async function upsertUser(data: UserSchemaType) {
 
     // 2. Get first role from array (Uzivatel model supports only single role)
     const role = validated.roles[0] || 'RIDIC'
-    const validRoles = ['ADMIN', 'DISPECER', 'RIDIC']
-    if (!validRoles.includes(role)) {
+    
+    // Validate role exists in Role table and is active
+    // Note: Uzivatel.role is an enum, so it must be one of: ADMIN, DISPECER, RIDIC
+    // But we still check the Role table to ensure it exists and is active
+    const roleRecord = await prisma.role.findUnique({
+      where: { name: role },
+      select: { isActive: true },
+    })
+    
+    if (!roleRecord) {
       return {
         success: false,
-        error: 'Neplatná role. Musí být ADMIN, DISPECER nebo RIDIC',
+        error: `Role "${role}" neexistuje v databázi. Vytvořte ji nejprve v sekci Role.`,
+      }
+    }
+    
+    if (!roleRecord.isActive) {
+      return {
+        success: false,
+        error: `Role "${role}" není aktivní. Aktivujte ji nejprve v sekci Role.`,
       }
     }
 

@@ -80,6 +80,7 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
   const [sortKey, setSortKey] = useState<'name' | 'email' | 'status' | 'lastLoginAt'>('name')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [allRoles, setAllRoles] = useState<string[]>([])
+  const [roleDisplayMap, setRoleDisplayMap] = useState<Record<string, string>>({})
   const [modalOpen, setModalOpen] = useState(false)
   const [modalUser, setModalUser] = useState<any | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -88,29 +89,58 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
   const [confirmType, setConfirmType] = useState<'delete' | 'deactivate' | 'activate' | null>(null)
   const [confirmUser, setConfirmUser] = useState<any | null>(null)
 
-  const fetchUsers = () => {
-    setLoading(true)
-    fetch('/api/admin/users')
-      .then(res => res.json())
-      .then(data => {
+  // Fetch roles for display names
+  const fetchRoles = async () => {
+    try {
+      const res = await fetch('/api/admin/roles', {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
         if (Array.isArray(data)) {
-          setUsers(data.filter(u => u && typeof u === 'object' && u.email && u.name))
-          // Collect all unique roles for filter dropdown
-          const roles = Array.from(new Set(data.flatMap((u: any) => (u && u.roles ? u.roles : []))))
-          setAllRoles(roles)
-        } else {
-          setUsers([])
-          setError('Neplatná data uživatelů')
+          const displayMap: Record<string, string> = {}
+          data.forEach((r: any) => {
+            if (r.name && r.displayName) {
+              displayMap[r.name] = r.displayName
+            }
+          })
+          setRoleDisplayMap(displayMap)
         }
-        setLoading(false)
+      }
+    } catch (err) {
+      console.error('Error fetching roles:', err)
+    }
+  }
+
+  const fetchUsers = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/users', {
+        credentials: 'include',
       })
-      .catch(err => {
-        setError('Nepodařilo se načíst uživatele')
-        setLoading(false)
-      })
+      if (!res.ok) {
+        throw new Error('Failed to fetch users')
+      }
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        setUsers(data.filter(u => u && typeof u === 'object' && u.email && u.name))
+        // Collect all unique roles for filter dropdown
+        const roles = Array.from(new Set(data.flatMap((u: any) => (u && u.roles ? u.roles : []))))
+        setAllRoles(roles)
+      } else {
+        setUsers([])
+        setError('Neplatná data uživatelů')
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err)
+      setError('Nepodařilo se načíst uživatele')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
+    fetchRoles()
     fetchUsers()
   }, [])
 
@@ -276,9 +306,12 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Všechny role</SelectItem>
-            {allRoles.map(role => (
-              <SelectItem key={role} value={role}>{role}</SelectItem>
-            ))}
+            {allRoles.map(role => {
+              const displayName = roleDisplayMap[role] || role
+              return (
+                <SelectItem key={role} value={role}>{displayName}</SelectItem>
+              )
+            })}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -341,13 +374,8 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
                       {user.roles && user.roles.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {user.roles.map((r: string) => {
-                            // Map UzivatelRole enum values to display names
-                            const roleDisplayNames: Record<string, string> = {
-                              'ADMIN': 'ADMIN',
-                              'DISPECER': 'DISPECER',
-                              'RIDIC': 'RIDIC',
-                            }
-                            const displayName = roleDisplayNames[r] || r
+                            // Use roleDisplayName from API if available, otherwise use role name
+                            const displayName = (user as any).roleDisplayName || r
                             return (
                               <span key={r} className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs border truncate max-w-full">
                                 {displayName}

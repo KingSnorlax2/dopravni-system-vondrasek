@@ -27,10 +27,55 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
   })
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
-  // UzivatelRole enum values (ADMIN, DISPECER, RIDIC)
-  const roleOptions = ['ADMIN', 'DISPECER', 'RIDIC']
+  const [roles, setRoles] = useState<Array<{ name: string; displayName: string }>>([])
+  const [loadingRoles, setLoadingRoles] = useState(true)
   const [isPending, startTransition] = useTransition()
   const [showPassword, setShowPassword] = useState(false)
+
+  // Fetch roles dynamically
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        setLoadingRoles(true)
+        const res = await fetch('/api/admin/roles', {
+          credentials: 'include',
+        })
+        if (res.ok) {
+          const data = await res.json()
+          // Filter only active roles and map to simple format
+          const activeRoles = data
+            .filter((r: any) => r.isActive)
+            .map((r: any) => ({
+              name: r.name,
+              displayName: r.displayName || r.name,
+            }))
+          setRoles(activeRoles)
+        } else {
+          console.error('Failed to fetch roles')
+          // Fallback to default roles if API fails
+          setRoles([
+            { name: 'ADMIN', displayName: 'ADMIN - Administrátor' },
+            { name: 'DISPECER', displayName: 'DISPECER - Dispečer' },
+            { name: 'RIDIC', displayName: 'RIDIC - Řidič' },
+          ])
+        }
+      } catch (err) {
+        console.error('Error fetching roles:', err)
+        // Fallback to default roles on error
+        setRoles([
+          { name: 'ADMIN', displayName: 'ADMIN - Administrátor' },
+          { name: 'DISPECER', displayName: 'DISPECER - Dispečer' },
+          { name: 'RIDIC', displayName: 'RIDIC - Řidič' },
+        ])
+      } finally {
+        setLoadingRoles(false)
+      }
+    }
+    
+    if (open) {
+      fetchRoles()
+    }
+  }, [open])
 
   useEffect(() => {
     if (user) {
@@ -107,10 +152,10 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
       setError('Musí být vybrána role')
       return
     }
-    // Validate that role is one of the allowed values
-    const validRoles = ['ADMIN', 'DISPECER', 'RIDIC']
-    if (!form.roles[0] || !validRoles.includes(form.roles[0])) {
-      setError('Neplatná role. Musí být ADMIN, DISPECER nebo RIDIC')
+    // Validate that role exists in available roles
+    const validRoleNames = roles.map(r => r.name)
+    if (!form.roles[0] || !validRoleNames.includes(form.roles[0])) {
+      setError('Neplatná role. Vyberte roli ze seznamu.')
       return
     }
     if (form.avatar && form.avatar.trim() && !/^https?:\/\/.+/.test(form.avatar)) {
@@ -327,20 +372,26 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
 
           <div>
             <Label htmlFor="role">Role *</Label>
-            <Select
-              value={form.roles[0] || ''}
-              onValueChange={(value) => setRole(value)}
-              disabled={isPending}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Vyberte roli" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ADMIN">ADMIN - Administrátor</SelectItem>
-                <SelectItem value="DISPECER">DISPECER - Dispečer</SelectItem>
-                <SelectItem value="RIDIC">RIDIC - Řidič</SelectItem>
-              </SelectContent>
-            </Select>
+            {loadingRoles ? (
+              <div className="mt-1 text-sm text-gray-500">Načítání rolí...</div>
+            ) : (
+              <Select
+                value={form.roles[0] || ''}
+                onValueChange={(value) => setRole(value)}
+                disabled={isPending}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Vyberte roli" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role.name} value={role.name}>
+                      {role.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <p className="text-xs text-gray-500 mt-1">
               Uživatel může mít pouze jednu roli
             </p>

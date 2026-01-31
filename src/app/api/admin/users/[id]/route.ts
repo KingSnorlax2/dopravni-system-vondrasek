@@ -30,6 +30,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
     
+    // Fetch role display name
+    const role = await prisma.role.findUnique({
+      where: { name: uzivatel.role },
+      select: { displayName: true },
+    })
+    
+    const roleDisplayName = role?.displayName || uzivatel.role
+    
     return NextResponse.json({
       id: uzivatel.id.toString(),
       name: uzivatel.jmeno || uzivatel.email.split('@')[0],
@@ -41,6 +49,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       phone: null, // Uzivatel model doesn't have phone
       trustScore: null, // Uzivatel model doesn't have trustScore
       roles: [uzivatel.role], // Single role from enum
+      roleDisplayName: roleDisplayName, // Display name from Role table
       createdAt: uzivatel.createdAt,
       updatedAt: uzivatel.updatedAt,
     })
@@ -88,12 +97,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     data: updateData,
   })
   
+  // Fetch role display name
+  const role = await prisma.role.findUnique({
+    where: { name: uzivatel.role },
+    select: { displayName: true },
+  })
+  
+  const roleDisplayName = role?.displayName || uzivatel.role
+  
   return NextResponse.json({
     id: uzivatel.id.toString(),
     name: uzivatel.jmeno || uzivatel.email.split('@')[0],
     email: uzivatel.email,
     status: 'ACTIVE',
     roles: [uzivatel.role],
+    roleDisplayName: roleDisplayName, // Display name from Role table
     createdAt: uzivatel.createdAt,
     updatedAt: uzivatel.updatedAt,
   })
