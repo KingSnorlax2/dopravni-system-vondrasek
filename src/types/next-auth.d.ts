@@ -15,6 +15,8 @@ declare module "next-auth" {
       email: string;
       name: string | null;
       role: UzivatelRole;
+      allowedPages: string[];
+      defaultLandingPage: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -25,5 +27,7 @@ declare module "next-auth/jwt" {
     email: string;
     name: string | null;
     role: UzivatelRole;
+    allowedPages: string[];
+    defaultLandingPage: string | null;
   }
 } 

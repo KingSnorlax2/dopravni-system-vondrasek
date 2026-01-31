@@ -55,28 +55,84 @@ async function createAuditLog(
       return
     }
     
-    // Check if actor exists in User model (AuditLog.actorId references User.id, not Uzivatel.id)
-    // If actor is from Uzivatel model, we can't create audit log with foreign key constraint
-    const actor = await prisma.user.findUnique({
-      where: { id: actorId },
-      select: { id: true },
+    // Get actor info from Uzivatel model (authentication model)
+    const uzivatel = await prisma.uzivatel.findUnique({
+      where: { id: parseInt(actorId) },
+      select: { id: true, email: true, jmeno: true },
     })
     
-    // Only create audit log if actor exists in User model
-    if (!actor) {
-      console.warn(`Cannot create audit log: actor ${actorId} not found in User model (may be from Uzivatel model)`)
+    if (!uzivatel) {
+      console.warn(`Cannot create audit log: actor ${actorId} not found in Uzivatel model`)
       return
     }
     
-    await prisma.auditLog.create({
-      data: {
-        action,
-        entity,
-        entityId,
-        actorId,
-        details: details ? JSON.parse(JSON.stringify(details)) : null,
-      },
+    // Check if User model exists with matching email (for foreign key)
+    const userForAudit = await prisma.user.findUnique({
+      where: { email: uzivatel.email },
+      select: { id: true },
     })
+    
+    // Prepare audit details with actor info from Uzivatel model
+    const auditDetails = {
+      ...(details || {}),
+      actor: {
+        id: uzivatel.id.toString(),
+        email: uzivatel.email,
+        name: uzivatel.jmeno || uzivatel.email.split('@')[0],
+        source: 'Uzivatel', // Mark that actor is from Uzivatel model
+      },
+    }
+    
+    // Create audit log
+    // If User exists, use it for foreign key. If not, use a placeholder and store actor info in details
+    if (userForAudit) {
+      // User exists - create audit log with foreign key
+      await prisma.auditLog.create({
+        data: {
+          action,
+          entity,
+          entityId,
+          actorId: userForAudit.id,
+          details: details ? JSON.parse(JSON.stringify(details)) : null,
+        },
+      })
+    } else {
+      // User doesn't exist - we need to create audit log without foreign key
+      // Since actorId is required, we'll use a system user or create a minimal User record
+      // For now, let's try to find or create a system user for audit purposes
+      let systemUser = await prisma.user.findFirst({
+        where: { email: 'system@audit.local' },
+      })
+      
+      if (!systemUser) {
+        // Create a system user for audit logs (without password - won't be used for login)
+        // Note: This requires User model to allow null password or we need to hash a dummy password
+        try {
+          systemUser = await prisma.user.create({
+            data: {
+              email: 'system@audit.local',
+              password: await bcryptjs.hash('system-audit-user', 10), // Dummy password
+              name: 'System Audit User',
+            },
+          })
+        } catch (createError) {
+          console.error('Failed to create system user for audit:', createError)
+          // If we can't create system user, skip audit log creation
+          return
+        }
+      }
+      
+      // Create audit log with system user as actorId, but store real actor info in details
+      await prisma.auditLog.create({
+        data: {
+          action,
+          entity,
+          entityId,
+          actorId: systemUser.id, // Use system user for foreign key
+          details: auditDetails, // Store real actor info here
+        },
+      })
+    }
   } catch (error) {
     // Log error but don't fail the main operation
     console.error('Failed to create audit log:', error)
@@ -288,18 +344,11 @@ export async function toggleUserStatus(
 export async function upsertRole(data: RoleSchemaType) {
   try {
     // 1. Authentication & Authorization
-    const user = await getCurrentUser()
+    // Use getServerSession to check role from Uzivatel model (authentication model)
+    const session = await getServerSession(authOptions)
     
-    const adminUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { roles: { include: { role: true } } },
-    })
-    
-    const isAdmin = adminUser?.roles.some(
-      (ur) => ur.role.name === 'ADMIN' || ur.role.name === 'admin'
-    )
-    
-    if (!isAdmin) {
+    // Check if user has admin role from session (Uzivatel model)
+    if (!session?.user?.role || session.user.role !== 'ADMIN') {
       return {
         success: false,
         error: 'Nemáte oprávnění k této akci',
@@ -376,7 +425,7 @@ export async function upsertRole(data: RoleSchemaType) {
           allowedPages: validated.allowedPages,
           defaultLandingPage: validated.defaultLandingPage || null,
           isActive: validated.isActive,
-          createdBy: user.id,
+          createdBy: session.user.id, // Use session user ID
         },
       })
     }
@@ -395,7 +444,7 @@ export async function upsertRole(data: RoleSchemaType) {
       validated.id ? 'ROLE_UPDATE' : 'ROLE_CREATE',
       'Role',
       String(result.id),
-      user.id,
+      session.user.id, // Use session user ID
       {
         old: oldRoleData,
         new: newRoleData,
@@ -446,18 +495,11 @@ export async function getAuditLogs(
 ) {
   try {
     // 1. Authentication & Authorization
-    const user = await getCurrentUser()
+    // Use getServerSession to check role from Uzivatel model (authentication model)
+    const session = await getServerSession(authOptions)
     
-    const adminUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { roles: { include: { role: true } } },
-    })
-    
-    const isAdmin = adminUser?.roles.some(
-      (ur) => ur.role.name === 'ADMIN' || ur.role.name === 'admin'
-    )
-    
-    if (!isAdmin) {
+    // Check if user has admin role from session (Uzivatel model)
+    if (!session?.user?.role || session.user.role !== 'ADMIN') {
       return {
         success: false,
         error: 'Nemáte oprávnění k této akci',
@@ -503,19 +545,43 @@ export async function getAuditLogs(
 
     return {
       success: true,
-      data: logs.map((log) => ({
-        id: log.id,
-        action: log.action,
-        entity: log.entity,
-        entityId: log.entityId,
-        details: log.details,
-        actor: {
-          id: log.actor.id,
-          name: log.actor.name,
-          email: log.actor.email,
-        },
-        createdAt: log.createdAt,
-      })),
+      data: logs.map((log) => {
+        // Extract actor info from details if actor relation is null
+        let actorInfo = null
+        if (log.actor) {
+          // Actor exists in User model
+          actorInfo = {
+            id: log.actor.id,
+            name: log.actor.name,
+            email: log.actor.email,
+          }
+        } else if (log.details && typeof log.details === 'object' && 'actor' in log.details) {
+          // Actor info stored in details (from Uzivatel model)
+          const detailsActor = (log.details as any).actor
+          actorInfo = {
+            id: detailsActor.id || '',
+            name: detailsActor.name || 'Neznámý',
+            email: detailsActor.email || '',
+          }
+        } else {
+          // Fallback if no actor info available
+          actorInfo = {
+            id: '',
+            name: 'Neznámý',
+            email: '',
+          }
+        }
+        
+        return {
+          id: log.id,
+          action: log.action,
+          entity: log.entity,
+          entityId: log.entityId,
+          details: log.details,
+          actor: actorInfo,
+          createdAt: log.createdAt,
+        }
+      }),
       total,
     }
   } catch (error) {

@@ -3,12 +3,6 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 /**
- * Role type for Edge Runtime compatibility
- * Note: Cannot import Prisma types in Edge Runtime
- */
-type Role = "ADMIN" | "DISPECER" | "RIDIC"
-
-/**
  * Public paths that don't require authentication
  */
 const PUBLIC_PATHS = [
@@ -16,29 +10,6 @@ const PUBLIC_PATHS = [
   "/login",
   "/api/auth",
   "/reset-password",
-]
-
-/**
- * Route protection configuration
- * Maps route patterns to required roles
- */
-const PROTECTED_ROUTES: Array<{
-  pattern: RegExp
-  role?: Role
-  requireAuth?: boolean
-}> = [
-  // Admin routes - require ADMIN role
-  { pattern: /^\/dashboard\/admin(\/|$)/, role: "ADMIN" },
-  { pattern: /^\/api\/admin\//, role: "ADMIN" },
-  
-  // Dispatcher routes - require DISPECER or ADMIN
-  { pattern: /^\/dashboard\/dispecer(\/|$)/, role: "DISPECER" },
-  
-  // Driver routes - require RIDIC or higher
-  { pattern: /^\/dashboard\/ridic(\/|$)/, role: "RIDIC" },
-  
-  // All dashboard routes require authentication
-  { pattern: /^\/dashboard(\/|$)/, requireAuth: true },
 ]
 
 /**
@@ -51,54 +22,41 @@ function isPublicPath(pathname: string): boolean {
 }
 
 /**
- * Check if user has required role for a route
+ * Check if a pathname is allowed based on allowedPages array
+ * Supports exact matches and prefix matching (sub-paths)
+ * 
+ * @param pathname - Current pathname to check
+ * @param allowedPages - Array of allowed page paths
+ * @returns true if pathname is allowed, false otherwise
  */
-function hasRequiredRole(userRole: string, requiredRole?: Role): boolean {
-  if (!requiredRole) return true
-  
-  // Role hierarchy: ADMIN > DISPECER > RIDIC
-  const roleHierarchy: Record<Role, number> = {
-    ADMIN: 3,
-    DISPECER: 2,
-    RIDIC: 1,
+function isPathAllowed(pathname: string, allowedPages: string[]): boolean {
+  if (!Array.isArray(allowedPages) || allowedPages.length === 0) {
+    return false
   }
-  
-  const userRoleLevel = roleHierarchy[userRole as Role] || 0
-  const requiredRoleLevel = roleHierarchy[requiredRole]
-  
-  return userRoleLevel >= requiredRoleLevel
-}
 
-/**
- * Get required role for a path
- */
-function getRequiredRole(pathname: string): Role | null {
-  for (const route of PROTECTED_ROUTES) {
-    if (route.pattern.test(pathname)) {
-      return route.role || null
+  // Check for exact match or prefix match
+  return allowedPages.some((allowedPage) => {
+    // Exact match
+    if (pathname === allowedPage) {
+      return true
     }
-  }
-  return null
+    
+    // Prefix match: if allowedPage is "/dashboard", allow "/dashboard/cars"
+    // But ensure we match complete path segments (avoid "/dashboard" matching "/dashboard-old")
+    if (pathname.startsWith(allowedPage + "/") || pathname.startsWith(allowedPage + "?")) {
+      return true
+    }
+    
+    return false
+  })
 }
 
 /**
  * Check if route requires authentication
+ * All routes except public paths require authentication
  */
 function requiresAuth(pathname: string): boolean {
-  // Check if it's a public path
-  if (isPublicPath(pathname)) {
-    return false
-  }
-  
-  // Check protected routes
-  for (const route of PROTECTED_ROUTES) {
-    if (route.pattern.test(pathname)) {
-      return route.requireAuth !== false // Default to true if not specified
-    }
-  }
-  
-  // Default: require auth for all routes except public ones
-  return true
+  return !isPublicPath(pathname)
 }
 
 export async function middleware(request: NextRequest) {
@@ -110,12 +68,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard/auta", request.url))
   }
 
+  // Handle root path (/) and login page for authenticated users
+  if (pathname === "/" || pathname === "/login") {
+    if (token) {
+      // User is logged in - redirect to their default landing page
+      const defaultLandingPage = (token as any).defaultLandingPage as string | null
+      const landingPage = defaultLandingPage || "/dashboard/auta"
+      return NextResponse.redirect(new URL(landingPage, request.url))
+    }
+    // User not logged in - allow access to login page
+    if (pathname === "/login") {
+      return NextResponse.next()
+    }
+    // Root path - allow access (will show login form)
+    return NextResponse.next()
+  }
+
   // Allow public paths for unauthenticated users
   if (isPublicPath(pathname)) {
-    // If user is already logged in and tries to access login page, redirect to vehicles page
-    if (token && pathname === "/login") {
-      return NextResponse.redirect(new URL("/dashboard/auta", request.url))
-    }
     return NextResponse.next()
   }
 
@@ -128,20 +98,39 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    // Check role requirements
-    const requiredRole = getRequiredRole(pathname)
-    if (requiredRole) {
-      const userRole = (token as any).role as string
-      
-      if (!hasRequiredRole(userRole, requiredRole)) {
-        // User doesn't have required role - redirect to vehicles page with error
-        const vehiclesUrl = new URL("/dashboard/auta", request.url)
-        vehiclesUrl.searchParams.set(
-          "error",
-          "Nemáte oprávnění k přístupu na tuto stránku"
-        )
-        return NextResponse.redirect(vehiclesUrl)
-      }
+    // CRITICAL: API routes should be handled by their own authentication
+    // Don't block API routes based on allowedPages - let API endpoints handle authorization
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.next()
+    }
+
+    // Get user role from token
+    const userRole = (token as any).role as string | undefined
+    
+    // CRITICAL: ADMIN role has access to everything - bypass allowedPages check
+    if (userRole === "ADMIN") {
+      return NextResponse.next()
+    }
+
+    // For non-ADMIN users, check allowedPages for page routes
+    const allowedPages = (token as any).allowedPages as string[] | undefined
+    const defaultLandingPage = (token as any).defaultLandingPage as string | null
+    const landingPage = defaultLandingPage || "/dashboard/auta"
+
+    // CRITICAL: Always allow access to defaultLandingPage to prevent redirect loops
+    if (pathname === landingPage) {
+      return NextResponse.next()
+    }
+
+    // Check if current path is allowed
+    if (!isPathAllowed(pathname, allowedPages || [])) {
+      // Access denied - redirect to default landing page with error message
+      const redirectUrl = new URL(landingPage, request.url)
+      redirectUrl.searchParams.set(
+        "error",
+        "Nemáte oprávnění k přístupu na tuto stránku"
+      )
+      return NextResponse.redirect(redirectUrl)
     }
   }
 

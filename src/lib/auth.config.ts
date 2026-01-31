@@ -76,6 +76,105 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email
         token.name = user.name
         token.role = (user as any).role as UzivatelRole
+
+        // Fetch dynamic permissions from Role table
+        try {
+          const roleData = await prisma.role.findUnique({
+            where: { name: token.role },
+            select: { 
+              allowedPages: true, 
+              defaultLandingPage: true,
+              isActive: true 
+            },
+          })
+
+          // Only use role data if role exists and is active
+          if (roleData && roleData.isActive) {
+            const defaultLandingPage = roleData.defaultLandingPage || '/dashboard/auta'
+            const allowedPages = roleData.allowedPages || []
+            
+            // CRITICAL: Always include defaultLandingPage in allowedPages to prevent redirect loops
+            // If defaultLandingPage is not in allowedPages, add it
+            if (!allowedPages.includes(defaultLandingPage)) {
+              allowedPages.push(defaultLandingPage)
+            }
+            
+            token.allowedPages = allowedPages
+            token.defaultLandingPage = defaultLandingPage
+          } else {
+            // Fallback: Role not found in DB or inactive - use safe defaults
+            // ADMIN gets access to everything, other roles get minimal access
+            const fallbackDefaultPage = '/dashboard/auta'
+            
+            if (token.role === 'ADMIN') {
+              // ADMIN has access to everything - set wildcard or all common paths
+              // Note: Middleware will bypass allowedPages check for ADMIN anyway
+              token.allowedPages = [
+                '/dashboard',
+                '/dashboard/auta',
+                '/dashboard/admin',
+                '/dashboard/admin/users',
+                '/dashboard/transakce',
+                '/dashboard/opravy',
+                '/dashboard/grafy',
+                '/homepage',
+              ]
+              token.defaultLandingPage = '/dashboard/auta'
+            } else {
+              // Other roles get minimal access
+              const fallbackPages: Record<UzivatelRole, string[]> = {
+                ADMIN: ['/dashboard/auta', '/dashboard/admin'], // Should not reach here for ADMIN
+                DISPECER: ['/dashboard/auta'],
+                RIDIC: ['/dashboard/auta'],
+              }
+              const pages = fallbackPages[token.role] || [fallbackDefaultPage]
+              
+              // Ensure defaultLandingPage is always in allowedPages
+              if (!pages.includes(fallbackDefaultPage)) {
+                pages.push(fallbackDefaultPage)
+              }
+              
+              token.allowedPages = pages
+              token.defaultLandingPage = fallbackDefaultPage
+            }
+          }
+        } catch (error) {
+          // Error fetching role - use safe defaults
+          console.error('Error fetching role permissions:', error)
+          const fallbackDefaultPage = '/dashboard/auta'
+          
+          if (token.role === 'ADMIN') {
+            // ADMIN has access to everything - set all common paths
+            // Note: Middleware will bypass allowedPages check for ADMIN anyway
+            token.allowedPages = [
+              '/dashboard',
+              '/dashboard/auta',
+              '/dashboard/admin',
+              '/dashboard/admin/users',
+              '/dashboard/transakce',
+              '/dashboard/opravy',
+              '/dashboard/grafy',
+              '/homepage',
+            ]
+            token.defaultLandingPage = '/dashboard/auta'
+          } else {
+            // Other roles get minimal access
+            const fallbackPages: Record<UzivatelRole, string[]> = {
+              ADMIN: ['/dashboard/auta', '/dashboard/admin'], // Should not reach here for ADMIN
+              DISPECER: ['/dashboard/auta'],
+              RIDIC: ['/dashboard/auta'],
+            }
+            const pages = fallbackPages[token.role] || [fallbackDefaultPage]
+            
+            // Ensure defaultLandingPage is always in allowedPages
+            if (!pages.includes(fallbackDefaultPage)) {
+              pages.push(fallbackDefaultPage)
+            }
+            
+            token.allowedPages = pages
+            token.defaultLandingPage = fallbackDefaultPage
+          }
+        }
       }
       return token
     },
@@ -86,6 +185,8 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string
         session.user.name = token.name as string | null
         session.user.role = token.role as UzivatelRole
+        session.user.allowedPages = token.allowedPages || []
+        session.user.defaultLandingPage = token.defaultLandingPage || '/dashboard/auta'
       }
       return session
     },

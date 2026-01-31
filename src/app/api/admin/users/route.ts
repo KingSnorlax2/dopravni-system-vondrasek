@@ -13,10 +13,15 @@ function requireAdmin(session: any) {
 
 // GET: List all users from Uzivatel model (used for authentication)
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!requireAdmin(session)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  try {
+    const session = await getServerSession(authOptions)
+    if (!requireAdmin(session)) {
+      console.error('Unauthorized access attempt to /api/admin/users:', {
+        hasSession: !!session,
+        userRole: session?.user?.role,
+      })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
   
   // Fetch users from Uzivatel model (authentication model)
   const uzivatele = await prisma.uzivatel.findMany({
@@ -53,6 +58,13 @@ export async function GET(req: Request) {
       updatedAt: u.updatedAt,
     }
   }))
+  } catch (error) {
+    console.error('Error in GET /api/admin/users:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
 }
 
 // POST: Create user in Uzivatel model
