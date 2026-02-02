@@ -7,6 +7,15 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator,
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { MoreHorizontal, Edit, Trash2, UserCheck, UserX, Circle } from "lucide-react"
 import { upsertUser, toggleUserStatus } from "@/app/actions/admin"
 import { format } from "date-fns"
 import cs from "date-fns/locale/cs"
@@ -41,31 +50,45 @@ function getInitials(name: string | null | undefined, email: string): string {
   return email.slice(0, 2).toUpperCase()
 }
 
-// Helper function to get status badge variant
-function getStatusVariant(status: string) {
+// Helper function to get status badge variant and color
+function getStatusConfig(status: string) {
   switch (status) {
     case 'ACTIVE':
-      return 'success'
+      return {
+        variant: 'success' as const,
+        label: 'Aktivní',
+        dotColor: 'bg-green-500',
+        textColor: 'text-green-700',
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200'
+      }
     case 'DISABLED':
-      return 'destructive'
+      return {
+        variant: 'destructive' as const,
+        label: 'Deaktivovaný',
+        dotColor: 'bg-red-500',
+        textColor: 'text-red-700',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200'
+      }
     case 'SUSPENDED':
-      return 'warning'
+      return {
+        variant: 'warning' as const,
+        label: 'Pozastavený',
+        dotColor: 'bg-yellow-500',
+        textColor: 'text-yellow-700',
+        bgColor: 'bg-yellow-50',
+        borderColor: 'border-yellow-200'
+      }
     default:
-      return 'outline'
-  }
-}
-
-// Helper function to get status label
-function getStatusLabel(status: string) {
-  switch (status) {
-    case 'ACTIVE':
-      return 'Aktivní'
-    case 'DISABLED':
-      return 'Deaktivovaný'
-    case 'SUSPENDED':
-      return 'Pozastavený'
-    default:
-      return status
+      return {
+        variant: 'outline' as const,
+        label: status,
+        dotColor: 'bg-gray-500',
+        textColor: 'text-gray-700',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200'
+      }
   }
 }
 
@@ -283,15 +306,15 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
       )}
       
       {/* Search & Filters */}
-      <div className="flex flex-wrap gap-3 mb-4 items-end">
+      <div className="flex flex-wrap gap-6 mb-6 items-end">
         {hasPermission("manage_users") && (
-          <button
-            className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium shadow hover:bg-blue-700 transition disabled:opacity-50"
+          <Button
             onClick={handleAdd}
             disabled={isPending}
+            className="flex items-center gap-2"
           >
             + Přidat uživatele
-          </button>
+          </Button>
         )}
         <Input
           type="text"
@@ -388,55 +411,61 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
                       )}
                     </td>
                     <td className="px-2 py-3">
-                      <Badge variant={getStatusVariant(user.status)} className="text-xs">
-                        {getStatusLabel(user.status)}
-                      </Badge>
+                      {(() => {
+                        const statusConfig = getStatusConfig(user.status)
+                        return (
+                          <Badge 
+                            variant={statusConfig.variant} 
+                            className={`text-xs flex items-center gap-1.5 w-fit ${statusConfig.bgColor} ${statusConfig.borderColor} ${statusConfig.textColor}`}
+                          >
+                            <Circle className={`h-2 w-2 fill-current ${statusConfig.dotColor}`} />
+                            {statusConfig.label}
+                          </Badge>
+                        )
+                      })()}
                     </td>
                     <td className="px-2 py-3 text-gray-600 text-xs truncate" title={formatDate(user.lastLoginAt)}>
                       {formatDate(user.lastLoginAt)}
                     </td>
                     <td className="px-2 py-3">
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        <button 
-                          className="px-2 py-1 text-xs rounded-md border text-blue-700 border-blue-200 hover:bg-blue-50 disabled:opacity-50 whitespace-nowrap" 
-                          onClick={() => handleEdit(user)}
-                          disabled={isPending}
-                        >
-                          Upravit
-                        </button>
-                        {user.status === 'DISABLED' || user.status === 'SUSPENDED' ? (
-                          <button 
-                            className="px-2 py-1 text-xs rounded-md border text-green-700 border-green-200 hover:bg-green-50 disabled:opacity-50 whitespace-nowrap" 
-                            onClick={() => handleActivate(user)} 
-                            disabled={isPending}
-                          >
-                            Aktivovat
-                          </button>
-                        ) : (
-                          <button 
-                            className="px-2 py-1 text-xs rounded-md border text-yellow-700 border-yellow-200 hover:bg-yellow-50 disabled:opacity-50 whitespace-nowrap" 
-                            onClick={() => handleDeactivate(user)} 
-                            disabled={isPending}
-                          >
-                            Deaktivovat
-                          </button>
-                        )}
-                        <button 
-                          className="px-2 py-1 text-xs rounded-md border text-red-700 border-red-200 hover:bg-red-50 disabled:opacity-50 whitespace-nowrap" 
-                          onClick={() => handleDelete(user)}
-                          disabled={isPending}
-                        >
-                          Smazat
-                        </button>
-                        {onManageUser && (
-                          <button
-                            className="px-2 py-1 text-xs rounded-md border text-slate-700 border-slate-200 hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap"
-                            onClick={() => handleEdit(user)}
-                            disabled={isPending}
-                          >
-                            Role
-                          </button>
-                        )}
+                      <div className="flex justify-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              disabled={isPending}
+                            >
+                              <span className="sr-only">Otevřít menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(user)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Upravit
+                            </DropdownMenuItem>
+                            {user.status === 'DISABLED' || user.status === 'SUSPENDED' ? (
+                              <DropdownMenuItem onClick={() => handleActivate(user)}>
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                Aktivovat
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handleDeactivate(user)}>
+                                <UserX className="mr-2 h-4 w-4" />
+                                Deaktivovat
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(user)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Smazat
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>

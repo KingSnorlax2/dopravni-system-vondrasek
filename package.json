@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:seed": "npx prisma db seed"
+    "db:seed": "npx prisma db seed",
+    "db:fix-roles": "npx tsx src/scripts/fix-invalid-roles.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",

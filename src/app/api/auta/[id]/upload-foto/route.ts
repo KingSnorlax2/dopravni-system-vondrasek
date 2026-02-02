@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db as prisma } from '@/lib/db';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 const fotoSchema = z.object({
   data: z.string(), // base64 encoded image

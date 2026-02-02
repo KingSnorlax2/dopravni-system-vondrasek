@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { upsertRole } from "@/app/actions/admin"
-import { Shield, Plus, Edit, Trash2, Users } from "lucide-react"
+import { Shield, Plus, Edit, Trash2, Users, Globe, CheckCircle2, XCircle, Search } from "lucide-react"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
 
 interface AvailablePage {
   path: string
@@ -162,7 +164,7 @@ export function RoleTable() {
       )}
 
       {/* Search & Add Button */}
-      <div className="flex flex-wrap gap-3 mb-4 items-end">
+      <div className="flex flex-wrap gap-6 mb-6 items-end">
         <Button
           onClick={handleAdd}
           disabled={isPending}
@@ -171,106 +173,139 @@ export function RoleTable() {
           <Plus className="h-4 w-4" />
           Přidat roli
         </Button>
-        <Input
-          type="text"
-          placeholder="Hledat role..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-64"
-        />
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Hledat role..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border overflow-hidden">
-        <table className="w-full text-sm table-fixed">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-3 py-3 text-left w-[20%]">Název</th>
-              <th className="px-3 py-3 text-left w-[30%]">Popis</th>
-              <th className="px-3 py-3 text-left w-[25%]">Povolené stránky</th>
-              <th className="px-3 py-3 text-left w-[10%]">Status</th>
-              <th className="px-3 py-3 text-left w-[10%]">Uživatelé</th>
-              <th className="px-3 py-3 text-center w-[15%]">Akce</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-gray-500">
-                  {search ? 'Žádné role nenalezeny' : 'Žádné role. Vytvořte první roli.'}
-                </td>
-              </tr>
-            ) : (
-              filtered.map(role => (
-                <tr key={role.id || role.name} className="border-t hover:bg-gray-50">
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-gray-500" />
-                      <div>
-                        <div className="font-medium text-gray-900">{role.displayName || role.name}</div>
-                        <div className="text-xs text-gray-500">{role.name}</div>
-                      </div>
+      {/* Grid Cards */}
+      {filtered.length === 0 ? (
+        <div className="p-12 text-center text-gray-500 rounded-lg border border-dashed">
+          <Shield className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+          <p className="text-lg font-medium mb-2">
+            {search ? 'Žádné role nenalezeny' : 'Žádné role'}
+          </p>
+          <p className="text-sm">
+            {search ? 'Zkuste upravit vyhledávací dotaz' : 'Vytvořte první roli pro začátek'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.map(role => (
+            <Card key={role.id || role.name} className="flex flex-col hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                      <Shield className="h-5 w-5 text-blue-600" />
                     </div>
-                  </td>
-                  <td className="px-3 py-3 text-gray-700 text-sm">
-                    {role.description || <span className="text-gray-400">Bez popisu</span>}
-                  </td>
-                  <td className="px-3 py-3">
-                    {role.allowedPages && role.allowedPages.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {role.allowedPages.slice(0, 3).map((page, idx) => (
-                          <span key={idx} className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-xs border border-blue-200 truncate max-w-[100px]">
-                            {page}
-                          </span>
-                        ))}
-                        {role.allowedPages.length > 3 && (
-                          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs">
-                            +{role.allowedPages.length - 3}
-                          </span>
-                        )}
-                      </div>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg font-semibold truncate">
+                        {role.displayName || role.name}
+                      </CardTitle>
+                      <CardDescription className="text-xs font-mono truncate">
+                        {role.name}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Users className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">
+                      {role.userCount || 0}
+                    </span>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="flex-1 space-y-4">
+                {/* Description */}
+                <div>
+                  <p className="text-sm text-gray-600 line-clamp-2">
+                    {role.description || <span className="text-gray-400 italic">Bez popisu</span>}
+                  </p>
+                </div>
+
+                {/* Access Level - Permissions */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className="h-4 w-4 text-gray-500" />
+                    <span className="text-xs font-semibold text-gray-700">Povolené stránky</span>
+                  </div>
+                  {role.allowedPages && role.allowedPages.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {role.allowedPages.slice(0, 3).map((page, idx) => (
+                        <Badge 
+                          key={idx} 
+                          variant="secondary" 
+                          className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                        >
+                          {page.split('/').pop() || page}
+                        </Badge>
+                      ))}
+                      {role.allowedPages.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{role.allowedPages.length - 3} více
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">Žádné stránky</span>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <div className="flex items-center gap-2">
+                    {role.isActive ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
                     ) : (
-                      <span className="text-gray-400 text-xs">Žádné</span>
+                      <XCircle className="h-4 w-4 text-gray-400" />
                     )}
-                  </td>
-                  <td className="px-3 py-3">
-                    <Badge variant={role.isActive ? 'success' : 'outline'}>
+                    <span className={`text-sm font-medium ${role.isActive ? 'text-green-700' : 'text-gray-500'}`}>
                       {role.isActive ? 'Aktivní' : 'Neaktivní'}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1 text-gray-600">
-                      <Users className="h-4 w-4" />
-                      <span className="text-sm">{role.userCount || 0}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex flex-wrap gap-1 justify-center">
-                      <button
-                        className="px-2 py-1 text-xs rounded-md border text-blue-700 border-blue-200 hover:bg-blue-50 disabled:opacity-50 whitespace-nowrap"
-                        onClick={() => handleEdit(role)}
-                        disabled={isPending}
-                      >
-                        <Edit className="h-3 w-3 inline mr-1" />
-                        Upravit
-                      </button>
-                      <button
-                        className="px-2 py-1 text-xs rounded-md border text-red-700 border-red-200 hover:bg-red-50 disabled:opacity-50 whitespace-nowrap"
-                        onClick={() => handleDelete(role)}
-                        disabled={isPending || (role.userCount && role.userCount > 0)}
-                        title={role.userCount && role.userCount > 0 ? 'Nelze smazat roli s přiřazenými uživateli' : ''}
-                      >
-                        <Trash2 className="h-3 w-3 inline mr-1" />
-                        Smazat
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </span>
+                  </div>
+                  <Switch
+                    checked={role.isActive}
+                    disabled={true}
+                    aria-label="Status role"
+                  />
+                </div>
+              </CardContent>
+
+              <CardFooter className="flex gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(role)}
+                  disabled={isPending}
+                  className="flex-1"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Upravit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(role)}
+                  disabled={isPending || (role.userCount && role.userCount > 0)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  title={role.userCount && role.userCount > 0 ? 'Nelze smazat roli s přiřazenými uživateli' : ''}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <RoleModal
         open={modalOpen}

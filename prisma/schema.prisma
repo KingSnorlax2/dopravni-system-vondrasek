@@ -203,6 +203,7 @@ enum UzivatelRole {
   ADMIN
   DISPECER
   RIDIC
+  DRIVER
 }
 
 // Uzivatel model with Czech column names for authentication

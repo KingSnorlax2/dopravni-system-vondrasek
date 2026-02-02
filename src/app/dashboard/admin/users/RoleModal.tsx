@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { 
   Shield, 
   FileText, 
@@ -202,46 +204,50 @@ export function RoleModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-8 space-y-6 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Shield className="h-6 w-6 text-blue-600" />
+        <div className="flex items-start justify-between pb-4 border-b">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-100 rounded-xl">
+              <Shield className="h-7 w-7 text-blue-600" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
                 {role ? 'Upravit roli' : 'Nová role'}
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mt-1.5">
                 {role ? 'Upravte informace o roli a oprávnění' : 'Vytvořte novou roli s oprávněními'}
               </p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition p-1 rounded hover:bg-gray-100"
-            aria-label="Zavřít"
             disabled={isPending}
+            className="h-9 w-9"
           >
             <X className="h-5 w-5" />
-          </button>
+            <span className="sr-only">Zavřít</span>
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Card 1: Základní informace */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="h-5 w-5" />
+          <Card className="border-2">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <FileText className="h-5 w-5 text-gray-700" />
+                </div>
                 Základní informace
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm mt-1">
                 Identifikační údaje role
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="name" className="flex items-center gap-2">
@@ -284,8 +290,8 @@ export function RoleModal({
                 </div>
               </div>
 
-              <div className="mt-6">
-                <Label htmlFor="description" className="flex items-center gap-2">
+              <div>
+                <Label htmlFor="description" className="flex items-center gap-2 text-base font-medium">
                   <FileText className="h-4 w-4" />
                   Popis role
                 </Label>
@@ -307,13 +313,15 @@ export function RoleModal({
           </Card>
 
           {/* Card 2: Oprávnění a přístup */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Globe className="h-5 w-5" />
+          <Card className="border-2">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Globe className="h-5 w-5 text-gray-700" />
+                </div>
                 Oprávnění a přístup
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm mt-1">
                 Nastavte, ke kterým stránkám má role přístup
               </CardDescription>
             </CardHeader>
@@ -321,13 +329,13 @@ export function RoleModal({
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <Label className="flex items-center gap-2 text-base font-semibold">
-                    <Globe className="h-5 w-5" />
+                    <Globe className="h-5 w-5 text-gray-600" />
                     Povolené stránky
                   </Label>
                   {selectedPagesCount > 0 && (
-                    <span className="text-sm text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full font-medium">
+                    <Badge variant="secondary" className="text-sm bg-blue-50 text-blue-700 border-blue-200 px-3 py-1.5">
                       {selectedPagesCount} {selectedPagesCount === 1 ? 'stránka' : selectedPagesCount < 5 ? 'stránky' : 'stránek'} vybráno
-                    </span>
+                    </Badge>
                   )}
                 </div>
 
@@ -344,7 +352,7 @@ export function RoleModal({
                   />
                 </div>
 
-                <ScrollArea className="h-80 border rounded-lg bg-gray-50/50">
+                <ScrollArea className="h-96 border-2 rounded-lg bg-gray-50/30">
                   <div className="p-4 space-y-6">
                     {categorizedPages.length === 0 ? (
                       <div className="flex items-center justify-center py-8 text-gray-500">
@@ -362,44 +370,54 @@ export function RoleModal({
                         return (
                           <div key={categoryName} className="space-y-2">
                             {/* Category Header */}
-                            <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                              <div className="flex items-center gap-2">
-                                <CategoryIcon className="h-4 w-4 text-gray-600" />
-                                <span className="font-semibold text-gray-900 text-sm">{categoryName}</span>
-                                <span className="text-xs text-gray-500">
-                                  ({categorySelectedCount}/{categoryData.pages.length})
-                                </span>
+                            <div className="flex items-center justify-between pb-3 border-b-2 border-gray-200">
+                              <div className="flex items-center gap-3">
+                                <div className="p-1.5 bg-gray-100 rounded-md">
+                                  <CategoryIcon className="h-4 w-4 text-gray-700" />
+                                </div>
+                                <span className="font-semibold text-gray-900 text-base">{categoryName}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {categorySelectedCount}/{categoryData.pages.length}
+                                </Badge>
                               </div>
                               {categoryData.pages.length > 1 && (
-                                <button
+                                <Button
                                   type="button"
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => {
-                                    if (allSelected) {
-                                      // Deselect all in category
-                                      categoryData.pages.forEach(page => {
-                                        if (form.allowedPages.includes(page.path)) {
-                                          togglePage(page.path)
+                                    setForm(f => {
+                                      const categoryPaths = new Set(categoryData.pages.map(p => p.path))
+                                      const categorySelectedCount = f.allowedPages.filter(p => categoryPaths.has(p)).length
+                                      const isAllSelectedInCategory = categorySelectedCount === categoryData.pages.length && categoryData.pages.length > 0
+                                      
+                                      if (isAllSelectedInCategory) {
+                                        // Deselect all in category, but keep at least one page total
+                                        const remainingPages = f.allowedPages.filter(p => !categoryPaths.has(p))
+                                        // If removing all would leave us with 0 pages, don't allow it
+                                        if (remainingPages.length === 0 && f.allowedPages.length > 1) {
+                                          // Remove all except one from this category
+                                          const pagesToKeep = f.allowedPages.filter(p => !categoryPaths.has(p) || p === categoryData.pages[0].path)
+                                          return { ...f, allowedPages: pagesToKeep }
                                         }
-                                      })
-                                    } else {
-                                      // Select all in category
-                                      categoryData.pages.forEach(page => {
-                                        if (!form.allowedPages.includes(page.path)) {
-                                          togglePage(page.path)
-                                        }
-                                      })
-                                    }
+                                        return { ...f, allowedPages: remainingPages }
+                                      } else {
+                                        // Select all in category
+                                        const newPages = new Set([...f.allowedPages, ...categoryData.pages.map(p => p.path)])
+                                        return { ...f, allowedPages: Array.from(newPages) }
+                                      }
+                                    })
                                   }}
-                                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                                  className="text-xs h-7"
                                   disabled={isPending}
                                 >
                                   {allSelected ? 'Zrušit vše' : 'Vybrat vše'}
-                                </button>
+                                </Button>
                               )}
                             </div>
 
                             {/* Pages in category */}
-                            <div className="grid grid-cols-1 gap-2 pl-2">
+                            <div className="grid grid-cols-1 gap-3 pl-2 mt-3">
                               {categoryData.pages.map(page => {
                                 const isSelected = form.allowedPages.includes(page.path)
                                 const PageIcon = getPageIcon(page.path)
@@ -407,9 +425,9 @@ export function RoleModal({
                                   <div
                                     key={page.path}
                                     className={cn(
-                                      "flex items-start gap-3 p-3 rounded-lg border transition-all group",
+                                      "flex items-start gap-3 p-4 rounded-lg border-2 transition-all group cursor-pointer",
                                       isSelected
-                                        ? "bg-blue-50 border-blue-300 shadow-sm"
+                                        ? "bg-blue-50 border-blue-300 shadow-md"
                                         : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm"
                                     )}
                                   >
@@ -417,35 +435,43 @@ export function RoleModal({
                                       id={`page-${page.path}`}
                                       checked={isSelected}
                                       onCheckedChange={(checked) => {
-                                        if (checked !== isSelected) {
+                                        if (!isPending) {
                                           togglePage(page.path)
                                         }
                                       }}
                                       disabled={isPending}
                                       className="mt-0.5"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                      }}
                                     />
                                     <label
                                       htmlFor={`page-${page.path}`}
                                       className="flex-1 cursor-pointer min-w-0"
                                     >
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <PageIcon className={cn(
-                                          "h-4 w-4 flex-shrink-0",
-                                          isSelected ? "text-blue-600" : "text-gray-400"
-                                        )} />
+                                      <div className="flex items-center gap-2.5 mb-1.5">
+                                        <div className={cn(
+                                          "p-1.5 rounded-md",
+                                          isSelected ? "bg-blue-100" : "bg-gray-100"
+                                        )}>
+                                          <PageIcon className={cn(
+                                            "h-4 w-4 flex-shrink-0",
+                                            isSelected ? "text-blue-700" : "text-gray-500"
+                                          )} />
+                                        </div>
                                         <span className={cn(
-                                          "font-medium truncate",
+                                          "font-semibold truncate text-sm",
                                           isSelected ? "text-blue-900" : "text-gray-900"
                                         )}>
                                           {page.label}
                                         </span>
                                         {isSelected && (
-                                          <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                          <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0 ml-auto" />
                                         )}
                                       </div>
-                                      <div className="text-xs text-gray-500 font-mono truncate">{page.path}</div>
+                                      <div className="text-xs text-gray-500 font-mono truncate ml-8">{page.path}</div>
                                       {page.description && (
-                                        <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">
+                                        <div className="text-xs text-gray-400 mt-1 ml-8 line-clamp-1">
                                           {page.description}
                                         </div>
                                       )}
@@ -462,35 +488,43 @@ export function RoleModal({
                 </ScrollArea>
               </div>
 
-              <Separator />
+              <Separator className="my-6" />
 
               <div>
-                <Label htmlFor="defaultLandingPage" className="flex items-center gap-2">
+                <Label htmlFor="defaultLandingPage" className="flex items-center gap-2 text-base font-medium mb-2">
                   <Home className="h-4 w-4" />
                   Výchozí stránka po přihlášení
                 </Label>
-                <select
-                  id="defaultLandingPage"
-                  name="defaultLandingPage"
-                  value={form.defaultLandingPage || ''}
-                  onChange={(e) => setForm(f => ({ ...f, defaultLandingPage: e.target.value }))}
-                  className="mt-2 flex h-10 w-full rounded-md border border-input bg-white text-gray-900 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isPending}
+                <Select
+                  value={form.defaultLandingPage || undefined}
+                  onValueChange={(value) => setForm(f => ({ ...f, defaultLandingPage: value }))}
+                  disabled={isPending || form.allowedPages.length === 0}
                 >
-                  <option value="">-- Vyberte stránku --</option>
-                  {availablePages
-                    .filter(page => form.allowedPages.includes(page.path))
-                    .map(page => (
-                      <option key={page.path} value={page.path}>
-                        {page.label} ({page.path})
-                      </option>
-                    ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1.5">
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="-- Vyberte stránku --" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {form.allowedPages.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-gray-500">
+                        Nejdříve vyberte alespoň jednu povolenou stránku
+                      </div>
+                    ) : (
+                      availablePages
+                        .filter(page => form.allowedPages.includes(page.path))
+                        .map(page => (
+                          <SelectItem key={page.path} value={page.path}>
+                            {page.label} ({page.path})
+                          </SelectItem>
+                        ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-2">
                   Stránka, na kterou budou uživatelé s touto rolí přesměrováni po přihlášení
                   {form.allowedPages.length === 0 && (
-                    <span className="text-amber-600 block mt-1">
-                      ⚠️ Nejdříve vyberte alespoň jednu povolenou stránku
+                    <span className="text-amber-600 block mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Nejdříve vyberte alespoň jednu povolenou stránku
                     </span>
                   )}
                 </p>
@@ -499,19 +533,21 @@ export function RoleModal({
           </Card>
 
           {/* Card 3: Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Settings className="h-5 w-5" />
+          <Card className="border-2">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Settings className="h-5 w-5 text-gray-700" />
+                </div>
                 Status
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm mt-1">
                 Aktivace nebo deaktivace role
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between p-5 bg-gray-50 rounded-xl border-2 border-gray-200">
+                <div className="flex items-center gap-4">
                   <Switch
                     id="isActive"
                     checked={form.isActive}
@@ -519,24 +555,27 @@ export function RoleModal({
                     disabled={isPending}
                   />
                   <div>
-                    <Label htmlFor="isActive" className="cursor-pointer font-medium">
+                    <Label htmlFor="isActive" className="cursor-pointer font-semibold text-base">
                       Aktivní role
                     </Label>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-gray-500 mt-1">
                       {form.isActive 
                         ? 'Role je aktivní a může být přiřazena uživatelům' 
                         : 'Role je deaktivovaná a nelze ji přiřadit novým uživatelům'}
                     </p>
                   </div>
                 </div>
-                <div className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium",
-                  form.isActive 
-                    ? "bg-green-100 text-green-700" 
-                    : "bg-gray-200 text-gray-600"
-                )}>
+                <Badge 
+                  variant={form.isActive ? "success" : "outline"}
+                  className={cn(
+                    "px-4 py-1.5 text-sm font-medium",
+                    form.isActive 
+                      ? "bg-green-100 text-green-700 border-green-300" 
+                      : "bg-gray-200 text-gray-600 border-gray-300"
+                  )}
+                >
                   {form.isActive ? 'Aktivní' : 'Neaktivní'}
-                </div>
+                </Badge>
               </div>
             </CardContent>
           </Card>
@@ -550,12 +589,13 @@ export function RoleModal({
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-between items-center pt-4 border-t">
+          <div className="flex justify-end items-center gap-3 pt-6 border-t-2">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onClose}
               disabled={isPending}
+              size="lg"
             >
               <X className="h-4 w-4 mr-2" />
               Zrušit
@@ -563,7 +603,8 @@ export function RoleModal({
             <Button 
               type="submit" 
               disabled={isPending}
-              className="min-w-[140px]"
+              size="lg"
+              className="min-w-[160px]"
             >
               {isPending ? (
                 <>

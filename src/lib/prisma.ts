@@ -24,8 +24,12 @@ if (typeof window !== 'undefined') {
   )
 }
 
+// Import singleton Prisma Client from db.ts
+import { db as basePrismaSingleton } from './db'
+
 // Base Prisma Client (for hard deletes and special cases)
-const basePrisma = new PrismaClient()
+// Use singleton to prevent connection pool exhaustion
+const basePrisma = basePrismaSingleton
 
 // Models that support soft delete (have `aktivni` field)
 const SOFT_DELETE_MODELS = ['auto'] as const
@@ -38,11 +42,14 @@ function supportsSoftDelete(model: string): model is SoftDeleteModel {
   return SOFT_DELETE_MODELS.includes(model as SoftDeleteModel)
 }
 
+// Create singleton for extended client to prevent multiple instances
+const globalForExtendedPrisma = global as unknown as { extendedPrisma: ReturnType<typeof basePrisma.$extends<{}>> | undefined }
+
 /**
- * Extended Prisma Client with Soft Delete middleware
+ * Create extended Prisma Client with Soft Delete middleware
  * Uses Prisma Client Extensions API
  */
-export const db = basePrisma.$extends({
+const createExtendedClient = () => basePrisma.$extends({
   query: {
     $allModels: {
       async findMany({ model, operation, args, query }: any) {
@@ -125,6 +132,14 @@ export const db = basePrisma.$extends({
     }
   }
 })
+
+// Use singleton pattern for extended client to prevent connection pool exhaustion
+export const db = globalForExtendedPrisma.extendedPrisma || createExtendedClient()
+
+// Store extended client in global for singleton pattern (development only)
+if (process.env.NODE_ENV !== 'production') {
+  globalForExtendedPrisma.extendedPrisma = db
+}
 
 // Export base client for special cases (e.g., hard deletes, migrations)
 export const prisma = basePrisma
