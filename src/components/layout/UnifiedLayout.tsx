@@ -9,6 +9,7 @@ import { Car, LogOut, Menu, ChevronDown, Shield, Users, Settings, Truck, Wrench 
 import Link from "next/link"
 import { usePathname } from 'next/navigation'
 import { useAccessControl } from "@/hooks/useAccessControl"
+import { filterNavItems, NavItem } from "@/lib/navigation-utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +47,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
   const { hasRole } = useAccessControl()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
 
-  const navigationItems = [
+  const allNavigationItems: NavItem[] = [
     {
       name: 'Domů',
       href: '/homepage',
@@ -84,7 +85,16 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       icon: Truck,
       show: true
     }
-  ].filter(item => item.show)
+  ]
+
+  // Filter navigation items based on allowedPages from session
+  const allowedPages = session?.user?.allowedPages || []
+  const navigationItems = React.useMemo(() => {
+    return filterNavItems(
+      allNavigationItems.filter(item => item.show),
+      allowedPages
+    )
+  }, [allowedPages, allNavigationItems])
 
   const adminItems = [
     {

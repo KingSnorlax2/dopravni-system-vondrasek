@@ -12,17 +12,12 @@ export async function GET(request: Request) {
     const client = showAll ? prisma : db;
     
     const auta = await client.auto.findMany({
-      // When showAll=true, prisma (base client) returns all vehicles
-      // When showAll=false, db (extended client) automatically filters aktivni: true
-      orderBy: {
-        id: 'desc'
-      },
+      orderBy: { id: 'desc' },
       include: {
-        fotky: true,
+        // Only foto ids – do NOT load fotky.data (Base64) to avoid huge payload
+        fotky: { select: { id: true } },
         poznatky: {
-          orderBy: {
-            createdAt: 'desc'
-          }
+          orderBy: { createdAt: 'desc' }
         },
         _count: {
           select: {

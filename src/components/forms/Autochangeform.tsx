@@ -75,15 +75,11 @@ export function AutoDetailForm({ open, onOpenChangeAction, onSubmit, initialData
   })
 
   useEffect(() => {
-    console.log('AutoDetailForm initialData changed:', initialData);
     if (initialData) {
-      // Deep clone to avoid reference issues
       const formData = {
         ...JSON.parse(JSON.stringify(initialData)),
-        // Convert string date to proper Date object if needed
         datumSTK: initialData.datumSTK ? new Date(initialData.datumSTK) : undefined
       };
-      console.log('Resetting form with data:', formData);
       form.reset(formData);
     }
   }, [initialData, form]);

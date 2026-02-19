@@ -109,16 +109,22 @@ export async function PUT(
     
     if (!file) {
       return NextResponse.json(
-        { error: 'No file provided' },
+        { error: 'Nebyl nahrán žádný soubor' },
         { status: 400 }
       );
     }
 
-    // Validate the file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
+    const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB
+    const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP are supported.' },
+        { error: 'Soubor je příliš velký (max 5MB)' },
+        { status: 413 }
+      );
+    }
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Povolené typy: JPG, JPEG, PNG, WebP' },
         { status: 400 }
       );
     }
@@ -182,13 +188,13 @@ export async function GET(
 
     // Convert base64 to buffer
     const buffer = Buffer.from(photo.data, 'base64');
-    
-    // Return the image with proper content type
+
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': photo.mimeType,
-        'Cache-Control': 'public, max-age=31536000, immutable'
-      }
+        'Content-Length': buffer.length.toString(),
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
     });
     
   } catch (error) {

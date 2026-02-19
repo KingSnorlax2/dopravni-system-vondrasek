@@ -20,8 +20,9 @@ model Auto {
   stav            String
   poznamka        String?
   datumSTK        DateTime?
-  thumbnailFotoId String?
+  thumbnailFotoId String?   @unique
   thumbnailUrl    String?
+  thumbnail       Fotka?    @relation("AutoThumbnail", fields: [thumbnailFotoId], references: [id])
   fotky           Fotka[]   @relation("AutoFotky")
   poznatky        Note[]    @relation("AutoNotes")
   transakce       Transakce[] @relation("AutoTransakce")
@@ -45,14 +46,15 @@ model Auto {
 }
 
 model Fotka {
-  id        String   @id @default(cuid())
-  data      String   @db.Text
-  mimeType  String
-  autoId    Int?
-  positionX Float?
-  positionY Float?
-  scale     Float?
-  auto      Auto?    @relation("AutoFotky", fields: [autoId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  data             String   @db.Text
+  mimeType         String
+  autoId           Int?
+  positionX        Float?
+  positionY        Float?
+  scale            Float?
+  auto             Auto?    @relation("AutoFotky", fields: [autoId], references: [id], onDelete: Cascade)
+  thumbnailForAuto Auto?    @relation("AutoThumbnail")
 }
 
 model Note {

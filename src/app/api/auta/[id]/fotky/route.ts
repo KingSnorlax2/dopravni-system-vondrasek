@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { generateThumbnail } from '@/lib/imageUtils';
+import { z } from 'zod';
+
+const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] as const;
+
+const uploadFileSchema = z.object({
+  size: z.number().max(MAX_FILE_SIZE, { message: 'Soubor je příliš velký (max 5MB)' }),
+  type: z.enum(ACCEPTED_IMAGE_TYPES, {
+    errorMap: () => ({ message: 'Povolené typy: JPG, JPEG, PNG, WebP' }),
+  }),
+});
 
 // GET /api/auta/[id]/fotky - Fetch all photos for a car
 export async function GET(
@@ -9,23 +21,23 @@ export async function GET(
 ) {
   try {
     const autoId = parseInt(params.id);
-    
+
     if (isNaN(autoId)) {
       return NextResponse.json(
-        { error: 'Invalid car ID' },
+        { error: 'Neplatné ID vozidla' },
         { status: 400 }
       );
     }
 
     const fotky = await prisma.fotka.findMany({
-      where: { autoId }
+      where: { autoId },
     });
 
     return NextResponse.json(fotky);
   } catch (error) {
     console.error('Error fetching photos:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch photos' },
+      { error: 'Nepodařilo se načíst fotografie' },
       { status: 500 }
     );
   }
@@ -37,66 +49,85 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const autoId = parseInt(params.id);
-    if (isNaN(autoId)) {
-      return NextResponse.json({ error: 'Invalid car ID' }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Pro nahrání fotografie se musíte přihlásit.' },
+        { status: 401 }
+      );
     }
 
-    // Check if the car exists
+    const autoId = parseInt(params.id);
+    if (isNaN(autoId)) {
+      return NextResponse.json(
+        { error: 'Neplatné ID vozidla' },
+        { status: 400 }
+      );
+    }
+
     const car = await prisma.auto.findUnique({
-      where: { id: autoId }
+      where: { id: autoId },
     });
 
     if (!car) {
-      return NextResponse.json({ error: 'Car not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Vozidlo nebylo nalezeno' },
+        { status: 404 }
+      );
     }
 
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    const file = formData.get('file') as File | null;
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    if (!file || typeof file.size === 'undefined') {
+      return NextResponse.json(
+        { error: 'Nebyl nahrán žádný soubor' },
+        { status: 400 }
+      );
     }
 
-    // Check file type
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
-    }
-
-    // Convert file to buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
-    
-    // Generate thumbnail
-    const thumbnailBuffer = await generateThumbnail(buffer);
-    
-    // Save original image and thumbnail
-    const photo = await prisma.fotka.create({
-      data: {
-        data: buffer.toString('base64'),
-        mimeType: file.type,
-        autoId,
-        // You can add thumbnail data here if your schema supports it
-        // thumbnail: thumbnailBuffer.toString('base64')
-      }
+    const validation = uploadFileSchema.safeParse({
+      size: file.size,
+      type: file.type,
     });
 
-    // If this is the first photo, set as thumbnail
+    if (!validation.success) {
+      const message = validation.error.errors[0]?.message ?? 'Neplatný soubor';
+      const status = file.size > MAX_FILE_SIZE ? 413 : 400;
+      return NextResponse.json(
+        { error: message },
+        { status }
+      );
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = buffer.toString('base64');
+
+    const photo = await prisma.fotka.create({
+      data: {
+        data: base64Data,
+        mimeType: file.type,
+        autoId,
+      },
+    });
+
     if (!car.thumbnailFotoId) {
       await prisma.auto.update({
         where: { id: autoId },
-        data: { thumbnailFotoId: photo.id }
+        data: { thumbnailFotoId: photo.id },
       });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       id: photo.id,
-      message: 'Photo uploaded successfully' 
+      message: 'Fotografie byla úspěšně nahrána',
     });
   } catch (error) {
     console.error('Error uploading photo:', error);
     return NextResponse.json(
-      { error: 'Failed to upload photo' },
+      { error: 'Nastala chyba při nahrávání fotografie' },
       { status: 500 }
     );
   }
-} 
+}

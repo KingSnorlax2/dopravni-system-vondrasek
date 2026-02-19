@@ -1,9 +1,30 @@
 import 'server-only'
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
+import { JWT } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
 import bcryptjs from "bcryptjs"
 import { UzivatelRole } from "@prisma/client"
+
+const FALLBACK_DEFAULT_PAGE = '/dashboard/auta'
+const FALLBACK_PAGES: Record<string, string[]> = {
+  ADMIN: ['/dashboard/auta', '/dashboard/admin', '/dashboard/admin/users', '/dashboard/transakce', '/dashboard/opravy', '/dashboard/grafy', '/homepage'],
+  DISPECER: ['/dashboard/auta'],
+  RIDIC: ['/dashboard/auta'],
+  DRIVER: ['/homepage', '/dashboard/auta'],
+}
+
+function setFallbackPermissions(token: JWT) {
+  if (token.role === 'ADMIN') {
+    token.allowedPages = FALLBACK_PAGES.ADMIN
+    token.defaultLandingPage = FALLBACK_DEFAULT_PAGE
+    return
+  }
+  const pages = [...(FALLBACK_PAGES[token.role as string] || [FALLBACK_DEFAULT_PAGE])]
+  if (!pages.includes(FALLBACK_DEFAULT_PAGE)) pages.push(FALLBACK_DEFAULT_PAGE)
+  token.allowedPages = pages
+  token.defaultLandingPage = FALLBACK_DEFAULT_PAGE
+}
 
 /**
  * NextAuth configuration with Credentials Provider
@@ -76,8 +97,11 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email
         token.name = user.name
         token.role = (user as any).role as UzivatelRole
+      }
 
-        // Fetch dynamic permissions from Role table
+      // CRITICAL: Always fetch allowedPages from DB on every request to ensure dynamic role updates
+      // This ensures that when an admin changes a role's allowedPages, users get the new permissions immediately
+      if (token.role) {
         try {
           const roleData = await prisma.role.findUnique({
             where: { name: token.role },
@@ -88,13 +112,11 @@ export const authOptions: NextAuthOptions = {
             },
           })
 
-          // Only use role data if role exists and is active
           if (roleData && roleData.isActive) {
             const defaultLandingPage = roleData.defaultLandingPage || '/dashboard/auta'
-            const allowedPages = roleData.allowedPages || []
+            const allowedPages = [...(roleData.allowedPages || [])]
             
             // CRITICAL: Always include defaultLandingPage in allowedPages to prevent redirect loops
-            // If defaultLandingPage is not in allowedPages, add it
             if (!allowedPages.includes(defaultLandingPage)) {
               allowedPages.push(defaultLandingPage)
             }
@@ -102,80 +124,15 @@ export const authOptions: NextAuthOptions = {
             token.allowedPages = allowedPages
             token.defaultLandingPage = defaultLandingPage
           } else {
-            // Fallback: Role not found in DB or inactive - use safe defaults
-            // ADMIN gets access to everything, other roles get minimal access
-            const fallbackDefaultPage = '/dashboard/auta'
-            
-            if (token.role === 'ADMIN') {
-              // ADMIN has access to everything - set wildcard or all common paths
-              // Note: Middleware will bypass allowedPages check for ADMIN anyway
-              token.allowedPages = [
-                '/dashboard',
-                '/dashboard/auta',
-                '/dashboard/admin',
-                '/dashboard/admin/users',
-                '/dashboard/transakce',
-                '/dashboard/opravy',
-                '/dashboard/grafy',
-                '/homepage',
-              ]
-              token.defaultLandingPage = '/dashboard/auta'
-            } else {
-              // Other roles get minimal access
-              const fallbackPages: Record<UzivatelRole, string[]> = {
-                ADMIN: ['/dashboard/auta', '/dashboard/admin'], // Should not reach here for ADMIN
-                DISPECER: ['/dashboard/auta'],
-                RIDIC: ['/dashboard/auta'],
-              }
-              const pages = fallbackPages[token.role] || [fallbackDefaultPage]
-              
-              // Ensure defaultLandingPage is always in allowedPages
-              if (!pages.includes(fallbackDefaultPage)) {
-                pages.push(fallbackDefaultPage)
-              }
-              
-              token.allowedPages = pages
-              token.defaultLandingPage = fallbackDefaultPage
-            }
+            // Role not found or inactive - use fallback
+            setFallbackPermissions(token)
           }
         } catch (error) {
-          // Error fetching role - use safe defaults
           console.error('Error fetching role permissions:', error)
-          const fallbackDefaultPage = '/dashboard/auta'
-          
-          if (token.role === 'ADMIN') {
-            // ADMIN has access to everything - set all common paths
-            // Note: Middleware will bypass allowedPages check for ADMIN anyway
-            token.allowedPages = [
-              '/dashboard',
-              '/dashboard/auta',
-              '/dashboard/admin',
-              '/dashboard/admin/users',
-              '/dashboard/transakce',
-              '/dashboard/opravy',
-              '/dashboard/grafy',
-              '/homepage',
-            ]
-            token.defaultLandingPage = '/dashboard/auta'
-          } else {
-            // Other roles get minimal access
-            const fallbackPages: Record<UzivatelRole, string[]> = {
-              ADMIN: ['/dashboard/auta', '/dashboard/admin'], // Should not reach here for ADMIN
-              DISPECER: ['/dashboard/auta'],
-              RIDIC: ['/dashboard/auta'],
-            }
-            const pages = fallbackPages[token.role] || [fallbackDefaultPage]
-            
-            // Ensure defaultLandingPage is always in allowedPages
-            if (!pages.includes(fallbackDefaultPage)) {
-              pages.push(fallbackDefaultPage)
-            }
-            
-            token.allowedPages = pages
-            token.defaultLandingPage = fallbackDefaultPage
-          }
+          setFallbackPermissions(token)
         }
       }
+      
       return token
     },
     async session({ session, token }) {

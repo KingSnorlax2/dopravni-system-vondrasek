@@ -89,7 +89,6 @@ async function main() {
       priority: 80,
       allowedPages: [
         '/homepage',
-        '/dashboard',
         '/dashboard/auta',
         '/dashboard/grafy',
         '/dashboard/noviny',
@@ -113,7 +112,6 @@ async function main() {
       priority: 80,
       allowedPages: [
         '/homepage',
-        '/dashboard',
         '/dashboard/auta',
         '/dashboard/grafy',
         '/dashboard/noviny',
@@ -141,7 +139,6 @@ async function main() {
       priority: 50,
       allowedPages: [
         '/homepage',
-        '/dashboard',
         '/dashboard/auta'
       ],
       defaultLandingPage: '/homepage',
@@ -162,7 +159,6 @@ async function main() {
       priority: 50,
       allowedPages: [
         '/homepage',
-        '/dashboard',
         '/dashboard/auta'
       ],
       defaultLandingPage: '/homepage',

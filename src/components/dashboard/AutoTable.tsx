@@ -738,20 +738,9 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     });
   }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder, selectedModels, showSTKWarningFilter]);
 
-  // Then use it in the useEffect
   useEffect(() => {
-    console.log('Auta received:', auta);
-    console.log('Current filters:', {
-      filterStav,
-      filterSTK,
-      dateFrom,
-      dateTo,
-      searchTerm
-    });
-    
     // Reset filters if no cars are showing
     if (filteredAuta.length === 0 && auta.length > 0) {
-      console.log('No cars match filters, resetting filters');
       setFilterStav('vse');
       setFilterSTK('vse');
       setDateFrom('');

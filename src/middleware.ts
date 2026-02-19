@@ -22,31 +22,41 @@ function isPublicPath(pathname: string): boolean {
 }
 
 /**
- * Check if a pathname is allowed based on allowedPages array
- * Supports exact matches and prefix matching (sub-paths)
+ * Normalize path for comparison (no trailing slash, no query)
+ */
+function normalizePath(p: string): string {
+  const pathname = p.split("?")[0]
+  return pathname.endsWith("/") && pathname.length > 1 ? pathname.slice(0, -1) : pathname
+}
+
+/**
+ * Check if a pathname is allowed based on allowedPages array.
+ * Supports exact match and prefix match for sub-paths.
+ * Note: Including "/dashboard" alone would allow all dashboard routes; use specific paths (e.g. "/dashboard/auta") to restrict.
  * 
- * @param pathname - Current pathname to check
- * @param allowedPages - Array of allowed page paths
- * @returns true if pathname is allowed, false otherwise
+ * IMPORTANT: Prefix matching only works for specific paths, not parent paths.
+ * Example: /dashboard/transakce in allowedPages allows /dashboard/transakce/new
+ * But /dashboard in allowedPages does NOT automatically allow /dashboard/transakce
+ * (to prevent overly permissive access - use specific paths like /dashboard/auta instead)
  */
 function isPathAllowed(pathname: string, allowedPages: string[]): boolean {
   if (!Array.isArray(allowedPages) || allowedPages.length === 0) {
     return false
   }
 
-  // Check for exact match or prefix match
-  return allowedPages.some((allowedPage) => {
+  const normalized = normalizePath(pathname)
+
+  return allowedPages.some((page) => {
+    const allowed = normalizePath(page)
     // Exact match
-    if (pathname === allowedPage) {
+    if (normalized === allowed) return true
+    // Prefix match: /dashboard/transakce allows /dashboard/transakce/new
+    // BUT: Only if the allowed page has at least one segment after the root
+    // This prevents /dashboard from allowing all /dashboard/* paths
+    // Example: /dashboard/auta allows /dashboard/auta/detail, but /dashboard alone doesn't allow /dashboard/auta
+    if (allowed.split('/').length >= 3 && normalized.startsWith(allowed + "/")) {
       return true
     }
-    
-    // Prefix match: if allowedPage is "/dashboard", allow "/dashboard/cars"
-    // But ensure we match complete path segments (avoid "/dashboard" matching "/dashboard-old")
-    if (pathname.startsWith(allowedPage + "/") || pathname.startsWith(allowedPage + "?")) {
-      return true
-    }
-    
     return false
   })
 }
@@ -89,6 +99,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Allow GET for vehicle photo thumbnails without auth (img src may not send cookies reliably)
+  if (
+    request.method === "GET" &&
+    /^\/api\/auta\/[^/]+\/fotky\/[^/]+$/.test(pathname)
+  ) {
+    return NextResponse.next()
+  }
+
   // Check if route requires authentication
   if (requiresAuth(pathname)) {
     // User not authenticated - redirect to login
@@ -116,9 +134,10 @@ export async function middleware(request: NextRequest) {
     const allowedPages = (token as any).allowedPages as string[] | undefined
     const defaultLandingPage = (token as any).defaultLandingPage as string | null
     const landingPage = defaultLandingPage || "/dashboard/auta"
+    const normalizedLanding = normalizePath(landingPage)
 
     // CRITICAL: Always allow access to defaultLandingPage to prevent redirect loops
-    if (pathname === landingPage) {
+    if (normalizePath(pathname) === normalizedLanding) {
       return NextResponse.next()
     }
 

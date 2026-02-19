@@ -149,60 +149,74 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
   }
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
+
+    const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB
+    const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+    if (rawFile.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'Chyba při nahrávání',
+        description: 'Soubor je příliš velký (max 5MB).',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
+    if (!ACCEPTED_TYPES.includes(rawFile.type)) {
+      toast({
+        title: 'Chyba při nahrávání',
+        description: 'Povolené typy: JPG, JPEG, PNG, WebP.',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
 
     setIsUploading(true);
-    const file = e.target.files[0];
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', rawFile);
 
     try {
       const response = await fetch(`/api/auta/${auto.id}/fotky`, {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Nahrání se nezdařilo');
       }
-      
-      // Reload photos after successful upload
+
       const photosResponse = await fetch(`/api/auta/${auto.id}/fotky`);
       if (photosResponse.ok) {
         const photosData = await photosResponse.json();
-        // Update auto.fotky with the new photos data
         auto.fotky = photosData.map((foto: any) => ({
           id: foto.id,
           url: `data:${foto.mimeType};base64,${foto.data}`,
           positionX: foto.positionX,
           positionY: foto.positionY,
-          scale: foto.scale
+          scale: foto.scale,
         }));
-        // Force re-render
-        setRefreshTrigger(prev => prev + 1);
-      } else {
-        // Just reload the page if we can't fetch updated photos
-        window.location.reload();
+        setRefreshTrigger((prev) => prev + 1);
       }
-      
+      router.refresh();
+
       toast({
-        title: "Fotografie nahrána",
-        description: "Fotografie byla úspěšně nahrána.",
+        title: 'Fotografie nahrána',
+        description: 'Fotografie byla úspěšně nahrána.',
       });
     } catch (error) {
       console.error('Photo upload failed:', error);
       toast({
-        title: "Chyba při nahrávání fotografie",
-        description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
-        variant: "destructive",
+        title: 'Chyba při nahrávání fotografie',
+        description: error instanceof Error ? error.message : 'Nastala neočekávaná chyba.',
+        variant: 'destructive',
       });
     } finally {
       setIsUploading(false);
-      // Reset the file input
-      if (e.target) {
-        e.target.value = '';
-      }
+      e.target.value = '';
     }
   };
 
@@ -216,14 +230,36 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
 
   const handleEditPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!currentEditPhotoId) return
-    
+
     const files = e.target.files
     if (!files || files.length === 0) return
+
+    const file = files[0]
+    const MAX_FILE_SIZE = 1024 * 1024 * 5 // 5MB
+    const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'Chyba při nahrávání',
+        description: 'Soubor je příliš velký (max 5MB).',
+        variant: 'destructive',
+      })
+      if (editFileInputRef.current) editFileInputRef.current.value = ''
+      return
+    }
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      toast({
+        title: 'Chyba při nahrávání',
+        description: 'Povolené typy: JPG, JPEG, PNG, WebP.',
+        variant: 'destructive',
+      })
+      if (editFileInputRef.current) editFileInputRef.current.value = ''
+      return
+    }
 
     setIsUploading(true)
     try {
       const formData = new FormData()
-      formData.append('file', files[0])
+      formData.append('file', file)
 
       const response = await fetch(`/api/auta/${auto.id}/fotky/${currentEditPhotoId}`, {
         method: 'PUT',
@@ -669,7 +705,7 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
                 <input
                   type="file"
                   id="photo-upload"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
                   className="hidden"
                   onChange={handlePhotoUpload}
                   ref={fileInputRef}
@@ -677,7 +713,7 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
                 <input
                   type="file"
                   id="photo-edit"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
                   className="hidden"
                   onChange={handleEditPhotoChange}
                   ref={editFileInputRef}
