@@ -99,9 +99,9 @@ export default async function DriverSettingsPage({
   return (
     <div className="container py-10">
       <div className="text-sm text-muted-foreground mb-4">
-        Dashboard / Admin / Nastavení řidičů
+        Dashboard / Admin / Správa přístupů a docházka
       </div>
-      <h1 className="text-3xl font-bold mb-6">Nastavení přihlášení řidičů</h1>
+      <h1 className="text-3xl font-bold mb-6">Správa přístupů a docházka</h1>
       <DriverSettingsClient
         rows={rows}
         currentPage={page}

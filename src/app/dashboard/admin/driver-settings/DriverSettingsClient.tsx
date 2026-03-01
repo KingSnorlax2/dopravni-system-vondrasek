@@ -111,9 +111,9 @@ export default function DriverSettingsClient({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Ovládání přihlášení a omezení</CardTitle>
+          <CardTitle>Uzamčení přihlášení řidičů</CardTitle>
           <CardDescription>
-            Uzamčení přihlášení řidičů a omezení jejich navigace v systému
+            Spravujte přístup řidičů k přihlašovacímu systému
           </CardDescription>
         </CardHeader>
         <CardContent>

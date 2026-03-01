@@ -83,7 +83,6 @@ Endpoints pro řidičské funkce.
 **Endpoints:**
 - `POST /api/driver-login` - Přihlášení řidiče
 - `GET /api/driver-login/lock-status` - Status zámku
-- `GET /api/driver-login/restriction-status` - Status omezení
 
 ### `/api/user` - Uživatelské Funkce
 
