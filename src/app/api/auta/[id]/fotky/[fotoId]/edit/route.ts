@@ -7,25 +7,44 @@ export async function PUT(
 ) {
   try {
     const { imageData } = await request.json();
-    
-    if (!imageData) {
+
+    if (!imageData || typeof imageData !== 'string') {
       return NextResponse.json(
         { error: 'No image data provided' },
         { status: 400 }
       );
     }
 
-    // Convert base64 to buffer
-    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-    
-    // Update the photo in the database
+    // Extract MIME type from data URL (e.g. data:image/png;base64,...)
+    const mimeMatch = imageData.match(/^data:(.*?);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+    // Extract raw base64 string (everything after the comma)
+    const base64Data = imageData.split(',')[1];
+    if (!base64Data) {
+      return NextResponse.json(
+        { error: 'Invalid base64 data' },
+        { status: 400 }
+      );
+    }
+
+    // Validate base64 before saving
+    try {
+      Buffer.from(base64Data, 'base64');
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid base64 encoding' },
+        { status: 400 }
+      );
+    }
+
+    // Update Prisma with both mimeType and base64Data
     const updatedPhoto = await prisma.fotka.update({
       where: { id: params.fotoId },
       data: {
-        data: buffer.toString('base64'),
-        mimeType: 'image/jpeg'
-      }
+        data: base64Data,
+        mimeType,
+      },
     });
 
     return NextResponse.json({

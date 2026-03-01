@@ -170,7 +170,25 @@ async function main() {
     },
   });
 
-  // Create admin user
+  // Create default admin in Uzivatel (primary model for NextAuth)
+  const adminHeslo = await bcryptjs.hash('admin123', 10);
+  await prisma.uzivatel.upsert({
+    where: { email: 'admin@test.com' },
+    update: {
+      heslo: adminHeslo,
+      jmeno: 'Hlavní Administrátor',
+      role: 'ADMIN',
+    },
+    create: {
+      email: 'admin@test.com',
+      heslo: adminHeslo,
+      jmeno: 'Hlavní Administrátor',
+      role: 'ADMIN',
+    },
+  });
+
+  // Legacy User model: kept for backward compatibility if needed.
+  // NextAuth uses Uzivatel above; this block populates the legacy User table only.
   await prisma.user.upsert({
     where: { email: 'admin@admin.com' },
     update: {},
@@ -274,7 +292,8 @@ async function main() {
   }
 
   console.log('Enhanced role system seeded successfully!');
-  console.log('Admin user created: admin@admin.com / admin / Admin123!');
+  console.log('NextAuth admin (Uzivatel): admin@test.com / admin123');
+  console.log('Legacy admin (User): admin@admin.com / admin / Admin123!');
 }
 
 main().finally(() => prisma.$disconnect()); 

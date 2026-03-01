@@ -346,6 +346,19 @@ model DriverRouteLogin {
   casPrihlaseni DateTime @default(now())
 }
 
+// Driver shift (kiosk clock-in/out): one record per driver per day
+model SmenaRidic {
+  id          Int       @id @default(autoincrement())
+  ridicEmail  String
+  datum       DateTime  @db.Date
+  casPrichodu DateTime  @default(now())
+  casOdjezdu  DateTime?
+  casNavratu  DateTime?
+  cisloTrasy  String?
+
+  @@index([ridicEmail, datum])
+}
+
 model VehicleLocation {
   id            String   @id @default(uuid())
   autoId        Int

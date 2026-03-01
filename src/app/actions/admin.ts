@@ -593,3 +593,53 @@ export async function getAuditLogs(
   }
 }
 
+/**
+ * Reset driver (Uzivatel) password. ADMIN only.
+ * Generates a secure 8-character temporary password, saves to DB, audits, and returns it.
+ */
+export async function resetDriverPassword(driverId: string): Promise<
+  | { success: true; temporaryPassword: string }
+  | { success: false; error: string }
+> {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.role || session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Nemáte oprávnění k této akci' }
+  }
+
+  const id = parseInt(driverId, 10)
+  if (Number.isNaN(id)) {
+    return { success: false, error: 'Neplatné ID uživatele' }
+  }
+
+  try {
+    const uzivatel = await prisma.uzivatel.findUnique({
+      where: { id },
+    })
+    if (!uzivatel) {
+      return { success: false, error: 'Uživatel nenalezen' }
+    }
+
+    const { randomBytes } = await import('crypto')
+    const temporaryPassword = randomBytes(4).toString('hex')
+    const hashed = await bcryptjs.hash(temporaryPassword, 10)
+    await prisma.uzivatel.update({
+      where: { id },
+      data: { heslo: hashed },
+    })
+
+    await createAuditLog(
+      'PASSWORD_RESET',
+      'Uzivatel',
+      String(id),
+      session.user.id,
+      { targetEmail: uzivatel.email, targetName: uzivatel.jmeno ?? undefined }
+    )
+
+    revalidatePath('/dashboard/admin/driver-settings')
+    return { success: true, temporaryPassword }
+  } catch (err) {
+    console.error('resetDriverPassword error:', err)
+    return { success: false, error: 'Chyba při resetu hesla' }
+  }
+}
+

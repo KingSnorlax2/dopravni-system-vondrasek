@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
+/**
+ * GET /api/driver-login/logs
+ * Returns driver route login stats and recent entries.
+ * DEPRECATED: Prefer server-side data on /dashboard/admin/driver-settings.
+ * Secured: ADMIN role required.
+ */
 export async function GET(_req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.role || session.user.role !== 'ADMIN') {
+    return NextResponse.json(
+      { error: 'Nemáte oprávnění k této akci' },
+      { status: 403 }
+    )
+  }
+
   try {
     const [recent, totalCount, todayCount, last7DaysCount] = await Promise.all([
       prisma.driverRouteLogin.findMany({
@@ -30,5 +46,3 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: 'Nepodařilo se načíst přihlášení řidičů.' }, { status: 500 })
   }
 }
-
-

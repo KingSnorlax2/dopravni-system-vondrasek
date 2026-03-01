@@ -151,6 +151,71 @@ function getSTKStatus(datumSTK: string | null | undefined): STKStatus {
   }
 }
 
+// ThumbnailCell component for handling vehicle thumbnails with error fallback
+interface ThumbnailCellProps {
+  auto: {
+    id: string | number;
+    thumbnailUrl?: string | null;
+    thumbnailFotoId?: string | null;
+    znacka: string;
+    model: string;
+  };
+  onPreview?: (url: string) => void;
+  size?: 'sm' | 'md';
+}
+
+function ThumbnailCell({ auto, onPreview, size = 'sm' }: ThumbnailCellProps) {
+  const [hasError, setHasError] = useState(false);
+  
+  // Determine image dimensions based on size
+  const dimensions = size === 'sm' ? 64 : 96;
+  const containerClasses = size === 'sm' 
+    ? 'h-16 w-16' 
+    : 'h-24 w-24';
+  
+  // Construct the thumbnail URL
+  const thumbnailUrl = (() => {
+    const timestamp = new Date().getTime();
+    if (auto.thumbnailUrl) {
+      return `${auto.thumbnailUrl}?t=${timestamp}`;
+    }
+    if (auto.thumbnailFotoId) {
+      return `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`;
+    }
+    return null;
+  })();
+  
+  // Show fallback if no URL or error occurred
+  if (!thumbnailUrl || hasError) {
+    return (
+      <div className={`flex ${containerClasses} items-center justify-center rounded-md bg-gray-100 shadow-sm`}>
+        <ImageIcon className="h-8 w-8 text-gray-400" />
+      </div>
+    );
+  }
+  
+  return (
+    <div 
+      className={`relative ${containerClasses} overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md`}
+      onClick={() => onPreview?.(thumbnailUrl)}
+    >
+      <Image
+        src={thumbnailUrl}
+        alt="Náhled vozidla"
+        width={dimensions}
+        height={dimensions}
+        className="rounded-md object-cover"
+        onError={() => {
+          console.error('Image failed to load:', thumbnailUrl);
+          setHasError(true);
+        }}
+        unoptimized={true}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
+    </div>
+  );
+}
+
 function isSTKExpiring(datumSTK: string | undefined) {
   if (!datumSTK) return false
   const stk = new Date(datumSTK)
@@ -1389,21 +1454,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
     onRefresh();
   };
 
-  // Update the getThumbnailUrl function to use the version
-  const getThumbnailUrl = (auto: Auto) => {
-    // Add the version to force cache busting
-    const cacheBuster = `${thumbnailVersion}_${new Date().getTime()}`;
-    
-    if (auto.thumbnailUrl) {
-      return `${auto.thumbnailUrl}?v=${cacheBuster}`;
-    }
-    
-    if (auto.thumbnailFotoId && auto.id) {
-      return `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?v=${cacheBuster}`;
-    }
-    
-    return null;
-  };
 
   const handleItemsPerPageChange = (value: number) => {
     setItemsPerPage(value);
@@ -2025,73 +2075,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       </div>
                     </TableCell>
                     <TableCell className="text-left">
-                      {(() => {
-                        // Get the thumbnail URL with a timestamp to prevent caching
-                        const timestamp = new Date().getTime();
-                        const thumbnailUrl = auto.thumbnailUrl 
-                          ? `${auto.thumbnailUrl}?t=${timestamp}` 
-                          : auto.thumbnailFotoId 
-                            ? `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`
-                            : null;
-                        
-                        return thumbnailUrl ? (
-                          <>
-                            <div 
-                              className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100 cursor-pointer hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md"
-                              onClick={() => setFullscreenPhoto(thumbnailUrl)}
-                            >
-                              <img 
-                                src={thumbnailUrl}
-                                alt={`${auto.znacka} ${auto.model}`}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                                onError={(e) => {
-                                  console.error('Image failed to load:', thumbnailUrl);
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
-                            </div>
-                            
-                            {/* Fullscreen Photo Dialog */}
-                            <Dialog open={!!fullscreenPhoto} onOpenChange={(open) => !open && setFullscreenPhoto(null)}>
-                              <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none">
-                                <div className="relative w-full h-full flex items-center justify-center">
-                                  <button 
-                                    onClick={() => setFullscreenPhoto(null)}
-                                    className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-white/20 z-10 transition-all duration-200 backdrop-blur-sm"
-                                    aria-label="Close"
-                                  >
-                                    <X className="h-6 w-6" />
-                                  </button>
-                                  
-                                  <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
-                                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
-                                  
-                                  {fullscreenPhoto && (
-                                    <div className="transition-all duration-300 ease-out transform scale-100">
-                                      <img 
-                                        src={fullscreenPhoto}
-                                        alt={`${auto.znacka} ${auto.model}`}
-                                        className="max-w-full max-h-[80vh] object-contain shadow-2xl"
-                                      />
-                                      <div className="mt-4 text-center text-white/80 text-sm">
-                                        {auto.znacka} {auto.model} • {auto.spz}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </>
-                        ) : (
-                          <div 
-                            className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-100 shadow-sm"
-                          >
-                            <ImageIcon className="h-8 w-8 text-gray-400" />
-                          </div>
-                        );
-                      })()}
+                      <ThumbnailCell 
+                        auto={auto} 
+                        onPreview={setFullscreenPhoto} 
+                        size="sm" 
+                      />
                     </TableCell>
                     <TableCell className="text-left"></TableCell>
                     <TableCell className="text-left font-medium">{auto.spz}</TableCell>
@@ -2339,13 +2327,6 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
               }
             };
 
-            const thumbnailUrl = (() => {
-              const timestamp = new Date().getTime();
-              if (auto.thumbnailUrl) return `${auto.thumbnailUrl}?t=${timestamp}`;
-              if (auto.thumbnailFotoId) return `/api/auta/${auto.id}/fotky/${auto.thumbnailFotoId}?t=${timestamp}`;
-              return null;
-            })();
-
             return (
               <div
                 key={auto.id}
@@ -2389,20 +2370,11 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                 </div>
 
                 <div className="flex gap-3">
-                  {thumbnailUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => setFullscreenPhoto(thumbnailUrl)}
-                      className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100"
-                      aria-label="Zvětšit fotografii"
-                    >
-                      <img src={thumbnailUrl} alt={`${auto.znacka} ${auto.model}`} className="h-full w-full object-cover" />
-                    </button>
-                  ) : (
-                    <div className="h-24 w-24 flex items-center justify-center rounded-xl bg-gray-100 flex-shrink-0">
-                      <ImageIcon className="h-8 w-8 text-gray-400" />
-                    </div>
-                  )}
+                  <ThumbnailCell 
+                    auto={auto} 
+                    onPreview={setFullscreenPhoto} 
+                    size="md" 
+                  />
                   <div className="grid grid-cols-2 gap-3 text-sm w-full">
                     <div>
                       <p className="text-xs uppercase text-gray-500">Rok výroby</p>
@@ -2760,6 +2732,52 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         onBulkArchive={handleArchive}
         isLoading={isSaving}
       />
+
+      {/* Shared Fullscreen Photo Dialog */}
+      <Dialog open={!!fullscreenPhoto} onOpenChange={(open) => !open && setFullscreenPhoto(null)}>
+        <DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/95 border-none">
+          <div className="relative w-full h-full flex items-center justify-center">
+            <button 
+              onClick={() => setFullscreenPhoto(null)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-white/20 z-10 transition-all duration-200 backdrop-blur-sm"
+              aria-label="Zavřít"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            
+            <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
+            
+            {fullscreenPhoto && (() => {
+              // Find the vehicle that owns this photo for display info
+              const vehicle = auta.find(a => {
+                const timestamp = new Date().getTime();
+                const vehicleThumbnailUrl = a.thumbnailUrl 
+                  ? `${a.thumbnailUrl}?t=${timestamp}` 
+                  : a.thumbnailFotoId 
+                    ? `/api/auta/${a.id}/fotky/${a.thumbnailFotoId}?t=${timestamp}`
+                    : null;
+                return vehicleThumbnailUrl === fullscreenPhoto;
+              });
+              
+              return (
+                <div className="transition-all duration-300 ease-out transform scale-100">
+                  <img 
+                    src={fullscreenPhoto}
+                    alt={vehicle ? `${vehicle.znacka} ${vehicle.model}` : "Náhled vozidla"}
+                    className="max-w-full max-h-[80vh] object-contain shadow-2xl"
+                  />
+                  {vehicle && (
+                    <div className="mt-4 text-center text-white/80 text-sm">
+                      {vehicle.znacka} {vehicle.model} • {vehicle.spz}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -27,7 +27,6 @@ interface PhotoGalleryProps {
 }
 
 export function PhotoGallery({ photos, autoId, thumbnailId, onUpdateAction }: PhotoGalleryProps) {
-  const [photoSize, setPhotoSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   const [fullscreenPhoto, setFullscreenPhoto] = useState<Photo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -109,62 +108,23 @@ export function PhotoGallery({ photos, autoId, thumbnailId, onUpdateAction }: Ph
     }
   };
 
-  const getPhotoSizeClass = () => {
-    switch (photoSize) {
-      case 'small': return 'h-32 md:h-40';
-      case 'large': return 'h-56 md:h-72';
-      default: return 'h-44 md:h-56';
-    }
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2">
-          <Button 
-            variant={photoSize === 'small' ? 'default' : 'outline'}
-            size="sm" 
-            onClick={() => setPhotoSize('small')}
-          >
-            Malé
-          </Button>
-          <Button 
-            variant={photoSize === 'medium' ? 'default' : 'outline'}
-            size="sm" 
-            onClick={() => setPhotoSize('medium')}
-          >
-            Střední
-          </Button>
-          <Button 
-            variant={photoSize === 'large' ? 'default' : 'outline'}
-            size="sm" 
-            onClick={() => setPhotoSize('large')}
-          >
-            Velké
-          </Button>
-        </div>
-      </div>
-
       {localPhotos.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {localPhotos.map((photo) => (
             <div 
               key={photo.id} 
-              className={`relative group rounded-lg overflow-hidden border shadow-sm transition-all duration-200 hover:shadow-md ${
+              className={`relative group rounded-lg overflow-hidden border shadow-sm transition-all duration-200 hover:shadow-md bg-muted/20 ${
                 photo.id === thumbnailId ? 'ring-2 ring-primary' : ''
               }`}
               onClick={() => setFullscreenPhoto(photo)}
             >
-              <div className="relative">
+              <div className="relative aspect-[4/3] w-full">
                 <img 
                   src={photo.url} 
                   alt="Fotografie vozidla" 
-                  className={`w-full object-cover transition-transform duration-300 group-hover:scale-105 ${getPhotoSizeClass()}`}
-                  style={{ 
-                    objectPosition: photo.positionX && photo.positionY ? 
-                      `${photo.positionX}% ${photo.positionY}%` : 'center',
-                    objectFit: 'cover'
-                  }}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
                 
                 {photo.id === thumbnailId && (
@@ -242,23 +202,22 @@ export function PhotoGallery({ photos, autoId, thumbnailId, onUpdateAction }: Ph
           onCloseAction={() => setEditingPhoto(null)}
           onSaveAction={async (editedImage) => {
             setIsLoading(true);
+            const previousPhotos = [...localPhotos];
             try {
-              // Immediately update the UI with the cropped image
+              // Optimistic update: show the cropped image immediately
               const updatedPhoto = {
                 ...editingPhoto,
-                url: editedImage.data // Use the cropped image data directly
+                url: editedImage.data
               };
-              
-              // Update local photos state to show the cropped image immediately
-              setLocalPhotos(prev => 
+
+              setLocalPhotos(prev =>
                 prev.map(p => p.id === editingPhoto.id ? updatedPhoto : p)
               );
-              
-              // If this photo was in fullscreen, update that too
+
               if (fullscreenPhoto?.id === editingPhoto.id) {
                 setFullscreenPhoto(updatedPhoto);
               }
-              
+
               // Send to server
               const response = await fetch(`/api/auta/${autoId}/fotky/${editingPhoto.id}/edit`, {
                 method: 'PUT',
@@ -267,20 +226,25 @@ export function PhotoGallery({ photos, autoId, thumbnailId, onUpdateAction }: Ph
                   imageData: editedImage.data,
                 }),
               });
-              
+
               if (!response.ok) throw new Error('Failed to update photo');
-              
+
               toast({
                 title: "Úspěch",
-                description: "Fotografie byla upravena",
+                description: "Fotografie byla úspěšně upravena.",
               });
-              
+
               setEditingPhoto(null);
               onUpdateAction();
             } catch (error) {
+              // Revert optimistic update on failure
+              setLocalPhotos(previousPhotos);
+              if (fullscreenPhoto?.id === editingPhoto.id) {
+                setFullscreenPhoto(editingPhoto);
+              }
               toast({
                 title: "Chyba",
-                description: "Nastala chyba při úpravě fotografie",
+                description: "Nepodařilo se uložit upravenou fotografii.",
                 variant: "destructive",
               });
             } finally {

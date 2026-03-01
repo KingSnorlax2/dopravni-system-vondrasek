@@ -13,14 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useToast } from "@/components/ui/use-toast";
 import { Lock, Unlock, Truck, AlertTriangle, CheckCircle, XCircle, Loader2, Maximize2, Minimize2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const loginSchema = z.object({
-  // Accept email OR username in one field
   identifier: z.string().min(2, "Zadejte jméno nebo email"),
   password: z.string().min(1, "Zadejte heslo"),
-  cisloTrasy: z.string().min(1, "Zadejte číslo trasy"),
+  cisloTrasy: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -33,7 +33,6 @@ interface LockStatus {
 export default function DriverLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [note, setNote] = useState("");
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
   const [checkingLock, setCheckingLock] = useState(true);
   const [reauthOpen, setReauthOpen] = useState(false);
@@ -43,6 +42,7 @@ export default function DriverLoginPage() {
   const [pendingAction, setPendingAction] = useState<null | 'fullscreen' | 'exitFullscreen'>(null);
   const router = useRouter();
   const { data: session } = useSession();
+  const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -106,26 +106,36 @@ export default function DriverLoginPage() {
       body: JSON.stringify({
         identifier: payload.identifier,
         password: payload.password,
-        cisloTrasy: payload.cisloTrasy,
-      })
+        cisloTrasy: payload.cisloTrasy ?? '',
+      }),
     });
 
     const json = await res.json();
+
     if (!res.ok) {
       if (res.status === 422 && json?.errors) {
-        Object.entries(json.errors).forEach(([field, message]: any) => {
-          form.setError(field as any, { type: 'server', message: String(message) });
+        Object.entries(json.errors).forEach(([field, message]: [string, unknown]) => {
+          form.setError(field as keyof LoginFormValues, { type: 'server', message: String(message) });
         });
+      } else if (json?.error === 'MISSING_ROUTE') {
+        form.setError('cisloTrasy', {
+          type: 'manual',
+          message: 'Pro odjezd na rozvoz musíte zadat číslo trasy.',
+        });
+      } else {
+        setError(json?.message ?? json?.error ?? 'Přihlášení selhalo.');
+        setTimeout(() => setError(''), 3000);
       }
-      setError(json?.error || 'Přihlášení selhalo.');
-      setTimeout(() => setError(''), 3000);
       return false;
     }
 
-    setNote('Trasa byla zaznamenána');
-    setTimeout(() => setNote(''), 3000);
+    toast({
+      title: json?.message ?? 'Zaznamenáno',
+      variant: 'default',
+    });
+    form.reset({ identifier: '', password: '', cisloTrasy: '' });
     return true;
-  }
+  };
 
   const onSubmit = async (data: LoginFormValues) => {
     if (lockStatus?.isLocked) {
@@ -400,12 +410,6 @@ export default function DriverLoginPage() {
                 </Button>
               </form>
             </Form>
-
-            {note && (
-              <div className="mt-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-green-800 text-sm">
-                {note}
-              </div>
-            )}
 
             <div className="pt-4 border-t border-gray-200">
               <div className="text-center">

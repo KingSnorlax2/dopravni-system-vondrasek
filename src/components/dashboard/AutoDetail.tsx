@@ -14,11 +14,9 @@ import {
   PencilIcon,
   Trash2Icon,
   CropIcon,
-  Image as ImageIcon,
   Loader2,
 } from "lucide-react"
 import Link from "next/link"
-import Image from "next/image"
 import { useState, useEffect, useRef } from "react"
 import { AutoDetailForm } from "@/components/forms/AutoDetailForm"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -98,7 +96,6 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [currentEditPhotoId, setCurrentEditPhotoId] = useState<string | null>(null)
-  const [photoSize, setPhotoSize] = useState<'small' | 'medium' | 'large'>('medium')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const editFileInputRef = useRef<HTMLInputElement>(null)
   const [isPositioningModalOpen, setIsPositioningModalOpen] = useState(false)
@@ -447,16 +444,6 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
     }
   };
 
-  // Function to get photo height based on selected size
-  const getPhotoHeight = () => {
-    switch (photoSize) {
-      case 'small': return 'h-32';
-      case 'large': return 'h-64';
-      case 'medium':
-      default: return 'h-48';
-    }
-  };
-
   const handleOpenPositioning = (photoId: string) => {
     setCurrentPositioningPhotoId(photoId)
     setIsPositioningModalOpen(true)
@@ -554,7 +541,7 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
       </div>
 
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full flex flex-wrap gap-2">
+        <TabsList className="w-full inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground gap-1">
           <TabsTrigger value="overview" className="text-sm">Přehled</TabsTrigger>
           <TabsTrigger value="service" className="text-sm">Opravy</TabsTrigger>
           <TabsTrigger value="photos" className="text-sm">Fotogalerie</TabsTrigger>
@@ -672,36 +659,6 @@ export function AutoDetail({ auto, repairs = [] }: AutoDetailProps) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-xl font-semibold">Fotogalerie</h3>
               <div className="flex flex-wrap items-center gap-2">
-                {/* Photo size controls */}
-                <div className="flex items-center border rounded-md overflow-hidden">
-                  <Button 
-                    variant={photoSize === 'small' ? "default" : "ghost"}
-                    size="sm"
-                    className="rounded-none h-8 px-2"
-                    onClick={() => setPhotoSize('small')}
-                  >
-                    <ImageIcon className="h-3 w-3" />
-                    <span className="ml-1">S</span>
-                  </Button>
-                  <Button 
-                    variant={photoSize === 'medium' ? "default" : "ghost"}
-                    size="sm"
-                    className="rounded-none h-8 px-2"
-                    onClick={() => setPhotoSize('medium')}
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                    <span className="ml-1">M</span>
-                  </Button>
-                  <Button 
-                    variant={photoSize === 'large' ? "default" : "ghost"}
-                    size="sm"
-                    className="rounded-none h-8 px-2"
-                    onClick={() => setPhotoSize('large')}
-                  >
-                    <ImageIcon className="h-5 w-5" />
-                    <span className="ml-1">L</span>
-                  </Button>
-                </div>
                 <input
                   type="file"
                   id="photo-upload"

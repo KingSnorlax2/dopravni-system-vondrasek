@@ -1,139 +1,117 @@
-"use client";
+import { redirect } from 'next/navigation'
+import { Prisma } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+import { getSmenaRidicOrderBy } from '@/lib/driver-attendance'
+import DriverSettingsClient from './DriverSettingsClient'
+import type { DriverLogRow } from './types'
 
-import DriverLoginControl from '@/components/newspaper/DriverLoginControl'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAccessControl } from "@/hooks/useAccessControl";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from 'react'
-import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Loader2 } from 'lucide-react'
+const ALLOWED_PAGE_SIZES = [10, 25, 50] as const
+const DEFAULT_PAGE_SIZE = 10
 
-export default function DriverSettingsPage() {
-  const { hasRole, loading } = useAccessControl();
-  const router = useRouter();
-  const [logsLoading, setLogsLoading] = useState(true)
-  const [logsError, setLogsError] = useState<string | null>(null)
-  const [stats, setStats] = useState<{ totalCount: number; todayCount: number; last7DaysCount: number } | null>(null)
-  const [recent, setRecent] = useState<Array<{ ridicEmail: string; cisloTrasy: string; casPrihlaseni: string }>>([])
+function parsePageSize(raw: string | undefined): number {
+  const n = parseInt(raw ?? '', 10)
+  return ALLOWED_PAGE_SIZES.includes(n) ? n : DEFAULT_PAGE_SIZE
+}
 
-  const groupedByDay = useMemo(() => {
-    const groups: Record<string, { date: string; items: typeof recent }> = {}
-    for (const r of recent) {
-      const d = new Date(r.casPrihlaseni)
-      // yyyy-mm-dd key for grouping
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      if (!groups[key]) {
-        groups[key] = { date: key, items: [] as typeof recent }
-      }
-      groups[key].items.push(r)
+export default async function DriverSettingsPage({
+  searchParams,
+}: {
+  searchParams: {
+    page?: string
+    search?: string
+    q?: string
+    pageSize?: string
+    sortBy?: string
+    sortOrder?: string
+  }
+}) {
+  const page = Math.max(1, parseInt(searchParams?.page ?? '1', 10) || 1)
+  const pageSize = parsePageSize(searchParams?.pageSize)
+  const search = (searchParams?.search ?? searchParams?.q ?? '').trim().slice(0, 100)
+  const sortBy = searchParams?.sortBy ?? 'date'
+  const sortOrder = (searchParams?.sortOrder ?? 'desc') as 'asc' | 'desc'
+  const skip = (page - 1) * pageSize
+
+  let whereSmena: Prisma.SmenaRidicWhereInput = {}
+
+  if (search) {
+    const uzivatele = await prisma.uzivatel.findMany({
+      where: {
+        OR: [
+          { email: { contains: search, mode: 'insensitive' as const } },
+          { jmeno: { contains: search, mode: 'insensitive' as const } },
+        ],
+      },
+      select: { email: true },
+    })
+    const foundEmails = uzivatele.map((u) => u.email)
+    whereSmena = foundEmails.length > 0
+      ? { ridicEmail: { in: foundEmails } }
+      : { id: { lt: 0 } }
+  }
+
+  const orderBy = getSmenaRidicOrderBy(searchParams?.sortBy, searchParams?.sortOrder)
+
+  const [shifts, totalCount] = await Promise.all([
+    prisma.smenaRidic.findMany({
+      where: whereSmena,
+      orderBy,
+      take: pageSize,
+      skip,
+    }),
+    prisma.smenaRidic.count({ where: whereSmena }),
+  ])
+
+  const emails = [...new Set(shifts.map((s) => s.ridicEmail))]
+  const uzivatele = await prisma.uzivatel.findMany({
+    where: { email: { in: emails } },
+    select: { id: true, email: true, jmeno: true },
+  })
+  const emailToUzivatel = new Map(uzivatele.map((u) => [u.email, u]))
+
+  const rows: DriverLogRow[] = shifts.map((s) => {
+    const u = emailToUzivatel.get(s.ridicEmail)
+    const clockOut = s.casOdjezdu ?? s.casNavratu ?? null
+    return {
+      id: s.id,
+      driverName: u?.jmeno ?? s.ridicEmail,
+      email: s.ridicEmail,
+      clockIn: s.casPrichodu.toISOString(),
+      clockOut: clockOut ? clockOut.toISOString() : null,
+      status: clockOut ? 'finished' : 'active',
+      cisloTrasy: s.cisloTrasy ?? null,
+      uzivatelId: u ? String(u.id) : null,
     }
-    // Sort groups by date desc
-    const sortedKeys = Object.keys(groups).sort((a, b) => (a < b ? 1 : -1))
-    return sortedKeys.map((k) => ({ date: k, items: groups[k].items.sort((a, b) => (a.casPrihlaseni < b.casPrihlaseni ? 1 : -1)) }))
-  }, [recent])
+  })
 
-  useEffect(() => {
-    if (!loading && !hasRole("ADMIN")) {
-      router.replace("/403");
-    }
-  }, [loading, hasRole, router]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
-  useEffect(() => {
-    const loadLogs = async () => {
-      try {
-        setLogsLoading(true)
-        setLogsError(null)
-        const res = await fetch('/api/driver-login/logs')
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}))
-          throw new Error(j?.error || 'Nepodařilo se načíst přihlášení řidičů')
-        }
-        const data = await res.json()
-        setStats(data.stats || null)
-        setRecent(Array.isArray(data.recent) ? data.recent : [])
-      } catch (e: any) {
-        setLogsError(e?.message || 'Chyba při načítání logů')
-      } finally {
-        setLogsLoading(false)
-      }
-    }
-    loadLogs()
-  }, [])
+  if (page > totalPages && totalPages > 0) {
+    const params = new URLSearchParams()
+    if (search) params.set('search', search)
+    params.set('page', String(totalPages))
+    params.set('pageSize', String(pageSize))
+    if (sortBy) params.set('sortBy', sortBy)
+    if (sortOrder) params.set('sortOrder', sortOrder)
+    redirect(`/dashboard/admin/driver-settings?${params.toString()}`)
+  }
 
   return (
     <div className="container py-10">
-      <h1 className="text-3xl font-bold mb-6">Nastavení přihlášení řidičů</h1>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Ovládání přihlášení a omezení</CardTitle>
-            <CardDescription>
-              Uzamčení přihlášení řidičů a omezení jejich navigace v systému
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DriverLoginControl />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Přihlášení řidičů (log)</CardTitle>
-            <CardDescription>Poslední přihlášení: kdo, kdy a na jakou trasu</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {logsLoading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Načítám přihlášení...
-              </div>
-            ) : logsError ? (
-              <div className="text-sm text-red-600">{logsError}</div>
-            ) : (
-              <div className="space-y-4">
-                {stats && (
-                  <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className="px-2 py-0.5 text-xs">Celkem: {stats.totalCount}</Badge>
-                    <Badge variant="outline" className="px-2 py-0.5 text-xs">Dnes: {stats.todayCount}</Badge>
-                    <Badge variant="outline" className="px-2 py-0.5 text-xs">Posledních 7 dní: {stats.last7DaysCount}</Badge>
-                  </div>
-                )}
-
-                {groupedByDay.length === 0 ? (
-                  <div className="text-xs text-gray-500">Žádné záznamy</div>
-                ) : (
-                  groupedByDay.map(({ date, items }) => (
-                    <div key={date} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium text-sm">
-                          {new Date(date).toLocaleDateString('cs-CZ', { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' })}
-                        </div>
-                        <Badge variant="secondary" className="px-2 py-0.5 text-xs">{items.length} přihlášení</Badge>
-                      </div>
-                      <div className="rounded border divide-y">
-                        {items.map((r, idx) => (
-                          <div key={idx} className="flex items-center justify-between py-1 px-2 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="tabular-nums text-gray-700">{new Date(r.casPrihlaseni).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}</span>
-                              <span className="text-gray-500">•</span>
-                              <span className="font-medium">Trasa {r.cisloTrasy}</span>
-                            </div>
-                            <div className="truncate max-w-[45%] text-gray-600" title={r.ridicEmail}>{r.ridicEmail}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="text-sm text-muted-foreground mb-4">
+        Dashboard / Admin / Nastavení řidičů
       </div>
+      <h1 className="text-3xl font-bold mb-6">Nastavení přihlášení řidičů</h1>
+      <DriverSettingsClient
+        rows={rows}
+        currentPage={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        currentSearch={search}
+        pageSize={pageSize}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+      />
     </div>
   )
 }
-
-

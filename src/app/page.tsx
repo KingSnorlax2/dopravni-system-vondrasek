@@ -1,199 +1,230 @@
 'use client';
 
-import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { useToast } from '@/components/ui/use-toast'
-import { Eye, EyeOff, Mail } from 'lucide-react'
+import { useState } from 'react';
+import { signIn, getSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { useToast } from '@/components/ui/use-toast';
+import { Loader2, Mail, Truck } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/components/ui/dialog';
+import { loginSchema } from '@/lib/validations/auth';
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function HomePage() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
-  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
-  const [formValues, setFormValues] = useState({
-    email: '',
-    password: '',
-    rememberMe: false
-  })
+  const router = useRouter();
+  const { toast } = useToast();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormValues((prev) => ({
-      ...prev,
-      [name]: value
-    }))
-  }
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
 
-  const handleCheckboxChange = (checked: boolean) => {
-    setFormValues((prev) => ({
-      ...prev,
-      rememberMe: checked
-    }))
-  }
+  const isPending = form.formState.isSubmitting;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
+  const onSubmit = async (values: LoginFormValues) => {
     try {
-      const result = await signIn('credentials', {
+      const res = await signIn('credentials', {
         redirect: false,
-        email: formValues.email,
-        password: formValues.password
-      })
+        email: values.email,
+        password: values.password,
+      });
 
-      if (result?.error) {
+      if (res?.error || !res?.ok) {
         toast({
           title: 'Přihlášení selhalo',
           description: 'Nesprávné přihlašovací údaje',
-          variant: 'destructive'
-        })
-      } else {
-        // Wait for session to update, then redirect to user's defaultLandingPage
-        setTimeout(async () => {
-          const session = await getSession();
-          const defaultLandingPage = (session?.user as any)?.defaultLandingPage || '/dashboard/auta';
-          window.location.href = defaultLandingPage;
-        }, 100);
+          variant: 'destructive',
+        });
+        return;
       }
+
+      const session = await getSession();
+      const defaultLandingPage =
+        (session?.user as { defaultLandingPage?: string } | undefined)
+          ?.defaultLandingPage ?? '/dashboard/auta';
+      router.push(defaultLandingPage);
+      router.refresh();
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('Login error:', error);
       toast({
         title: 'Něco se pokazilo',
         description: 'Zkuste to prosím později',
-        variant: 'destructive'
-      })
-    } finally {
-      setLoading(false)
+        variant: 'destructive',
+      });
     }
-  }
+  };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setForgotPasswordLoading(true)
-
+    e.preventDefault();
+    setForgotPasswordLoading(true);
     try {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotPasswordEmail }),
-      })
-
-      const data = await response.json()
+      });
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to request password reset')
+        throw new Error(data.error ?? 'Failed to request password reset');
       }
 
       toast({
         title: 'Email odeslán',
-        description: 'Pokud účet existuje, byl odeslán email s instrukcemi pro reset hesla.',
-      })
-
-      setForgotPasswordEmail('')
-      setShowForgotPassword(false)
-    } catch (error: any) {
+        description:
+          'Pokud účet existuje, byl odeslán email s instrukcemi pro reset hesla.',
+      });
+      setForgotPasswordEmail('');
+      setShowForgotPassword(false);
+    } catch (err: unknown) {
       toast({
         title: 'Chyba',
-        description: error.message || 'Nepodařilo se odeslat email pro reset hesla.',
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Nepodařilo se odeslat email pro reset hesla.',
         variant: 'destructive',
-      })
+      });
     } finally {
-      setForgotPasswordLoading(false)
+      setForgotPasswordLoading(false);
     }
-  }
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword)
-  }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-900 to-purple-800">
-      <Card className="w-[350px] shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-[350px] shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Dopravní systém</CardTitle>
-          <CardDescription className="text-center">Přihlaste se do systému</CardDescription>
+          <Truck className="w-8 h-8 mb-2 mx-auto text-primary" />
+          <CardTitle className="text-2xl text-center">
+            Dopravní systém
+          </CardTitle>
+          <CardDescription className="text-center">
+            Přihlaste se do systému
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
                 name="email"
-                type="email"
-                placeholder="vas@email.cz"
-                value={formValues.email}
-                onChange={handleChange}
-                required
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="vas@email.cz"
+                        autoComplete="email"
+                        disabled={isPending}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Heslo</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={formValues.password}
-                  onChange={handleChange}
-                  required
-                />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Heslo</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        disabled={isPending}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={togglePasswordVisibility}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary hover:underline"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  Zapomenuté heslo?
                 </button>
               </div>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-purple-600 hover:text-purple-800 hover:underline"
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="rememberMe"
+                  checked={rememberMe}
+                  disabled={isPending}
+                  onCheckedChange={(checked) =>
+                    setRememberMe(checked === true)
+                  }
+                />
+                <Label
+                  htmlFor="rememberMe"
+                  className="text-sm cursor-pointer text-muted-foreground"
+                >
+                  Zapamatovat si mě
+                </Label>
+              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isPending}
               >
-                Zapomenuté heslo?
-              </button>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="rememberMe" 
-                checked={formValues.rememberMe}
-                onCheckedChange={handleCheckboxChange}
-              />
-              <Label htmlFor="rememberMe" className="text-sm cursor-pointer">
-                Zapamatovat si mě
-              </Label>
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Přihlašování..." : "Přihlásit se"}
-            </Button>
-          </form>
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Přihlašování...
+                  </>
+                ) : (
+                  'Přihlásit se'
+                )}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           {process.env.NODE_ENV === 'development' && (
             <Button
+              type="button"
               onClick={async () => {
                 try {
                   const response = await fetch('/api/admin/users', {
@@ -203,27 +234,27 @@ export default function HomePage() {
                       email: 'admin@example.com',
                       password: 'admin123',
                       name: 'Admin User',
-                      role: 'ADMIN'
+                      role: 'ADMIN',
                     }),
-                  })
-                  
+                  });
                   if (response.ok) {
                     toast({
                       title: 'Admin účet vytvořen!',
-                      description: 'Email: admin@example.com, Heslo: admin123',
-                    })
+                      description:
+                        'Email: admin@example.com, Heslo: admin123',
+                    });
                   } else {
                     toast({
                       title: 'Chyba při vytváření účtu',
-                      variant: 'destructive'
-                    })
+                      variant: 'destructive',
+                    });
                   }
                 } catch (error) {
-                  console.error('Error creating admin:', error)
+                  console.error('Error creating admin:', error);
                   toast({
                     title: 'Chyba při vytváření účtu',
-                    variant: 'destructive'
-                  })
+                    variant: 'destructive',
+                  });
                 }
               }}
               variant="outline"
@@ -236,7 +267,6 @@ export default function HomePage() {
         </CardFooter>
       </Card>
 
-      {/* Forgot Password Modal */}
       <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -270,12 +300,12 @@ export default function HomePage() {
                 Zrušit
               </Button>
               <Button type="submit" disabled={forgotPasswordLoading}>
-                {forgotPasswordLoading ? "Odesílání..." : "Odeslat email"}
+                {forgotPasswordLoading ? 'Odesílání...' : 'Odeslat email'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

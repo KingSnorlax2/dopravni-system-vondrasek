@@ -50,6 +50,8 @@ type Vehicle = {
   aktivni: boolean
   createdAt: string
   updatedAt: string
+  thumbnailFotoId: string | null
+  thumbnailUrl: string | null
 }
 
 interface AutoPageClientProps {

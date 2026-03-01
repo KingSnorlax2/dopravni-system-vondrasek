@@ -27,6 +27,8 @@ export default async function AutoPage() {
       aktivni: true,
       createdAt: true,
       updatedAt: true,
+      thumbnailFotoId: true,
+      thumbnailUrl: true,
     }
   })
 
