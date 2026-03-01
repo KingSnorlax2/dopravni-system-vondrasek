@@ -4,9 +4,10 @@ import React, { useEffect, useState, useCallback, useTransition } from 'react';
 import type { Transakce } from '@/types/transakce';
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import TransactionTable from '@/components/dashboard/TransactionTable';
 import { TransactionForm } from '@/components/forms/TransactionForm';
+import { createTransaction } from '@/features/transactions';
 
 const MAX_POPIS_LENGTH = 300; 
 const MAX_NAZEV_LENGTH = 50;
@@ -105,11 +106,7 @@ const TransakcePage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error refreshing transactions:', error);
-      toast({
-        title: "Chyba při načítání",
-        description: "Nepodařilo se načíst seznam transakcí",
-        variant: "destructive"
-      });
+      toast.error("Nepodařilo se načíst seznam transakcí");
     } finally {
       setLoading(false);
     }
@@ -158,52 +155,27 @@ const TransakcePage: React.FC = () => {
   };
 
   const handleTransactionSubmitAction = async (data: any) => {
-    try {
-      console.log("Submitting transaction data:", data);
-      
-      // Determine type based on amount sign and set amount accordingly
-      const isIncome = data.castka > 0;
-      
-      const submitData = {
-        nazev: data.popis,
-        castka: isIncome ? Math.abs(data.castka) : -Math.abs(data.castka), // Ensure proper sign
-        datum: new Date(data.datum).toISOString(),
-        typ: isIncome ? 'příjem' : 'výdaj', // Set type based on amount sign
-        popis: data.popis,
-        autoId: data.vztahKVozidlu && data.idVozidla ? Number(data.idVozidla) : null,
-        kategorieId: data.kategorie ? Number(data.kategorie) : null
-      };
-      
-      console.log("Transformed data:", submitData);
+    const isIncome = data.castka > 0
+    const kategorieId = data.kategorie && data.kategorie !== 'none' ? Number(data.kategorie) : null
+    const autoId = data.vztahKVozidlu && data.idVozidla ? Number(data.idVozidla) : null
 
-      const response = await fetch('/api/transakce', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData)
-      });
+    const submitData = {
+      nazev: data.popis,
+      castka: isIncome ? Math.abs(data.castka) : -Math.abs(data.castka),
+      datum: new Date(data.datum).toISOString(),
+      typ: isIncome ? 'příjem' as const : 'výdaj' as const,
+      popis: data.popis,
+      kategorieId,
+      autoId,
+    }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Chyba při přidávání transakce');
-      }
-
-      await refreshData();
-      toast({
-        title: "Transakce přidána",
-        description: `Transakce ${data.popis} byla úspěšně přidána.`,
-      });
-      
-      return Promise.resolve();
-    } catch (error) {
-      console.error('Error adding transaction:', error);
-      toast({
-        title: "Chyba při přidávání",
-        description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
-        variant: "destructive"
-      });
-      throw error;
+    const result = await createTransaction(submitData)
+    if (result.success) {
+      await refreshData()
+      toast.success('Transakce byla úspěšně přidána.')
+    } else {
+      toast.error(result.error ?? 'Nepodařilo se přidat transakci')
+      throw new Error(result.error)
     }
   };
 
@@ -234,31 +206,21 @@ const TransakcePage: React.FC = () => {
   };
 
   const confirmDelete = async () => {
+    const { deleteTransaction } = await import('@/features/transactions')
     try {
       for (const id of itemsToDelete) {
-        const response = await fetch(`/api/transakce`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ id }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Chyba při odstraňování transakce');
+        const result = await deleteTransaction({ id })
+        if (!result.success) {
+          throw new Error(result.error || 'Chyba při odstraňování transakce')
         }
       }
-
-      setTransakce(prev => prev.filter(t => !itemsToDelete.includes(t.id!)));
-      setSelectedTransakce(prev => prev.filter(id => !itemsToDelete.includes(id)));
-      setShowDeleteConfirm(false);
-      toast({
-        title: "Transakce odstraněna",
-        description: `Transakce ${itemsToDelete.map(id => `#${id}`).join(', ')} byla úspěšně odstraněna.`,
-      });
+      await refreshData()
+      setSelectedTransakce([])
+      setShowDeleteConfirm(false)
+      toast.success(`Transakce ${itemsToDelete.map(id => `#${id}`).join(', ')} byla úspěšně smazána.`)
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Nastala chyba při odstraňování transakce');
+      setError(error instanceof Error ? error.message : 'Nastala chyba při odstraňování transakce')
+      toast.error(error instanceof Error ? error.message : 'Nastala chyba při odstraňování transakce')
     }
   };
 

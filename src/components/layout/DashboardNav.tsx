@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { filterNavItems, NavItem } from '@/lib/navigation-utils';
+import { filterNavItems, type NavItem } from '@/lib/navigation-utils';
 import { 
   LayoutDashboard, Car, MapPin, Wrench, BarChart, Menu, Calendar, 
   Settings, Users, FileText, ChevronRight, Bell, ClipboardCheck 

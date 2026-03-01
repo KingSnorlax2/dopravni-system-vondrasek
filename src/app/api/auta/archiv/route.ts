@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         include: {
           fotky: true, 
           poznatky: true, 
-          transakce: true,
+          Transakce: true,
           gpsZaznamy: true, 
           udrzby: true, 
           tankovani: true

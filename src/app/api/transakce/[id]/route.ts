@@ -12,7 +12,7 @@ export async function GET(
       where: { id: Number(id) },
       include: {
         kategorie: true,
-        Auto: {
+        auto: {
           select: {
             id: true,
             spz: true,

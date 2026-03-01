@@ -108,7 +108,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
       icon: Settings
     },
     {
-      name: 'Nastavení přihlášení řidičů',
+      name: 'Správa přístupů a docházka',
       href: '/dashboard/admin/driver-settings',
       icon: Truck
     },

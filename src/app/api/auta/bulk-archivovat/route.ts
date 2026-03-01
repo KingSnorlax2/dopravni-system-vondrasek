@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           include: {
             fotky: true,
             poznatky: true,
-            transakce: true,
+            Transakce: true,
             gpsZaznamy: true,
             udrzby: true,
             tankovani: true
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
             archivedData: {
               fotky: originalAuto.fotky,
               poznatky: originalAuto.poznatky,
-              transakce: originalAuto.transakce,
+              transakce: originalAuto.Transakce,
               gpsZaznamy: originalAuto.gpsZaznamy,
               udrzby: originalAuto.udrzby,
               tankovani: originalAuto.tankovani

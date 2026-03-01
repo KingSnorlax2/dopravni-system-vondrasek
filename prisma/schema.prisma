@@ -25,7 +25,6 @@ model Auto {
   thumbnail       Fotka?    @relation("AutoThumbnail", fields: [thumbnailFotoId], references: [id])
   fotky           Fotka[]   @relation("AutoFotky")
   poznatky        Note[]    @relation("AutoNotes")
-  transakce       Transakce[] @relation("AutoTransakce")
   gpsZaznamy     GPSZaznam[] @relation("AutoGPS")
   udrzby          Udrzba[]  @relation("AutoUdrzba")
   tankovani       Tankovani[] @relation("AutoTankovani")
@@ -90,8 +89,6 @@ model Transakce {
   approvedBy  String?   // User ID who approved the transaction
   approvedAt  DateTime? // When the transaction was approved
   status      TransactionStatus @default(PENDING)
-
-  Auto Auto[] @relation("AutoTransakce")
 }
 
 enum TransactionStatus {

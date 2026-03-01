@@ -74,11 +74,26 @@ interface Kategorie {
   nazev: string;
 }
 
+/** Raw transaction from API (can have kategorie object, autoId, auto relation) */
+interface RawTransactionInitialData {
+  id?: number
+  nazev?: string
+  popis?: string
+  castka?: number
+  datum?: string
+  typ?: string
+  kategorieId?: number | null
+  kategorie?: { id: number; nazev: string } | null
+  autoId?: number | null
+  auto?: { id: number } | null
+  poznamka?: string
+}
+
 interface TransactionFormProps {
   open: boolean
   onOpenChangeClientAction: (open: boolean) => Promise<void>
   onSubmitAction: (data: TransactionFormValues) => Promise<void>
-  initialData?: TransactionFormValues
+  initialData?: TransactionFormValues | RawTransactionInitialData
 }
 
 export function TransactionForm({
@@ -150,21 +165,57 @@ export function TransactionForm({
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0]
 
-  // Default values for the form
-  const defaultValues: Partial<TransactionFormValues> = initialData || {
-    datum: today,
-    popis: '',
-    castka: undefined,
-    kategorie: '',
-    poznamka: '',
-    vztahKVozidlu: false,
-    idVozidla: '',
+  /** Map raw API transaction to form values for edit mode hydration */
+  const mapInitialDataToFormValues = (
+    data: TransactionFormValues | RawTransactionInitialData | undefined
+  ): Partial<TransactionFormValues> => {
+    if (!data) {
+      return {
+        datum: today,
+        popis: '',
+        castka: undefined,
+        kategorie: 'none',
+        poznamka: '',
+        vztahKVozidlu: false,
+        idVozidla: '',
+      }
+    }
+    // Already in form shape (has vztahKVozidlu/idVozidla)
+    if ('vztahKVozidlu' in data && 'idVozidla' in data) {
+      return data as Partial<TransactionFormValues>
+    }
+    // Raw API shape – map for correct hydration
+    const raw = data as RawTransactionInitialData
+    const autoId = raw.autoId ?? raw.auto?.id
+    const categoryId = raw.kategorie?.id ?? raw.kategorieId
+    const datumStr = raw.datum ? (typeof raw.datum === 'string' ? raw.datum.split('T')[0] : new Date(raw.datum).toISOString().split('T')[0]) : today
+    return {
+      datum: datumStr,
+      popis: raw.popis ?? raw.nazev ?? '',
+      castka: raw.castka,
+      kategorie: categoryId ? String(categoryId) : 'none',
+      poznamka: raw.poznamka ?? '',
+      vztahKVozidlu: !!autoId,
+      idVozidla: autoId ? String(autoId) : '',
+    }
   }
+
+  const defaultValues: Partial<TransactionFormValues> = mapInitialDataToFormValues(initialData)
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues,
   })
+
+  // Reset form when dialog opens or initialData changes (e.g. opening edit with different transaction)
+  useEffect(() => {
+    if (open) {
+      const values = mapInitialDataToFormValues(initialData)
+      form.reset(values)
+      setShowVehicleSelection(!!values.vztahKVozidlu)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- form.reset is stable, initialData may be raw API shape
+  }, [open, initialData])
 
   const handleSubmit = async (values: TransactionFormValues) => {
     setIsSubmitting(true)

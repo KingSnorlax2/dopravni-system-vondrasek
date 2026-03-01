@@ -24,8 +24,9 @@ import {
   DialogTitle,
   DialogDescription
 } from '@/components/ui/dialog'
-import { toast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
 import { TransactionForm } from '@/components/forms/TransactionForm'
+import { updateTransaction, deleteTransaction } from '@/features/transactions'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -140,89 +141,48 @@ export default function TransactionTable({
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage)
 
   const handleEditSubmit = async (data: any) => {
-    try {
-      if (!editTransaction?.id) {
-        throw new Error("No transaction ID found");
-      }
-
-      const isIncome = data.castka > 0;
-      
-      // Format the date string directly without creating a Date object
-      const formattedDate = data.datum.split('T')[0];
-      
-      const submitData = {
-        id: editTransaction.id,
-        nazev: data.popis,
-        castka: isIncome ? Math.abs(data.castka) : -Math.abs(data.castka),
-        datum: formattedDate,
-        typ: isIncome ? 'PRIJEM' : 'VYDAJ',
-        popis: data.popis,
-        autoId: data.vztahKVozidlu && data.idVozidla ? Number(data.idVozidla) : null,
-        kategorieId: data.kategorie ? Number(data.kategorie) : null
-      };
-
-      // Updated API endpoint to match Next.js App Router convention
-      const response = await fetch(`/api/transakce/update/${editTransaction.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      setEditTransaction(null);
-      await onRefreshAction();
-      
-      toast({
-        title: "Úspěšně aktualizováno",
-        description: "Transakce byla úspěšně upravena.",
-      });
-      
-    } catch (error) {
-      console.error('Error updating transaction:', error);
-      toast({
-        title: "Chyba při aktualizaci",
-        description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
-        variant: "destructive"
-      });
+    if (!editTransaction?.id) {
+      toast.error('Chyba: Chybí ID transakce')
+      return
     }
-  };
+
+    const isIncome = data.castka > 0
+    const formattedDate = data.datum?.split('T')[0] ?? data.datum
+    const kategorieId = data.kategorie && data.kategorie !== 'none' ? Number(data.kategorie) : null
+    const autoId = data.vztahKVozidlu && data.idVozidla ? Number(data.idVozidla) : null
+
+    const submitData = {
+      id: editTransaction.id,
+      nazev: data.popis,
+      castka: isIncome ? Math.abs(data.castka) : -Math.abs(data.castka),
+      datum: formattedDate,
+      typ: isIncome ? 'příjem' as const : 'výdaj' as const,
+      popis: data.popis,
+      kategorieId,
+      autoId,
+    }
+
+    const result = await updateTransaction(submitData)
+    if (result.success) {
+      setEditTransaction(null)
+      await onRefreshAction()
+      toast.success('Transakce byla úspěšně upravena.')
+    } else {
+      toast.error(result.error ?? 'Nepodařilo se upravit transakci')
+      throw new Error(result.error)
+    }
+  }
 
   const handleDelete = async () => {
     if (!deleteTransaction) return;
 
-    try {
-      const response = await fetch(`/api/transakce?id=${deleteTransaction.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Chyba při mazání transakce');
-      }
-
-      toast({
-        title: "Transakce smazána",
-        description: "Transakce byla úspěšně odstraněna."
-      });
-      
-      await onRefreshAction();
-      setDeleteTransaction(null);
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      toast({
-        title: "Chyba při mazání",
-        description: error instanceof Error ? error.message : "Nastala neočekávaná chyba.",
-        variant: "destructive"
-      });
+    const result = await deleteTransaction({ id: deleteTransaction.id })
+    if (result.success) {
+      await onRefreshAction()
+      setDeleteTransaction(null)
+      toast.success('Transakce byla úspěšně smazána.')
+    } else {
+      toast.error(result.error ?? 'Nepodařilo se smazat transakci')
     }
   };
 
@@ -254,17 +214,10 @@ export default function TransactionTable({
       const updatedTransaction = await fetch(`/api/transakce/${transactionId}`).then(res => res.json());
       setDetailTransaction(updatedTransaction);
       
-      toast({
-        title: "Faktura nahrána",
-        description: "Faktura byla úspěšně nahrána k transakci.",
-      });
+      toast.success('Faktura byla úspěšně nahrána k transakci.')
     } catch (error) {
       console.error('Error in handleFileUpload:', error); // Debug log
-      toast({
-        title: "Chyba při nahrávání",
-        description: "Nepodařilo se nahrát fakturu.",
-        variant: "destructive",
-      });
+      toast.error('Nepodařilo se nahrát fakturu.')
     } finally {
       setIsUploading(false);
     }
@@ -796,10 +749,10 @@ export default function TransactionTable({
                       <div className="font-semibold">Typ:</div>
                       <div>{detailTransaction.typ}</div>
                       
-                      {detailTransaction.Auto && (
+                      {detailTransaction.auto && (
                         <>
                           <div className="font-semibold">Vozidlo:</div>
-                          <div>{detailTransaction.Auto.spz} - {detailTransaction.Auto.znacka} {detailTransaction.Auto.model}</div>
+                          <div>{detailTransaction.auto.spz} - {detailTransaction.auto.znacka} {detailTransaction.auto.model}</div>
                         </>
                       )}
                       
