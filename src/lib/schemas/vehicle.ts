@@ -16,13 +16,13 @@ export const VehicleStatus = {
 const baseVehicleSchema = z.object({
   spz: z
     .string()
-    .min(1, "SPZ je povinná")
-    .max(8, "SPZ může mít maximálně 8 znaků")
+    .min(5, "SPZ musí mít alespoň 5 znaků")
+    .max(10, "SPZ může mít maximálně 10 znaků")
     .regex(
-      /^[A-Z0-9]{1,2}[0-9]{4,6}$/,
-      "SPZ musí být ve formátu: 1-2 písmena/čísla následované 4-6 číslicemi (např. 1A23456, AB12345)"
+      /^[a-zA-Z0-9\s-]+$/,
+      "SPZ může obsahovat pouze písmena, číslice, mezery a pomlčky"
     )
-    .transform((val) => val.toUpperCase().replace(/\s/g, "")), // Uppercase and remove spaces
+    .transform((val) => val.toUpperCase()),
   
   znacka: z
     .string()
@@ -130,13 +130,13 @@ export const partialUpdateVehicleSchema = baseVehicleSchema.partial().extend({
 export const vehicleFormSchema = z.object({
   spz: z
     .string()
-    .min(1, "SPZ je povinná")
-    .max(8, "SPZ může mít maximálně 8 znaků")
+    .min(5, "SPZ musí mít alespoň 5 znaků")
+    .max(10, "SPZ může mít maximálně 10 znaků")
     .regex(
-      /^[A-Z0-9]{1,2}[0-9]{4,6}$/i,
-      "SPZ musí být ve formátu: 1-2 písmena/čísla následované 4-6 číslicemi"
+      /^[a-zA-Z0-9\s-]+$/,
+      "SPZ může obsahovat pouze písmena, číslice, mezery a pomlčky"
     )
-    .transform((val) => val.toUpperCase().replace(/\s/g, "")),
+    .transform((val) => val.toUpperCase()),
   
   znacka: z
     .string()

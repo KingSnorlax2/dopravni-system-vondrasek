@@ -58,7 +58,7 @@ export default function TransactionTable({
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
   const [editTransaction, setEditTransaction] = useState<any>(null)
-  const [deleteTransaction, setDeleteTransaction] = useState<any>(null)
+  const [transactionToDelete, setTransactionToDelete] = useState<{ id: number } | null>(null)
   const [detailTransaction, setDetailTransaction] = useState<any>(null)
   const [isUploading, setIsUploading] = useState(false)
 
@@ -174,12 +174,12 @@ export default function TransactionTable({
   }
 
   const handleDelete = async () => {
-    if (!deleteTransaction) return;
+    if (!transactionToDelete) return;
 
-    const result = await deleteTransaction({ id: deleteTransaction.id })
+    const result = await deleteTransaction({ id: transactionToDelete.id })
     if (result.success) {
       await onRefreshAction()
-      setDeleteTransaction(null)
+      setTransactionToDelete(null)
       toast.success('Transakce byla úspěšně smazána.')
     } else {
       toast.error(result.error ?? 'Nepodařilo se smazat transakci')
@@ -302,7 +302,7 @@ export default function TransactionTable({
                   Upravit
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => setDeleteTransaction(transakce)}
+                  onClick={() => setTransactionToDelete(transakce)}
                   className="text-red-600"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -502,7 +502,7 @@ export default function TransactionTable({
                               Upravit
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => setDeleteTransaction(transaction)}
+                              onClick={() => setTransactionToDelete(transaction)}
                               className="text-red-600"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -570,7 +570,7 @@ export default function TransactionTable({
                           Upravit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => setDeleteTransaction(transaction)}
+                          onClick={() => setTransactionToDelete(transaction)}
                           className="text-red-600"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -688,7 +688,7 @@ export default function TransactionTable({
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteTransaction} onOpenChange={() => setDeleteTransaction(null)}>
+      <Dialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Smazat transakci</DialogTitle>
@@ -697,7 +697,7 @@ export default function TransactionTable({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTransaction(null)}>
+            <Button variant="outline" onClick={() => setTransactionToDelete(null)}>
               Zrušit
             </Button>
             <Button 
