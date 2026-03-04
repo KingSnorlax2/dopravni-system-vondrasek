@@ -1,28 +1,61 @@
 "use client"
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition, useMemo } from 'react'
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 import { getAuditLogs } from "@/app/actions/admin"
 import { format, formatDistanceToNow } from "date-fns"
 import cs from "date-fns/locale/cs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { 
-  Edit, 
-  Plus, 
-  Trash2, 
-  UserCheck, 
-  UserX, 
+import {
+  Edit,
+  Plus,
+  Trash2,
+  UserCheck,
+  UserX,
   Shield,
-  Clock
+  Clock,
+  RefreshCw,
 } from "lucide-react"
+
+// Audit log row type for TanStack Table
+type AuditLogRow = {
+  id: string
+  action: string
+  entity: string
+  entityId: string
+  details: unknown
+  createdAt: string
+  actor?: {
+    id: string
+    name: string | null
+    email: string
+  } | null
+}
 
 // Helper function to format date
 function formatDate(date: string | Date): string {
@@ -67,8 +100,19 @@ function getActionVariant(action: string): "default" | "secondary" | "destructiv
   return 'outline'
 }
 
+// Helper to get searchable string from details for global filter
+function getDetailsSearchString(details: unknown): string {
+  if (details == null) return ''
+  if (typeof details === 'string') return details
+  try {
+    return JSON.stringify(details)
+  } catch {
+    return ''
+  }
+}
+
 // ChangeLogParser component
-function ChangeLogParser({ details, entity }: { details: any; entity: string }) {
+function ChangeLogParser({ details, entity }: { details: unknown; entity: string }) {
   if (!details) {
     return <span className="text-gray-400 text-sm">Žádné detaily</span>
   }
@@ -78,25 +122,24 @@ function ChangeLogParser({ details, entity }: { details: any; entity: string }) 
       return <span className="text-sm text-gray-700">{details}</span>
     }
 
+    const detailsObj = details as Record<string, unknown>
     // If it's an object with old/new, format it nicely
-    if (details.old && details.new) {
-      const changes: Array<{ field: string; old: any; new: any }> = []
-      
-      // Compare old and new values
-      Object.keys(details.new).forEach(key => {
-        const oldVal = details.old[key]
-        const newVal = details.new[key]
-        
-        // Skip actor info if present
+    if (detailsObj.old && detailsObj.new) {
+      const changes: Array<{ field: string; old: unknown; new: unknown }> = []
+      const oldObj = detailsObj.old as Record<string, unknown>
+      const newObj = detailsObj.new as Record<string, unknown>
+
+      Object.keys(newObj).forEach(key => {
+        const oldVal = oldObj[key]
+        const newVal = newObj[key]
+
         if (key === 'actor') return
-        
-        // Handle array comparisons (like allowedPages)
+
         if (Array.isArray(oldVal) && Array.isArray(newVal)) {
           const oldSet = new Set(oldVal)
           const newSet = new Set(newVal)
-          const added = newVal.filter((x: any) => !oldSet.has(x))
-          const removed = oldVal.filter((x: any) => !newSet.has(x))
-          
+          const added = newVal.filter((x: unknown) => !oldSet.has(x))
+          const removed = oldVal.filter((x: unknown) => !newSet.has(x))
           if (added.length > 0 || removed.length > 0) {
             changes.push({ field: key, old: oldVal, new: newVal })
           }
@@ -112,19 +155,16 @@ function ChangeLogParser({ details, entity }: { details: any; entity: string }) 
       return (
         <div className="space-y-2">
           {changes.map((change, idx) => {
-            // Format field name
             const fieldLabel = change.field
               .replace(/([A-Z])/g, ' $1')
               .replace(/^./, str => str.toUpperCase())
               .trim()
 
-            // Special handling for allowedPages
             if (change.field === 'allowedPages') {
               const oldPages = Array.isArray(change.old) ? change.old : []
               const newPages = Array.isArray(change.new) ? change.new : []
               const added = newPages.filter((p: string) => !oldPages.includes(p))
               const removed = oldPages.filter((p: string) => !newPages.includes(p))
-
               return (
                 <div key={idx} className="space-y-1">
                   <div className="font-semibold text-sm text-gray-900">
@@ -144,18 +184,15 @@ function ChangeLogParser({ details, entity }: { details: any; entity: string }) 
               )
             }
 
-            // Regular field change
             return (
               <div key={idx} className="space-y-1">
-                <div className="font-semibold text-sm text-gray-900">
-                  {fieldLabel}
-                </div>
+                <div className="font-semibold text-sm text-gray-900">{fieldLabel}</div>
                 <div className="text-xs text-gray-600 space-y-0.5">
                   <div className="line-through text-red-600">
-                    {typeof change.old === 'object' ? JSON.stringify(change.old) : String(change.old || 'prázdné')}
+                    {typeof change.old === 'object' ? JSON.stringify(change.old) : String(change.old ?? 'prázdné')}
                   </div>
                   <div className="text-green-700 font-medium">
-                    → {typeof change.new === 'object' ? JSON.stringify(change.new) : String(change.new || 'prázdné')}
+                    → {typeof change.new === 'object' ? JSON.stringify(change.new) : String(change.new ?? 'prázdné')}
                   </div>
                 </div>
               </div>
@@ -172,26 +209,25 @@ function ChangeLogParser({ details, entity }: { details: any; entity: string }) 
 }
 
 export function AuditLogTab() {
-  const [logs, setLogs] = useState<any[]>([])
+  const [logs, setLogs] = useState<AuditLogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [entityFilter, setEntityFilter] = useState<string>('all')
   const [actionFilter, setActionFilter] = useState<string>('all')
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
   const [total, setTotal] = useState(0)
+  const [globalFilter, setGlobalFilter] = useState('')
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
 
   const fetchLogs = () => {
     setLoading(true)
     startTransition(async () => {
       const result = await getAuditLogs(100, 0, entityFilter !== 'all' ? entityFilter : undefined)
       if (result.success && result.data) {
-        let filteredLogs = result.data
-        
-        // Filter by action if specified
+        let filteredLogs = result.data as AuditLogRow[]
         if (actionFilter !== 'all') {
-          filteredLogs = filteredLogs.filter((log: any) => log.action === actionFilter)
+          filteredLogs = filteredLogs.filter((log) => log.action === actionFilter)
         }
-        
         setLogs(filteredLogs)
         setTotal(result.total || 0)
       } else {
@@ -206,20 +242,153 @@ export function AuditLogTab() {
   }, [entityFilter])
 
   useEffect(() => {
-      // Re-filter when action filter changes
-      if (!loading) {
-        startTransition(async () => {
-          const result = await getAuditLogs(100, 0, entityFilter !== 'all' ? entityFilter : undefined)
-          if (result.success && result.data) {
-            let filteredLogs = result.data
-            if (actionFilter !== 'all') {
-              filteredLogs = filteredLogs.filter((log: any) => log.action === actionFilter)
-            }
-            setLogs(filteredLogs)
+    if (!loading) {
+      startTransition(async () => {
+        const result = await getAuditLogs(100, 0, entityFilter !== 'all' ? entityFilter : undefined)
+        if (result.success && result.data) {
+          let filteredLogs = result.data as AuditLogRow[]
+          if (actionFilter !== 'all') {
+            filteredLogs = filteredLogs.filter((log) => log.action === actionFilter)
           }
-        })
-      }
+          setLogs(filteredLogs)
+        }
+      })
+    }
   }, [actionFilter])
+
+  const uniqueActions = useMemo(() => Array.from(new Set(logs.map((log) => log.action))), [logs])
+  const uniqueEntities = useMemo(() => Array.from(new Set(logs.map((log) => log.entity))), [logs])
+
+  const columns = useMemo<ColumnDef<AuditLogRow>[]>(
+    () => [
+      {
+        id: 'action',
+        accessorKey: 'action',
+        header: 'Akce',
+        accessorFn: (row) => row.action,
+        cell: ({ row }) => {
+          const ActionIcon = getActionIcon(row.original.action)
+          return (
+            <div className="flex items-center justify-center">
+              <div className="p-2 rounded-lg bg-gray-100">
+                <ActionIcon className="h-4 w-4 text-gray-700" />
+              </div>
+            </div>
+          )
+        },
+        size: 80,
+      },
+      {
+        id: 'createdAt',
+        accessorKey: 'createdAt',
+        header: 'Datum',
+        accessorFn: (row) => row.createdAt,
+        cell: ({ row }) => {
+          const fullDate = formatDate(row.original.createdAt)
+          const relativeTime = formatDistanceToNow(new Date(row.original.createdAt), {
+            addSuffix: true,
+            locale: cs,
+          })
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5 text-gray-600 text-xs cursor-help">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>{relativeTime}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{fullDate}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        },
+        size: 120,
+      },
+      {
+        id: 'actor',
+        accessorFn: (row) =>
+          `${row.actor?.name ?? ''} ${row.actor?.email ?? ''}`.trim() || 'Neznámý',
+        header: 'Admin',
+        cell: ({ row }) => {
+          const log = row.original
+          const actorInitials = log.actor?.name
+            ? log.actor.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase()
+            : log.actor?.email?.slice(0, 2).toUpperCase() || '?'
+          return (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-gray-200 text-gray-700 text-xs font-semibold">
+                  {actorInitials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="font-medium text-gray-900 text-xs truncate">
+                  {log.actor?.name || 'Neznámý'}
+                </div>
+                <div className="text-xs text-gray-500 truncate">{log.actor?.email || ''}</div>
+              </div>
+            </div>
+          )
+        },
+        size: 180,
+      },
+      {
+        id: 'actionLabel',
+        accessorFn: (row) => getActionLabel(row.action),
+        header: 'Typ akce',
+        cell: ({ row }) => (
+          <Badge variant={getActionVariant(row.original.action)} className="text-xs">
+            {getActionLabel(row.original.action)}
+          </Badge>
+        ),
+        size: 120,
+      },
+      {
+        id: 'entity',
+        accessorFn: (row) => `${row.entity} ${row.entityId}`,
+        header: 'Entita',
+        cell: ({ row }) => (
+          <div className="space-y-0.5">
+            <span className="text-sm font-medium text-gray-900">{row.original.entity}</span>
+            <div className="text-xs text-gray-500 font-mono">
+              {row.original.entityId.slice(0, 8)}...
+            </div>
+          </div>
+        ),
+        size: 100,
+      },
+      {
+        id: 'details',
+        accessorFn: (row) => getDetailsSearchString(row.details),
+        header: 'Detaily změn',
+        cell: ({ row }) => (
+          <div className="max-w-md">
+            <ChangeLogParser details={row.original.details} entity={row.original.entity} />
+          </div>
+        ),
+        size: 400,
+      },
+    ],
+    []
+  )
+
+  const table = useReactTable({
+    data: logs,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
+    state: {
+      globalFilter,
+      pagination,
+    },
+    globalFilterFn: 'includesString',
+  })
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Načítání audit logů...</div>
@@ -228,9 +397,6 @@ export function AuditLogTab() {
   if (error) {
     return <div className="p-8 text-center text-red-500">{error}</div>
   }
-
-  const uniqueActions = Array.from(new Set(logs.map((log: any) => log.action)))
-  const uniqueEntities = Array.from(new Set(logs.map((log: any) => log.entity)))
 
   return (
     <div className="space-y-6">
@@ -244,8 +410,10 @@ export function AuditLogTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Všechny entity</SelectItem>
-              {uniqueEntities.map(entity => (
-                <SelectItem key={entity} value={entity}>{entity}</SelectItem>
+              {uniqueEntities.map((entity) => (
+                <SelectItem key={entity} value={entity}>
+                  {entity}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -258,7 +426,7 @@ export function AuditLogTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Všechny akce</SelectItem>
-              {uniqueActions.map(action => (
+              {uniqueActions.map((action) => (
                 <SelectItem key={action} value={action}>
                   {getActionLabel(action)}
                 </SelectItem>
@@ -271,109 +439,102 @@ export function AuditLogTab() {
         </div>
       </div>
 
+      {/* Toolbar: Search + Refresh */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <Input
+          placeholder="Hledat v historii..."
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="max-w-sm"
+        />
+        <Button variant="outline" size="icon" onClick={fetchLogs} title="Obnovit">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
+
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left w-[8%]">Akce</th>
-              <th className="px-4 py-3 text-left w-[12%]">Datum</th>
-              <th className="px-4 py-3 text-left w-[18%]">Admin</th>
-              <th className="px-4 py-3 text-left w-[12%]">Typ akce</th>
-              <th className="px-4 py-3 text-left w-[10%]">Entita</th>
-              <th className="px-4 py-3 text-left w-[40%]">Detaily změn</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
-                  <div className="flex flex-col items-center gap-2">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} style={{ width: header.getSize() }}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <div className="flex flex-col items-center gap-2 py-8">
                     <Shield className="h-8 w-8 text-gray-400" />
-                    <p className="font-medium">Žádné audit logy nenalezeny</p>
+                    <p className="font-medium text-muted-foreground">Žádné audit logy nenalezeny</p>
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
-              logs.map(log => {
-                const actorInitials = log.actor?.name
-                  ? log.actor.name.split(' ').map((s: string) => s[0]).join('').slice(0, 2).toUpperCase()
-                  : log.actor?.email?.slice(0, 2).toUpperCase() || '?'
-                
-                const ActionIcon = getActionIcon(log.action)
-                const fullDate = formatDate(log.createdAt)
-                const relativeTime = formatDistanceToNow(new Date(log.createdAt), { 
-                  addSuffix: true, 
-                  locale: cs 
-                })
-
-                return (
-                  <tr key={log.id} className="border-t hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center">
-                        <div className="p-2 rounded-lg bg-gray-100">
-                          <ActionIcon className="h-4 w-4 text-gray-700" />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1.5 text-gray-600 text-xs cursor-help">
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>{relativeTime}</span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{fullDate}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-gray-200 text-gray-700 text-xs font-semibold">
-                            {actorInitials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="font-medium text-gray-900 text-xs truncate">
-                            {log.actor?.name || 'Neznámý'}
-                          </div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {log.actor?.email || ''}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={getActionVariant(log.action)} className="text-xs">
-                        {getActionLabel(log.action)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="space-y-0.5">
-                        <span className="text-sm font-medium text-gray-900">{log.entity}</span>
-                        <div className="text-xs text-gray-500 font-mono">
-                          {log.entityId.slice(0, 8)}...
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="max-w-md">
-                        <ChangeLogParser details={log.details} entity={log.entity} />
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Položek na stránku:</span>
+            <Select
+              value={String(table.getState().pagination.pageSize)}
+              onValueChange={(value) => table.setPageSize(Number(value))}
+            >
+              <SelectTrigger className="w-[70px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            Stránka {table.getState().pagination.pageIndex + 1} z {Math.max(1, table.getPageCount())}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Předchozí
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Další
+          </Button>
+        </div>
       </div>
     </div>
   )
 }
-
