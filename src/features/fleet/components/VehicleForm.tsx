@@ -39,11 +39,21 @@ import {
   Settings, 
   FileText, 
   Calendar,
+  CalendarIcon,
   Car,
   Hash,
   Loader2,
   X
 } from "lucide-react"
+import { format } from 'date-fns'
+import { cs } from 'date-fns/locale'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { DatePickerWithPresets } from '@/components/ui/calendar'
+import { cn } from '@/lib/utils'
 import { vehicleFormSchema, VehicleFormValues, VehicleStatus } from '@/lib/schemas/vehicle'
 import { cn } from '@/lib/utils'
 
@@ -647,20 +657,52 @@ export function VehicleForm({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
+                            <CalendarIcon className="h-4 w-4" />
                             STK platnost do
                           </FormLabel>
                           <FormControl>
-                            <Input
-                              type="date"
-                              {...field}
-                              value={field.value ? (field.value instanceof Date 
-                                ? field.value.toISOString().split('T')[0] 
-                                : typeof field.value === 'string' 
-                                  ? field.value.split('T')[0] 
-                                  : '') : ''}
-                              disabled={loading}
-                            />
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full pl-3 text-left font-normal justify-between",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                  disabled={loading}
+                                >
+                                  {field.value ? (
+                                    format(
+                                      field.value instanceof Date
+                                        ? field.value
+                                        : new Date(field.value),
+                                      "d. MMMM yyyy",
+                                      { locale: cs }
+                                    )
+                                  ) : (
+                                    <span>Vyberte datum STK</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <DatePickerWithPresets
+                                  date={
+                                    field.value
+                                      ? field.value instanceof Date
+                                        ? field.value
+                                        : new Date(field.value)
+                                      : undefined
+                                  }
+                                  setDate={(date) => {
+                                    field.onChange(date)
+                                  }}
+                                  fromYear={2020}
+                                  toYear={new Date().getFullYear() + 10}
+                                  inline={true}
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </FormControl>
                           <FormDescription>
                             Datum platnosti technické kontroly

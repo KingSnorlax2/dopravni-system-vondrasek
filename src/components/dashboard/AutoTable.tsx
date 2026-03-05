@@ -17,7 +17,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "@/components/ui/use-toast"
 import { loadSettings, saveSettings } from '@/utils/settings'
 import { useDefaultPageSize } from '@/providers/SettingsProvider'
-import { Calendar } from "@/components/ui/calendar"
 import { Input } from "@/components/ui/input"
 import {
   Popover,

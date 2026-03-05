@@ -62,11 +62,12 @@ export function RepairsTable({
   repairs,
   showVehicleColumn = false,
 }: RepairsTableProps) {
+  const defaultPageSize = useDefaultPageSize()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterKategorie, setFilterKategorie] = useState<string>('vse')
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(defaultPageSize)
 
   // Get unique categories for filter
   const categories = useMemo(() => {

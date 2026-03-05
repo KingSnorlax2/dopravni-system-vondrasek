@@ -9,7 +9,6 @@ import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 import { CalendarIcon, Play, Route as RouteIcon, X, Clock, ArrowDown, Download, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";

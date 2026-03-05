@@ -1,14 +1,90 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker, type DayPickerSingleProps } from "react-day-picker"
 import { cs } from 'date-fns/locale'
 
 import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
+
+/**
+ * Unified calendar styles matching the design (react-day-picker v9 API):
+ * - Czech locale (březen, po/út/st/čt/pá/so/ne)
+ * - Selected date: blue fill with dark border
+ * - Outside month dates: grey, subdued
+ * - Header: month/year dropdown + chevron + nav arrows
+ * - Footer: Vymazat, Dnes
+ *
+ * v9 key mapping: head_row->weekdays, head_cell->weekday, table->month_grid,
+ * row->week, cell->day, day->day_button, nav_button_*->button_*,
+ * caption->month_caption, caption_dropdowns->dropdowns
+ */
+export const UNIFIED_CALENDAR_CLASSNAMES = {
+  // Layout containers
+  months: "flex flex-col space-y-4",
+  month: "space-y-3",
+  month_grid: "w-full border-collapse space-y-1",
+  month_caption: "flex justify-between items-center w-full px-1 pt-1 pb-3",
+  weeks: "flex flex-col space-y-0",
+  week: "flex w-full mt-1",
+  // Weekday header (v9: weekdays + weekday replace head_row + head_cell)
+  weekdays: "flex w-full",
+  weekday: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+  // Caption & dropdowns
+  caption_label: "text-sm font-medium text-foreground",
+  dropdowns: "flex items-center gap-1",
+  dropdown: cn(
+    "inline-flex items-center gap-1 px-2 py-1 text-sm font-medium",
+    "border border-input rounded-md bg-background",
+    "hover:bg-accent hover:text-accent-foreground",
+    "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+  ),
+  months_dropdown: cn(
+    "px-2 py-1 text-sm font-medium rounded-md",
+    "border border-input bg-background",
+    "hover:bg-accent hover:text-accent-foreground",
+    "focus:outline-none focus:ring-2 focus:ring-ring"
+  ),
+  years_dropdown: cn(
+    "px-2 py-1 text-sm font-medium rounded-md",
+    "border border-input bg-background",
+    "hover:bg-accent hover:text-accent-foreground",
+    "focus:outline-none focus:ring-2 focus:ring-ring"
+  ),
+  // Navigation
+  nav: "flex items-center gap-1",
+  button_previous: cn(
+    "absolute left-1 inline-flex h-7 w-7 items-center justify-center rounded-md",
+    "text-muted-foreground hover:text-foreground hover:bg-accent",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  ),
+  button_next: cn(
+    "absolute right-1 inline-flex h-7 w-7 items-center justify-center rounded-md",
+    "text-muted-foreground hover:text-foreground hover:bg-accent",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  ),
+  // Day cell and button (v9: day=cell, day_button=inner button)
+  day: "h-9 w-9 p-0 relative flex items-center justify-center focus-within:relative focus-within:z-20",
+  day_button: cn(
+    "inline-flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium",
+    "hover:bg-accent hover:text-accent-foreground",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    "disabled:pointer-events-none disabled:opacity-50"
+  ),
+  // Modifiers (v9: selected, outside, today, disabled, hidden - no day_ prefix)
+  selected: cn(
+    "bg-blue-600 text-white hover:bg-blue-600 hover:text-white",
+    "focus:bg-blue-600 focus:text-white ring-2 ring-gray-900 ring-offset-2"
+  ),
+  today: "bg-accent/50 text-accent-foreground font-medium",
+  outside: "text-muted-foreground opacity-50",
+  disabled: "text-muted-foreground opacity-50",
+  hidden: "invisible",
+  range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+  range_start: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+  range_end: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+} as const
 
 function Calendar({
   className,
@@ -20,7 +96,7 @@ function Calendar({
   ...props
 }: CalendarProps & { fromYear?: number; toYear?: number; captionLayout?: string }) {
   const isDropdownLayout = captionLayout === "dropdown" || (captionLayout as string) === "dropdown-buttons"
-  
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -31,70 +107,10 @@ function Calendar({
       locale={cs}
       weekStartsOn={1}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center mb-4",
-        caption_label: isDropdownLayout ? "hidden" : "text-sm font-medium",
-        caption_dropdowns: "flex justify-center gap-2 items-center",
-        dropdown: cn(
-          "px-3 py-1.5 text-sm font-medium",
-          "border border-input bg-background rounded-md",
-          "hover:bg-accent hover:text-accent-foreground",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          "transition-colors duration-200"
-        ),
-        dropdown_month: cn(
-          "px-3 py-1.5 text-sm font-medium",
-          "border border-input bg-background rounded-md",
-          "hover:bg-accent hover:text-accent-foreground",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          "transition-colors duration-200"
-        ),
-        dropdown_year: cn(
-          "px-3 py-1.5 text-sm font-medium",
-          "border border-input bg-background rounded-md",
-          "hover:bg-accent hover:text-accent-foreground",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          "transition-colors duration-200"
-        ),
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          "inline-flex items-center justify-center rounded-md text-sm font-medium",
-          "ring-offset-background transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "disabled:pointer-events-none disabled:opacity-50",
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
-        ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-        day: cn(
-          "inline-flex items-center justify-center rounded-md text-sm font-medium",
-          "ring-offset-background transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "disabled:pointer-events-none disabled:opacity-50",
-          "hover:bg-accent hover:text-accent-foreground",
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
-        ),
-        day_range_end: "day-range-end",
-        day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
-        day_outside:
-          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-        day_disabled: "text-muted-foreground opacity-50",
-        day_range_middle:
-          "aria-selected:bg-accent aria-selected:text-accent-foreground",
-        day_hidden: "invisible",
+        ...UNIFIED_CALENDAR_CLASSNAMES,
+        caption_label: isDropdownLayout ? "hidden" : UNIFIED_CALENDAR_CLASSNAMES.caption_label,
         ...classNames,
       }}
-      components={undefined}
       {...props}
     />
   )
@@ -123,24 +139,18 @@ export function CustomDatePicker({
   captionLayout = "dropdown",
   ...props
 }: CustomDatePickerProps) {
-  const today = new Date();
-  
-  const handleSelect = (date: Date | undefined) => {
-    console.log('CustomDatePicker: Date selected:', date);
-    onChange(date);
-  };
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const handleSelect = (date: Date | undefined) => onChange(date)
   
   return (
-    <div 
-      className={cn("calendar-box w-[300px] border border-gray-300 p-3 font-sans bg-white rounded-md", className)}
-      onClick={(e) => {
-        console.log('Calendar box clicked:', e.target);
-        // Don't stop propagation - let the DayPicker handle it
-      }}
-      onMouseDown={(e) => {
-        // Prevent mousedown from bubbling up and closing popover
-        e.stopPropagation();
-      }}
+    <div
+      className={cn(
+        "w-[280px] rounded-lg border bg-card p-3 shadow-sm",
+        className
+      )}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <DayPicker
         mode="single"
@@ -152,51 +162,18 @@ export function CustomDatePicker({
         captionLayout={captionLayout}
         fromYear={fromYear}
         toYear={toYear}
-        fromDate={undefined}
-        toDate={undefined}
-        disabled={undefined}
-        className=""
         classNames={{
-          months: "",
-          month: "",
-          caption: "calendar-header flex justify-between items-center mb-2 px-1",
-          caption_label: (captionLayout === "dropdown" || (captionLayout as string) === "dropdown-buttons") ? "hidden" : "text-base font-semibold text-gray-800",
-          caption_dropdowns: "flex justify-center gap-1",
-          dropdown: "mx-1 px-1 py-0.5 rounded border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
-          dropdown_month: "mx-1 px-1 py-0.5 rounded border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
-          dropdown_year: "mx-1 px-1 py-0.5 rounded border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
-          nav: "flex items-center gap-2",
-          nav_button: "nav-button bg-none border-none cursor-pointer text-lg px-2 py-1 text-gray-700 hover:text-blue-600",
-          table: "w-full border-collapse",
-          head_row: "calendar-weekdays grid grid-cols-7 font-bold text-center mb-1 gap-1 text-xs uppercase text-gray-600",
-          head_cell: "py-1",
-          row: "calendar-days grid grid-cols-7 gap-2 text-center",
-          cell: "",
-          day: cn(
-            "calendar-day p-2 rounded cursor-pointer transition-colors duration-100 text-sm",
-            "hover:bg-gray-100"
-          ),
-          day_selected:
-            "bg-blue-600 text-white font-bold rounded",
-          day_today: "today bg-blue-500 text-white font-bold rounded-full",
-          day_outside:
-            "outside-month text-gray-400 text-xs opacity-80",
-          day_disabled: "text-gray-300 opacity-50 cursor-not-allowed",
-          day_hidden: "invisible",
-          footer: "hidden",
+          ...UNIFIED_CALENDAR_CLASSNAMES,
+          caption_label: (captionLayout === "dropdown" || (captionLayout as string) === "dropdown-buttons") ? "hidden" : UNIFIED_CALENDAR_CLASSNAMES.caption_label,
         }}
-        footer={undefined}
         {...(props as Partial<DayPickerSingleProps>)}
       />
-      <div className="flex justify-between w-full mt-2 gap-2 px-2">
+      <div className="flex justify-between gap-2 mt-3 pt-3 border-t">
         {showClear && (
           <button
             type="button"
-            className="flex-1 py-1 rounded bg-gray-100 hover:bg-gray-200 text-xs font-medium text-blue-600 transition"
-            onClick={() => {
-              console.log('CustomDatePicker: Clear button clicked');
-              onChange(undefined);
-            }}
+            className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            onClick={() => onChange(undefined)}
           >
             Vymazat
           </button>
@@ -204,11 +181,8 @@ export function CustomDatePicker({
         {showToday && (
           <button
             type="button"
-            className="flex-1 py-1 rounded bg-blue-100 hover:bg-blue-200 text-xs font-medium text-blue-700 transition"
-            onClick={() => {
-              console.log('CustomDatePicker: Today button clicked');
-              onChange(today);
-            }}
+            className="flex-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            onClick={() => onChange(today)}
           >
             Dnes
           </button>
