@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { Building2, Mail, Shield, Loader2, Save } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -149,13 +149,26 @@ export default function ServerSettingsClient({
                           type="number"
                           min={1}
                           max={90}
-                          value={field.value}
-                          onChange={(e) => field.onChange(Number(e.target.value) || 30)}
+                          placeholder="30"
+                          value={field.value != null ? String(field.value) : ''}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            if (raw === '') {
+                              field.onChange(30)
+                              return
+                            }
+                            const num = Number(raw)
+                            if (!Number.isNaN(num)) {
+                              field.onChange(Math.min(90, Math.max(1, num)))
+                            }
+                          }}
+                          onBlur={field.onBlur}
                         />
                       </FormControl>
                       <FormDescription>
                         Kolik dní předem upozornit na blížící se STK
                       </FormDescription>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />

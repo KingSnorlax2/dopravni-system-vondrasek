@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendSTKNotification } from '@/lib/emailService';
+import { getSTKWarningDays } from '@/features/settings/queries';
 
 export async function GET() {
   try {
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-    
+    const warningDays = await getSTKWarningDays();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() + warningDays);
+
     const today = new Date();
 
     const expiringVehicles = await prisma.auto.findMany({
       where: {
         datumSTK: {
           gte: today,
-          lte: thirtyDaysFromNow,
+          lte: cutoffDate,
         },
         AND: {
           NOT: {

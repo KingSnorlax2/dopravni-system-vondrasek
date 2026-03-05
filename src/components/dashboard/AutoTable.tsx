@@ -72,6 +72,7 @@ interface Auto {
 interface AutoTableProps {
   auta: Auto[]
   onRefresh: () => void | Promise<void>
+  stkWarningDays?: number
 }
 
 const formatNumber = (num: number): string => {
@@ -131,21 +132,20 @@ const MAX_POZNAMKA_LENGTH = 300;
 
 type STKStatus = 'expired' | 'upcoming' | 'normal' | 'missing';
 
-function getSTKStatus(datumSTK: string | null | undefined): STKStatus {
+function getSTKStatus(datumSTK: string | null | undefined, warningDays: number = 30): STKStatus {
   if (!datumSTK) return 'missing';
-  
+
   const stk = new Date(datumSTK);
   const today = new Date();
-  const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
-  
-  // Reset time to compare only dates
+  const cutoffDate = new Date(today.getTime() + (warningDays * 24 * 60 * 60 * 1000));
+
   const stkDate = new Date(stk.getFullYear(), stk.getMonth(), stk.getDate());
   const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const thirtyDaysDate = new Date(thirtyDaysFromNow.getFullYear(), thirtyDaysFromNow.getMonth(), thirtyDaysFromNow.getDate());
-  
+  const cutoffDateOnly = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), cutoffDate.getDate());
+
   if (stkDate < todayDate) {
     return 'expired';
-  } else if (stkDate <= thirtyDaysDate) {
+  } else if (stkDate <= cutoffDateOnly) {
     return 'upcoming';
   } else {
     return 'normal';
@@ -217,12 +217,14 @@ function ThumbnailCell({ auto, onPreview, size = 'sm' }: ThumbnailCellProps) {
   );
 }
 
-function isSTKExpiring(datumSTK: string | undefined) {
+function isSTKExpiring(datumSTK: string | undefined, warningDays: number = 30) {
   if (!datumSTK) return false
   const stk = new Date(datumSTK)
   const today = new Date()
-  const oneMonthFromNow = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-  return stk <= oneMonthFromNow
+  const cutoffDate = new Date(today.getTime() + (warningDays * 24 * 60 * 60 * 1000))
+  const stkDate = new Date(stk.getFullYear(), stk.getMonth(), stk.getDate())
+  const cutoffDateOnly = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), cutoffDate.getDate())
+  return stkDate >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) && stkDate <= cutoffDateOnly
 }
 
 // Validation schema for inline editing
@@ -633,7 +635,7 @@ const InlineSTKEditor = ({
   );
 };
 
-const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
+const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => {
   const router = useRouter()
   const [editedAuto, setEditedAuto] = useState<Auto | null | undefined>(null)
   const [deleteModalData, setDeleteModalData] = useState<{ auto: Auto | null; isOpen: boolean } | null>(null);
@@ -746,8 +748,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
 
   // Count vehicles with expiring STK
   const expiringSTKCount = useMemo(() => {
-    return auta.filter(auto => auto.datumSTK && getSTKStatus(auto.datumSTK) === 'upcoming').length;
-  }, [auta]);
+    return auta.filter(auto => auto.datumSTK && getSTKStatus(auto.datumSTK, stkWarningDays) === 'upcoming').length;
+  }, [auta, stkWarningDays]);
 
   const filteredAuta = useMemo(() => {
     return auta.filter(auto => {
@@ -773,8 +775,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
       const matchesModel = selectedModels.length === 0 || selectedModels.includes(auto.model);
 
       // STK warning filter
-      const matchesSTKWarning = !showSTKWarningFilter || 
-        (auto.datumSTK && getSTKStatus(auto.datumSTK) === 'upcoming');
+      const matchesSTKWarning = !showSTKWarningFilter ||
+        (auto.datumSTK && getSTKStatus(auto.datumSTK, stkWarningDays) === 'upcoming');
 
       return matchesSearch && matchesStatus && matchesDate && matchesMileage && matchesModel && matchesSTKWarning;
     }).sort((a, b) => {
@@ -807,7 +809,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
           return 0;
       }
     });
-  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder, selectedModels, showSTKWarningFilter]);
+  }, [auta, searchTerm, filterStav, dateFrom, dateTo, mileageFrom, mileageTo, sortField, sortOrder, selectedModels, showSTKWarningFilter, stkWarningDays]);
 
   useEffect(() => {
     // Reset filters if no cars are showing
@@ -1960,12 +1962,12 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
                       <TooltipContent side="top" className="max-w-xs">
                         <div className="space-y-1">
                           <p className="font-medium">
-                            {showSTKWarningFilter ? "Zrušit filtr STK" : "Zobrazit vozidla s končícím STK (do 30 dnů)"}
+                            {showSTKWarningFilter ? "Zrušit filtr STK" : `Zobrazit vozidla s končícím STK (do ${stkWarningDays} dnů)`}
                           </p>
                           <p className="text-xs text-gray-400">
                             {showSTKWarningFilter 
                               ? "Klikněte pro zobrazení všech vozidel" 
-                              : `Klikněte pro zobrazení ${expiringSTKCount} vozidel s STK končícím do 30 dnů`
+                              : `Klikněte pro zobrazení ${expiringSTKCount} vozidel s STK končícím do ${stkWarningDays} dnů`
                             }
                           </p>
                         </div>
@@ -2054,7 +2056,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
             </TableHeader>
             <TableBody>
               {paginatedAuta.map((auto) => {
-                const stkStatus = getSTKStatus(auto.datumSTK);
+                const stkStatus = getSTKStatus(auto.datumSTK, stkWarningDays);
                 const getRowBackgroundClass = () => {
                   switch (stkStatus) {
                     case 'expired':
@@ -2321,7 +2323,7 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
         {/* Mobile card layout */}
         <div className="sm:hidden space-y-4 px-4 pb-4">
           {paginatedAuta.map((auto) => {
-            const stkStatus = getSTKStatus(auto.datumSTK);
+            const stkStatus = getSTKStatus(auto.datumSTK, stkWarningDays);
             const getRowBackgroundClass = () => {
               switch (stkStatus) {
                 case 'expired':

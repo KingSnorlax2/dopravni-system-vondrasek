@@ -60,6 +60,7 @@ export const authOptions: NextAuthOptions = {
           })
 
           if (!uzivatel) {
+            console.error("Auth failed: User not found for email:", credentials.email)
             throw new Error("Nesprávný email nebo heslo")
           }
 
@@ -70,6 +71,7 @@ export const authOptions: NextAuthOptions = {
           )
 
           if (!isPasswordValid) {
+            console.error("Auth failed: Invalid password for email:", credentials.email)
             throw new Error("Nesprávný email nebo heslo")
           }
 

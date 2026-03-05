@@ -56,18 +56,22 @@ type Vehicle = {
 
 interface AutoPageClientProps {
   initialVehicles: Vehicle[]
+  stkWarningDays?: number
 }
 
-function isSTKExpiring(datumSTK: string | null) {
+function isSTKExpiring(datumSTK: string | null, warningDays: number) {
   if (!datumSTK) return false
   const stk = new Date(datumSTK)
   const today = new Date()
-  const monthBeforeExpiration = new Date(stk)
-  monthBeforeExpiration.setMonth(monthBeforeExpiration.getMonth() - 1)
-  return today >= monthBeforeExpiration && today <= stk
+  const cutoffDate = new Date(today)
+  cutoffDate.setDate(cutoffDate.getDate() + warningDays)
+  const stkDate = new Date(stk.getFullYear(), stk.getMonth(), stk.getDate())
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const cutoffDateOnly = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), cutoffDate.getDate())
+  return stkDate >= todayDate && stkDate <= cutoffDateOnly
 }
 
-export function AutoPageClient({ initialVehicles }: AutoPageClientProps) {
+export function AutoPageClient({ initialVehicles, stkWarningDays = 30 }: AutoPageClientProps) {
   const router = useRouter()
   const [showForm, setShowForm] = useState(false)
   const [auta, setAuta] = useState<Vehicle[]>(initialVehicles)
@@ -83,7 +87,7 @@ export function AutoPageClient({ initialVehicles }: AutoPageClientProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
 
-  const expiringSTKVehicles = auta.filter(auto => isSTKExpiring(auto.datumSTK))
+  const expiringSTKVehicles = auta.filter(auto => isSTKExpiring(auto.datumSTK, stkWarningDays))
 
   // Debounce search input
   useEffect(() => {
@@ -295,7 +299,7 @@ export function AutoPageClient({ initialVehicles }: AutoPageClientProps) {
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">Seznam vozidel se STK &lt; 30 dní</TooltipContent>
+              <TooltipContent side="top">Seznam vozidel se STK do {stkWarningDays} dnů</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -310,7 +314,7 @@ export function AutoPageClient({ initialVehicles }: AutoPageClientProps) {
               Vozidla s blížícím se STK
             </DialogTitle>
             <DialogDescription>
-              Seznam vozidel, kterým vyprší STK během 30 dnů. Změny se ukládají automaticky.
+              Seznam vozidel, kterým vyprší STK během {stkWarningDays} dnů. Změny se ukládají automaticky.
             </DialogDescription>
           </DialogHeader>
           {/* Search input */}
@@ -442,6 +446,7 @@ export function AutoPageClient({ initialVehicles }: AutoPageClientProps) {
         <AutoTable 
           auta={auta}
           onRefresh={refreshData}
+          stkWarningDays={stkWarningDays}
         />
       </div>
 
