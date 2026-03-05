@@ -10,6 +10,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { getAuditLogs } from "@/app/actions/admin"
+import { useDefaultPageSize } from '@/providers/SettingsProvider'
 import { format, formatDistanceToNow } from "date-fns"
 import cs from "date-fns/locale/cs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -217,7 +218,12 @@ export function AuditLogTab() {
   const [, startTransition] = useTransition()
   const [total, setTotal] = useState(0)
   const [globalFilter, setGlobalFilter] = useState('')
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
+  const defaultPageSize = useDefaultPageSize()
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: defaultPageSize })
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageSize: defaultPageSize }))
+  }, [defaultPageSize])
 
   const fetchLogs = () => {
     setLoading(true)

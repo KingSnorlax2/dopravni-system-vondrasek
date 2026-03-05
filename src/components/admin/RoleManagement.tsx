@@ -421,7 +421,7 @@ const AVAILABLE_PAGES = [
   { value: '/dashboard/noviny/distribuce/driver-restricted', label: 'Driver Restricted', description: 'Restricted driver view' },
   
   { value: '/dashboard/admin/users', label: 'Users', description: 'User management' },
-  { value: '/dashboard/settings', label: 'Settings', description: 'System settings' }
+  { value: '/dashboard/admin/settings', label: 'Nastavení', description: 'Systémová nastavení' }
 ]
 
 interface Role {

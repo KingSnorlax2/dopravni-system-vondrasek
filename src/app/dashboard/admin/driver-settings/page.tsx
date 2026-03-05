@@ -2,15 +2,15 @@ import { redirect } from 'next/navigation'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getSmenaRidicOrderBy } from '@/lib/driver-attendance'
+import { getDefaultPageSize } from '@/features/settings/queries'
 import DriverSettingsClient from './DriverSettingsClient'
 import type { DriverLogRow } from './types'
 
-const ALLOWED_PAGE_SIZES = [10, 25, 50] as const
-const DEFAULT_PAGE_SIZE = 10
+const ALLOWED_PAGE_SIZES = [5, 10, 20, 25, 50, 100] as const
 
-function parsePageSize(raw: string | undefined): number {
+function parsePageSize(raw: string | undefined, fallback: number): number {
   const n = parseInt(raw ?? '', 10)
-  return ALLOWED_PAGE_SIZES.includes(n) ? n : DEFAULT_PAGE_SIZE
+  return ALLOWED_PAGE_SIZES.includes(n) ? n : fallback
 }
 
 export default async function DriverSettingsPage({
@@ -25,8 +25,12 @@ export default async function DriverSettingsPage({
     sortOrder?: string
   }
 }) {
+  const defaultPageSize = await getDefaultPageSize()
+  const fallbackSize = (ALLOWED_PAGE_SIZES as readonly number[]).includes(defaultPageSize)
+    ? defaultPageSize
+    : 10
   const page = Math.max(1, parseInt(searchParams?.page ?? '1', 10) || 1)
-  const pageSize = parsePageSize(searchParams?.pageSize)
+  const pageSize = parsePageSize(searchParams?.pageSize, fallbackSize)
   const search = (searchParams?.search ?? searchParams?.q ?? '').trim().slice(0, 100)
   const sortBy = searchParams?.sortBy ?? 'date'
   const sortOrder = (searchParams?.sortOrder ?? 'desc') as 'asc' | 'desc'

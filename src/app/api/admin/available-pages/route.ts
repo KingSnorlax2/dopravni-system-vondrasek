@@ -14,8 +14,7 @@ const AVAILABLE_PAGES = [
   { path: '/dashboard/noviny/distribuce/driver-route', label: 'Trasa řidiče', description: 'Správa tras řidiče' },
   { path: '/dashboard/noviny/distribuce/driver-restricted', label: 'Omezený přístup řidiče', description: 'Omezený přístup' },
   { path: '/dashboard/admin/users', label: 'Správa uživatelů', description: 'Uživatelé a role' },
-  { path: '/dashboard/admin/settings', label: 'Nastavení systému', description: 'Systémová nastavení' },
-  { path: '/dashboard/settings', label: 'Nastavení', description: 'Uživatelská nastavení' },
+  { path: '/dashboard/admin/settings', label: 'Nastavení', description: 'Systémová nastavení' },
   { path: '/dashboard/account', label: 'Účet', description: 'Správa účtu' },
   { path: '/dashboard/soubory', label: 'Soubory', description: 'Správa souborů' },
 ]

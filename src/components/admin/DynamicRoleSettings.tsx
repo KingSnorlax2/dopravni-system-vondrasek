@@ -749,7 +749,7 @@ function RoleForm({ role, onSubmit, onCancel, saving, validateRole, isEditing = 
             ...prev,
             allowedPages: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
           }))}
-          placeholder="/dashboard, /dashboard/auta, /dashboard/settings"
+          placeholder="/dashboard, /dashboard/auta, /dashboard/admin/settings"
           className="mt-1"
         />
       </div>

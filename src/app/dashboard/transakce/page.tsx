@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useTransition } from 'react';
+import { useDefaultPageSize } from '@/providers/SettingsProvider';
 import type { Transakce } from '@/types/transakce';
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -30,7 +31,12 @@ const TransakcePage: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const defaultPageSize = useDefaultPageSize();
+  const [itemsPerPage, setItemsPerPage] = useState<number>(defaultPageSize);
+
+  useEffect(() => {
+    setItemsPerPage(defaultPageSize);
+  }, [defaultPageSize]);
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
   const [selectedTransakce, setSelectedTransakce] = useState<number[]>([]);

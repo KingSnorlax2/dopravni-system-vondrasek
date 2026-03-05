@@ -18,7 +18,7 @@ import { Search, Download, RefreshCw } from 'lucide-react'
 import DriverLogTable from './DriverLogTable'
 import type { DriverLogRow } from './types'
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50] as const
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 25, 50, 100] as const
 
 type DriverSettingsClientProps = {
   rows: DriverLogRow[]

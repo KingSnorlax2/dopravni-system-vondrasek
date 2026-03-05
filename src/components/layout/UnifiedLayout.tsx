@@ -104,7 +104,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
     },
     {
       name: 'Nastavení',
-      href: '/dashboard/settings',
+      href: '/dashboard/admin/settings',
       icon: Settings
     },
     {

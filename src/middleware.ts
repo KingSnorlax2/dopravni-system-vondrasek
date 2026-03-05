@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/api/auth",
   "/reset-password",
+  "/maintenance",
 ]
 
 /**

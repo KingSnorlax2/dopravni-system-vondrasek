@@ -335,7 +335,7 @@ const AVAILABLE_PAGES = [
   { value: '/dashboard/transakce', label: 'Transactions', description: 'Financial transactions' },
   { value: '/dashboard/noviny', label: 'Newspapers', description: 'Newspaper distribution' },
   { value: '/dashboard/users', label: 'Users', description: 'User management' },
-  { value: '/dashboard/settings', label: 'Settings', description: 'System settings' }
+  { value: '/dashboard/admin/settings', label: 'Nastavení', description: 'Systémová nastavení' }
 ]
 
 interface UserSettingsProps {

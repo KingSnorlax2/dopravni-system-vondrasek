@@ -19,8 +19,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DataTableFloatingBar } from "./data-table-floating-bar"
+import { useDefaultPageSize } from "@/providers/SettingsProvider"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -47,8 +48,14 @@ export function DataTable<TData, TValue>({
   onArchive,
   isLoading = false,
 }: DataTableProps<TData, TValue>) {
+  const defaultPageSize = useDefaultPageSize()
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: defaultPageSize })
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageSize: defaultPageSize }))
+  }, [defaultPageSize])
 
   const table = useReactTable({
     data,
@@ -59,9 +66,11 @@ export function DataTable<TData, TValue>({
     enableRowSelection: enableRowSelection,
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
+    onPaginationChange: setPagination,
     state: {
       sorting,
       rowSelection,
+      pagination,
     },
   })
 

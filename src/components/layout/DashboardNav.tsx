@@ -42,7 +42,7 @@ const allMainNavItems: NavItem[] = [
   {
     name: 'Nastavení',
     title: 'Nastavení',
-    href: '/dashboard/settings',
+    href: '/dashboard/admin/settings',
     icon: <Settings className="h-5 w-5" />,
   },
 ];

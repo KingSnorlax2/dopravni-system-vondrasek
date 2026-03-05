@@ -73,7 +73,7 @@ const HomepageNav = () => {
     },
     {
       name: 'Nastavení',
-      href: '/dashboard/settings',
+      href: '/dashboard/admin/settings',
       icon: Settings,
       show: hasRole('ADMIN')
     },

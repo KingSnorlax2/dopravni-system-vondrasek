@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import SessionProvider from '@/providers/SessionProvider'
+import SettingsProvider from '@/providers/SettingsProvider'
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from 'sonner'
 
@@ -21,7 +22,9 @@ export default function RootLayout({
     <html lang="cs">
       <body className={inter.className}>
         <SessionProvider>
-          {children}
+          <SettingsProvider>
+            {children}
+          </SettingsProvider>
         </SessionProvider>
         <Toaster />
         <SonnerToaster richColors position="top-center" />

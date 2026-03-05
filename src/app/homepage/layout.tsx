@@ -2,9 +2,8 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.config'
 import { isMaintenanceModeEnabled } from '@/features/settings/queries'
-import DashboardLayoutClient from './DashboardLayoutClient'
 
-export default async function DashboardLayout({
+export default async function HomepageLayout({
   children,
 }: {
   children: React.ReactNode
@@ -22,5 +21,5 @@ export default async function DashboardLayout({
     redirect('/maintenance')
   }
 
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>
+  return <>{children}</>
 }

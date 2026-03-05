@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Search, Filter, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { useDefaultPageSize } from '@/providers/SettingsProvider'
 
 type Repair = {
   id: number
@@ -186,8 +187,13 @@ export function RepairsTable({
 
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: defaultPageSize,
   })
+
+  // Sync pageSize when system default loads
+  useEffect(() => {
+    setPageSize(defaultPageSize)
+  }, [defaultPageSize])
 
   // Update pagination when pageSize changes
   useEffect(() => {

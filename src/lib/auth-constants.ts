@@ -31,7 +31,6 @@ export const EXAMPLE_ROLE_CONFIG: Role[] = [
       '/dashboard/admin/users',
       '/dashboard/admin/settings',
       '/dashboard/grafy',
-      '/dashboard/settings',
       '/homepage',
     ],
     defaultLandingPage: '/dashboard/auta',

@@ -163,7 +163,7 @@ export function RoleModal({
         categories['Vozidla'].pages.push(page)
       } else if (page.path.startsWith('/dashboard/noviny')) {
         categories['Noviny'].pages.push(page)
-      } else if (page.path.startsWith('/dashboard/admin') || page.path.startsWith('/dashboard/settings')) {
+      } else if (page.path.startsWith('/dashboard/admin')) {
         categories['Administrace'].pages.push(page)
       } else {
         categories['Ostatní'].pages.push(page)

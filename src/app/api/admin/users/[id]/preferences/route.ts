@@ -130,7 +130,7 @@ export async function PUT(
     // Validate default landing page
     const validPages = [
       '/homepage', '/dashboard', '/dashboard/auta', '/dashboard/grafy',
-      '/dashboard/transakce', '/dashboard/noviny', '/dashboard/admin/users', '/dashboard/settings'
+      '/dashboard/transakce', '/dashboard/noviny', '/dashboard/admin/users', '/dashboard/admin/settings'
     ]
     
     if (!validPages.includes(defaultLandingPage)) {

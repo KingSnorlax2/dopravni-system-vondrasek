@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { loadSettings, saveSettings } from '@/utils/settings'
+import { useDefaultPageSize } from '@/providers/SettingsProvider'
 import { Calendar } from "@/components/ui/calendar"
 import { Input } from "@/components/ui/input"
 import {
@@ -651,7 +652,8 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [editedNote, setEditedNote] = useState<{ id: string; note: string } | null>(null)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const defaultPageSize = useDefaultPageSize()
+  const [itemsPerPage, setItemsPerPage] = useState(defaultPageSize)
   const [showPoznamky, setShowPoznamky] = useState(false)
   const [novaPoznamka, setNovaPoznamka] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -684,9 +686,13 @@ const AutoTable = ({ auta, onRefresh }: AutoTableProps) => {
   // Load saved settings on component mount
   const savedSettings = useMemo(() => loadSettings(), []);
   
+  // Sync itemsPerPage when system default loads or changes
+  useEffect(() => {
+    setItemsPerPage(defaultPageSize)
+  }, [defaultPageSize])
+
   // Update existing state with saved settings (not creating new ones)
   useEffect(() => {
-    setItemsPerPage(savedSettings.itemsPerPage || 10);
     setSortField((savedSettings.sortField || 'spz') as SortField);
     setSortOrder((savedSettings.sortOrder || 'asc') as SortOrder);
     setFilterStav(savedSettings.filterStav || 'vse');

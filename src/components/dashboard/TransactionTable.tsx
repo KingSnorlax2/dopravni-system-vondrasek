@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardTitle, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -36,6 +36,7 @@ import {
 import { MoreHorizontal } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PDFViewer } from '@react-pdf/renderer'
+import { useDefaultPageSize } from '@/providers/SettingsProvider'
 
 interface TransactionTableProps {
   transactions: any[]
@@ -55,8 +56,13 @@ export default function TransactionTable({
   const [filterCategory, setFilterCategory] = useState<string>('vse')
   const [sortField, setSortField] = useState<string>('datum')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const defaultPageSize = useDefaultPageSize()
+  const [itemsPerPage, setItemsPerPage] = useState(defaultPageSize)
   const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => {
+    setItemsPerPage(defaultPageSize)
+  }, [defaultPageSize])
   const [editTransaction, setEditTransaction] = useState<any>(null)
   const [transactionToDelete, setTransactionToDelete] = useState<{ id: number } | null>(null)
   const [detailTransaction, setDetailTransaction] = useState<any>(null)
