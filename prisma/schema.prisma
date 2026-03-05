@@ -83,12 +83,20 @@ model Transakce {
   auto        Auto?    @relation(fields: [autoId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  faktura     String?
-  fakturaTyp  String?
-  fakturaNazev String?
+  faktury     TransakceFaktura[]
   approvedBy  String?   // User ID who approved the transaction
   approvedAt  DateTime? // When the transaction was approved
   status      TransactionStatus @default(PENDING)
+}
+
+model TransakceFaktura {
+  id          Int       @id @default(autoincrement())
+  transakceId Int
+  transakce   Transakce @relation(fields: [transakceId], references: [id], onDelete: Cascade)
+  nazev       String
+  typ         String
+  obsah       String    @db.Text
+  createdAt   DateTime  @default(now())
 }
 
 enum TransactionStatus {

@@ -15,9 +15,9 @@ export async function GET() {
         autoId: true,
         createdAt: true,
         updatedAt: true,
-        faktura: true,
-        fakturaTyp: true,
-        fakturaNazev: true,
+        faktury: {
+          select: { id: true, nazev: true }
+        },
         kategorie: {
           select: {
             id: true,

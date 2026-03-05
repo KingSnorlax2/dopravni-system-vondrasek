@@ -14,5 +14,5 @@ export interface Transakce {
   datum: string;
   typ: 'příjem' | 'výdaj';
   popis: string;
-  faktura?: string;
+  faktury?: { id: number; nazev: string }[];
 }

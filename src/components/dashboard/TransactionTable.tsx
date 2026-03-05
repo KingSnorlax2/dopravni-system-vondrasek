@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardTitle, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardTitle, CardHeader, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Pencil, Trash2, Eye, FileText, Download, Upload } from 'lucide-react'
+import { Pencil, Trash2, Eye, FileText, Download, Upload, RefreshCw } from 'lucide-react'
 import { 
   Dialog, 
   DialogContent, 
@@ -217,40 +217,60 @@ export default function TransactionTable({
     }
   };
 
+  const refreshDetailTransaction = async () => {
+    if (!detailTransaction) return;
+    const updated = await fetch(`/api/transakce/${detailTransaction.id}`).then((r) => r.json());
+    setDetailTransaction(updated);
+  };
+
   const handleFileUpload = async (transactionId: number, file: File) => {
     setIsUploading(true);
-    console.log('Starting file upload:', { transactionId, fileName: file.name }); // Debug log
-    
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
-      console.log('Sending request to:', `/api/transakce/${transactionId}/invoice`); // Debug log
-      
       const response = await fetch(`/api/transakce/${transactionId}/invoice`, {
         method: 'POST',
         body: formData,
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Upload failed:', errorData); // Debug log
-        throw new Error('Upload failed');
-      }
-      
-      const result = await response.json();
-      console.log('Upload successful:', result); // Debug log
-      
-      // Refresh transaction details
-      const updatedTransaction = await fetch(`/api/transakce/${transactionId}`).then(res => res.json());
-      setDetailTransaction(updatedTransaction);
-      
-      toast.success('Faktura byla úspěšně nahrána k transakci.')
-    } catch (error) {
-      console.error('Error in handleFileUpload:', error); // Debug log
-      toast.error('Nepodařilo se nahrát fakturu.')
+      if (!response.ok) throw new Error('Upload failed');
+      await refreshDetailTransaction();
+      toast.success('Faktura byla úspěšně nahrána.');
+    } catch {
+      toast.error('Nepodařilo se nahrát fakturu.');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleInvoiceReplace = async (transactionId: number, fakturaId: number, file: File) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`/api/transakce/${transactionId}/invoice/${fakturaId}`, {
+        method: 'PUT',
+        body: formData,
+      });
+      if (!response.ok) throw new Error('Replace failed');
+      await refreshDetailTransaction();
+      toast.success('Faktura byla nahrazena.');
+    } catch {
+      toast.error('Nepodařilo se nahradit fakturu.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleInvoiceRemove = async (transactionId: number, fakturaId: number) => {
+    try {
+      const response = await fetch(`/api/transakce/${transactionId}/invoice/${fakturaId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Delete failed');
+      await refreshDetailTransaction();
+      toast.success('Faktura byla odebrána.');
+    } catch {
+      toast.error('Nepodařilo se odebrat fakturu.');
     }
   };
 
@@ -766,14 +786,14 @@ export default function TransactionTable({
             <DialogHeader>
               <DialogTitle>Detail transakce</DialogTitle>
               <DialogDescription>
-                Zobrazení detailů transakce a správa faktury
+                Zobrazení detailů transakce a správa faktur
               </DialogDescription>
             </DialogHeader>
             
             <Tabs defaultValue="details" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="details">Základní informace</TabsTrigger>
-                <TabsTrigger value="invoice">Faktura</TabsTrigger>
+                <TabsTrigger value="invoice">Faktury</TabsTrigger>
               </TabsList>
 
               <TabsContent value="details">
@@ -826,105 +846,138 @@ export default function TransactionTable({
               <TabsContent value="invoice">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Faktura</CardTitle>
+                    <CardTitle>Faktury</CardTitle>
+                    <CardDescription className="text-muted-foreground">
+                      Můžete přidat více faktur k transakci. Každou lze zobrazit, stáhnout, nahradit nebo odebrat.
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {detailTransaction.faktura ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-2">
-                            <FileText className="h-5 w-5" />
-                            <span>{detailTransaction.fakturaNazev}</span>
-                          </div>
-                          <div className="space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const base64Data = detailTransaction.faktura;
-                                const blob = new Blob(
-                                  [Buffer.from(base64Data, 'base64')], 
-                                  { type: detailTransaction.fakturaTyp }
-                                );
-                                const url = URL.createObjectURL(blob);
-                                window.open(url, '_blank');
-                              }}
+                  <CardContent className="space-y-6">
+                    {/* List of existing invoices */}
+                    {detailTransaction.faktury?.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium">Nahrané faktury</h4>
+                        <ul className="space-y-2">
+                          {detailTransaction.faktury.map((f: { id: number; nazev: string }) => (
+                            <li
+                              key={f.id}
+                              className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 px-4 py-3"
                             >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Zobrazit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const base64Data = detailTransaction.faktura;
-                                const blob = new Blob(
-                                  [Buffer.from(base64Data, 'base64')], 
-                                  { type: detailTransaction.fakturaTyp }
-                                );
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = detailTransaction.fakturaNazev;
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                                URL.revokeObjectURL(url);
-                              }}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Stáhnout
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        {detailTransaction.fakturaTyp === 'application/pdf' && (
-                          <div className="border rounded-lg p-4 h-[500px]">
-                            <iframe
-                              src={`data:${detailTransaction.fakturaTyp};base64,${detailTransaction.faktura}`}
-                              className="w-full h-full"
-                              title="PDF Viewer"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg">
-                          <Upload className="h-8 w-8 mb-4 text-gray-400" />
-                          <Button 
-                            variant="outline" 
-                            disabled={isUploading}
-                            onClick={() => document.getElementById('invoice-upload')?.click()}
-                          >
-                            {isUploading ? (
-                              <>Nahrávání...</>
-                            ) : (
-                              <>
-                                <Upload className="h-4 w-4 mr-2" />
-                                Nahrát fakturu
-                              </>
-                            )}
-                          </Button>
-                          <input
-                            id="invoice-upload"
-                            type="file"
-                            className="hidden"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                console.log("File selected:", file.name);
-                                handleFileUpload(detailTransaction.id, file);
-                              }
-                            }}
-                          />
-                          <p className="mt-2 text-sm text-gray-500">
-                            Podporované formáty: PDF, JPG, PNG
-                          </p>
-                        </div>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                <span className="truncate font-medium">{f.nazev}</span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    window.open(`/api/transakce/${detailTransaction.id}/invoice/${f.id}`, '_blank')
+                                  }
+                                  title="Zobrazit"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    window.open(
+                                      `/api/transakce/${detailTransaction.id}/invoice/${f.id}?download=1`,
+                                      '_blank'
+                                    )
+                                  }
+                                  title="Stáhnout"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={isUploading}
+                                  onClick={() =>
+                                    document.getElementById(`invoice-replace-${f.id}`)?.click()
+                                  }
+                                  title="Nahradit"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
+                                <input
+                                  id={`invoice-replace-${f.id}`}
+                                  type="file"
+                                  className="hidden"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleInvoiceReplace(detailTransaction.id, f.id, file);
+                                    e.target.value = '';
+                                  }}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleInvoiceRemove(detailTransaction.id, f.id)}
+                                  title="Odebrat"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     )}
+
+                    {/* Upload area - always visible */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">
+                        {detailTransaction.faktury?.length ? 'Přidat další fakturu' : 'Nahrát fakturu'}
+                      </h4>
+                      <div
+                        className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/20 p-8 transition-colors hover:border-muted-foreground/40 hover:bg-muted/30"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => document.getElementById('invoice-upload')?.click()}
+                        onKeyDown={(e) =>
+                          e.key === 'Enter' && document.getElementById('invoice-upload')?.click()
+                        }
+                      >
+                        <Upload className="h-10 w-10 mb-3 text-muted-foreground" />
+                        <Button
+                          variant="outline"
+                          disabled={isUploading}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            document.getElementById('invoice-upload')?.click();
+                          }}
+                        >
+                          {isUploading ? (
+                            <>Nahrávání...</>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-2" />
+                              {detailTransaction.faktury?.length
+                                ? 'Vybrat soubor'
+                                : 'Nahrát fakturu'}
+                            </>
+                          )}
+                        </Button>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Podporované formáty: PDF, JPG, PNG
+                        </p>
+                      </div>
+                      <input
+                        id="invoice-upload"
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(detailTransaction.id, file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>

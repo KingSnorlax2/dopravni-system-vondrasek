@@ -464,6 +464,7 @@ export async function sendTransactionsReportEmail(to: string, transactionIds?: n
     include: {
       kategorie: { select: { nazev: true } },
       auto: { select: { spz: true } },
+      faktury: true,
     },
   })
   const rows = items.map((t) => [
@@ -483,19 +484,20 @@ export async function sendTransactionsReportEmail(to: string, transactionIds?: n
   const attachments: MailAttachment[] = []
   const seenFilenames = new Set<string>()
   for (const t of items) {
-    if (!t.faktura || !t.fakturaNazev) continue
-    const baseName = t.fakturaNazev.replace(/\.[^.]+$/, '') || 'faktura'
-    const ext = t.fakturaNazev.match(/\.[^.]+$/)?.toString() || ''
-    let filename = t.fakturaNazev
-    if (seenFilenames.has(filename)) {
-      filename = `${baseName}-transakce-${t.id}${ext}`
+    for (const f of t.faktury) {
+      const baseName = f.nazev.replace(/\.[^.]+$/, '') || 'faktura'
+      const ext = f.nazev.match(/\.[^.]+$/)?.toString() || ''
+      let filename = f.nazev
+      if (seenFilenames.has(filename)) {
+        filename = `${baseName}-transakce-${t.id}-${f.id}${ext}`
+      }
+      seenFilenames.add(filename)
+      attachments.push({
+        filename,
+        content: Buffer.from(f.obsah, 'base64'),
+        contentType: f.typ || undefined,
+      })
     }
-    seenFilenames.add(filename)
-    attachments.push({
-      filename,
-      content: Buffer.from(t.faktura, 'base64'),
-      contentType: t.fakturaTyp || undefined,
-    })
   }
 
   await sendMail({

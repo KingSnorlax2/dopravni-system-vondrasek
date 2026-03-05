@@ -19,6 +19,10 @@ export async function GET(
             znacka: true,
             model: true
           }
+        },
+        faktury: {
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, nazev: true, typ: true, createdAt: true }
         }
       }
     });
