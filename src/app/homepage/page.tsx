@@ -27,6 +27,7 @@ import { useRouter } from "next/navigation"
 import { format, isBefore, addMonths } from "date-fns"
 import cs from 'date-fns/locale/cs'
 import UnifiedLayout from "@/components/layout/UnifiedLayout"
+import { SendEmailButton } from "@/components/ui/send-email-button"
 
 export default function Homepage() {
   const { data: session, status } = useSession()
@@ -152,6 +153,11 @@ export default function Homepage() {
       </div>
 
       {/* Enhanced Stats Overview */}
+      <div className="flex justify-end mb-4">
+        <SendEmailButton reportType="statistics" variant="outline" size="sm">
+          Odeslat přehled e-mailem
+        </SendEmailButton>
+      </div>
       <div className="unified-grid-stats">
         {/* Fleet Status Overview */}
         <Card className="unified-card">
@@ -189,11 +195,12 @@ export default function Homepage() {
 
         {/* STK Overview */}
         <Card className="unified-card">
-          <CardHeader className="unified-card-header">
+          <CardHeader className="unified-card-header flex flex-row items-center justify-between space-y-0">
             <CardTitle className="unified-card-title">
               <Calendar className="mr-2 h-5 w-5 text-primary" />
               Technické kontroly
             </CardTitle>
+            <SendEmailButton reportType="stk" variant="ghost" size="sm" iconOnly />
           </CardHeader>
           <CardContent className="unified-card-content">
             {urgentStkCount > 0 ? (

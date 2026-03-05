@@ -205,17 +205,43 @@ enum UzivatelRole {
   DRIVER
 }
 
+// Notification type enum (Czech naming)
+enum NotifikaceTyp {
+  STK_VAROVANI
+  RESET_HESLA
+  SCHVALENI
+  NOVY_UZIVATEL
+  SYSTEM
+}
+
 // Uzivatel model with Czech column names for authentication
 model Uzivatel {
-  id        Int          @id @default(autoincrement())
-  email     String       @unique
-  heslo     String       // Hashed password (bcrypt)
-  jmeno     String?
-  role      UzivatelRole @default(RIDIC)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  heslo       String       // Hashed password (bcrypt)
+  jmeno       String?
+  role        UzivatelRole @default(RIDIC)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  notifikace  Notifikace[]
+
   @@index([email])
+}
+
+// In-app notifications for users
+model Notifikace {
+  id         Int           @id @default(autoincrement())
+  uzivatelId Int
+  uzivatel   Uzivatel      @relation(fields: [uzivatelId], references: [id], onDelete: Cascade)
+  typ        NotifikaceTyp
+  titul      String
+  obsah      String?       @db.Text
+  precteno   Boolean       @default(false)
+  vytvoreno  DateTime      @default(now())
+  odkaz      String?
+
+  @@index([uzivatelId])
+  @@index([precteno, uzivatelId])
 }
 
 // Enhanced Role system with dynamic capabilities

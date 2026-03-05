@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { UserModal } from './UserModal'
 import { useAccessControl } from "@/hooks/useAccessControl"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -92,7 +93,16 @@ function getStatusConfig(status: string) {
   }
 }
 
-export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void }) {
+export function UserTable({
+  onManageUser,
+  selectedIds = [],
+  onSelectionChange,
+}: {
+  onManageUser?: (user: any) => void
+  selectedIds?: number[]
+  onSelectionChange?: (ids: number[]) => void
+}) {
+  const selectedSet = new Set(selectedIds)
   const { hasPermission } = useAccessControl()
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -354,6 +364,20 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
         <table className="w-full text-sm table-fixed">
             <thead className="bg-gray-50">
               <tr>
+                {onSelectionChange && (
+                  <th className="px-2 py-3 w-10">
+                    <Checkbox
+                      checked={filtered.length > 0 && filtered.every((u) => selectedSet.has(Number(u.id)))}
+                      onCheckedChange={(checked) => {
+                        const next = new Set(selectedSet)
+                        if (checked) filtered.forEach((u) => next.add(Number(u.id)))
+                        else filtered.forEach((u) => next.delete(Number(u.id)))
+                        onSelectionChange(Array.from(next))
+                      }}
+                      aria-label="Vybrat vše"
+                    />
+                  </th>
+                )}
                 <th className="px-2 py-3 text-left w-14">Avatar</th>
                 <th className="px-2 py-3 text-left w-[15%] cursor-pointer hover:bg-gray-100" onClick={() => handleSort('name')}>
                   Jméno {sortKey === 'name' && (sortDir === 'asc' ? '▲' : '▼')}
@@ -374,15 +398,30 @@ export function UserTable({ onManageUser }: { onManageUser?: (user: any) => void
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-gray-500">
+                <td colSpan={onSelectionChange ? 8 : 7} className="px-3 py-8 text-center text-gray-500">
                   Žádní uživatelé nenalezeni
                 </td>
               </tr>
             ) : (
               filtered.map(user => {
                 const initials = getInitials(user.name, user.email)
+                const userId = Number(user.id)
                 return (
                   <tr key={user.id} className="border-t hover:bg-gray-50">
+                    {onSelectionChange && (
+                      <td className="px-2 py-3">
+                        <Checkbox
+                          checked={selectedSet.has(userId)}
+                          onCheckedChange={() => {
+                            const next = new Set(selectedSet)
+                            if (next.has(userId)) next.delete(userId)
+                            else next.add(userId)
+                            onSelectionChange(Array.from(next))
+                          }}
+                          aria-label={`Vybrat uživatele ${user.name || user.email}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-2 py-3">
                       <Avatar className="h-8 w-8">
                         {user.avatar && <AvatarImage src={user.avatar} alt={user.name || user.email} />}

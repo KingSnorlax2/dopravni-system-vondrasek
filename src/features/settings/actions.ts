@@ -39,11 +39,11 @@ const SETTINGS_CONFIG: Array<{
     getValue: (d) => String(d.stkWarningDays ?? 30),
   },
   {
-    key: 'smtpHost',
-    category: 'email',
-    label: 'SMTP host',
-    type: 'text',
-    getValue: (d) => d.smtpHost ?? '',
+    key: 'stkNotificationIntervalDays',
+    category: 'alerts',
+    label: 'Interval odesílání STK e-mailů (dny)',
+    type: 'number',
+    getValue: (d) => String(d.stkNotificationIntervalDays ?? 7),
   },
   {
     key: 'driver_login_locked',

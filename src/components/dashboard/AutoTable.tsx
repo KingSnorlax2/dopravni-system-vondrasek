@@ -2730,6 +2730,7 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
       <BulkActionToolbar
         selectedCount={selectedRows.size}
         totalCount={filteredAuta.length}
+        selectedVehicleIds={Array.from(selectedRows)}
         onClearSelectionAction={() => setSelectedRows(new Set())}
         onBulkDelete={handleBulkDelete}
         onBulkStateChange={handleBulkStateChange}

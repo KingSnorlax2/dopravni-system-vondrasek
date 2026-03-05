@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { sendSTKNotification } from '@/lib/emailService';
+import { prisma } from '@/lib/prisma';
+import { sendSTKWarningEmail } from '@/lib/email';
 
 export async function GET() {
   try {
@@ -31,7 +31,7 @@ export async function GET() {
     console.log(`Nalezeno ${expiringVehicles.length} vozidel s končící STK`);
 
     if (expiringVehicles.length > 0) {
-      await sendSTKNotification(
+      await sendSTKWarningEmail(
         process.env.NOTIFICATION_EMAIL!,
         expiringVehicles.map(vehicle => ({
           spz: vehicle.spz,

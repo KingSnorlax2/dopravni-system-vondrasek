@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendSTKNotification } from '@/lib/emailService';
+import { sendSTKWarningEmail } from '@/lib/email';
 
 export async function GET() {
   try {
@@ -21,7 +21,7 @@ export async function GET() {
       }
     ];
 
-    await sendSTKNotification(
+    await sendSTKWarningEmail(
       process.env.NOTIFICATION_EMAIL!,
       testVehicles
     );

@@ -14,7 +14,8 @@ import {
   Archive,
   AlertTriangle,
   Loader2,
-  Check
+  Check,
+  Mail
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -40,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { DatePickerWithPresets } from '@/components/ui/calendar'
 import {
   Popover,
@@ -54,6 +56,7 @@ import { toast } from '@/components/ui/use-toast'
 interface BulkActionToolbarProps {
   selectedCount: number
   totalCount: number
+  selectedVehicleIds?: string[]
   onClearSelectionAction: () => void
   onBulkDelete: () => Promise<void>
   onBulkStateChange: (newState: string) => Promise<void>
@@ -67,6 +70,7 @@ interface BulkActionToolbarProps {
 export function BulkActionToolbar({
   selectedCount,
   totalCount,
+  selectedVehicleIds = [],
   onClearSelectionAction,
   onBulkDelete,
   onBulkStateChange,
@@ -77,6 +81,10 @@ export function BulkActionToolbar({
   isLoading = false,
 }: BulkActionToolbarProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showMailDialog, setShowMailDialog] = useState(false)
+  const [mailTo, setMailTo] = useState('')
+  const [mailError, setMailError] = useState<string | null>(null)
+  const [isMailSending, setIsMailSending] = useState(false)
   const [showStateDialog, setShowStateDialog] = useState(false)
   const [showSTKDialog, setShowSTKDialog] = useState(false)
   const [showArchiveDialog, setShowArchiveDialog] = useState(false)
@@ -123,6 +131,63 @@ export function BulkActionToolbar({
   const handleArchive = async () => {
     await handleBulkAction(onBulkArchive)
     setShowArchiveDialog(false)
+  }
+
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim())
+
+  const parseEmails = (input: string): string[] => {
+    return input
+      .split(/[\s,;]+/)
+      .map((e) => e.trim())
+      .filter(Boolean)
+  }
+
+  const handleMailSend = async () => {
+    const emails = parseEmails(mailTo)
+    if (emails.length === 0) {
+      setMailError('Zadejte alespoň jednu e-mailovou adresu')
+      return
+    }
+    const invalid = emails.filter((e) => !isValidEmail(e))
+    if (invalid.length > 0) {
+      setMailError(`Neplatné adresy: ${invalid.join(', ')}`)
+      return
+    }
+    if (selectedVehicleIds.length === 0) {
+      setMailError('Žádná vozidla k odeslání')
+      return
+    }
+
+    setMailError(null)
+    setIsMailSending(true)
+    try {
+      const res = await fetch('/api/send-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emails.join(', '),
+          type: 'selected-stk',
+          vehicleIds: selectedVehicleIds,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Nepodařilo se odeslat')
+      toast({
+        title: 'E-mail odeslán',
+        description: data.message || `Report STK odeslán na ${emails.length} adres`,
+      })
+      setShowMailDialog(false)
+      setMailTo('')
+    } catch (err) {
+      setMailError(err instanceof Error ? err.message : 'Nepodařilo se odeslat e-mail')
+      toast({
+        title: 'Chyba',
+        description: err instanceof Error ? err.message : 'Nepodařilo se odeslat e-mail',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsMailSending(false)
+    }
   }
 
   if (selectedCount === 0) return null
@@ -196,6 +261,18 @@ export function BulkActionToolbar({
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   STK
+                </Button>
+
+                {/* Mail Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMailDialog(true)}
+                  disabled={isLoading || isActionLoading || selectedVehicleIds.length === 0}
+                  className="h-9 px-4"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  E-mail
                 </Button>
 
                 {/* More Actions Dropdown */}
@@ -418,6 +495,85 @@ export function BulkActionToolbar({
                 <>
                   <Check className="h-4 w-4 mr-2" />
                   Ulozit
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mail Dialog */}
+      <Dialog
+        open={showMailDialog}
+        onOpenChange={(open) => {
+          setShowMailDialog(open)
+          if (!open) {
+            setMailTo('')
+            setMailError(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-full">
+                <Mail className="h-5 w-5 text-blue-600" />
+              </div>
+              Odeslat STK report e-mailem
+            </DialogTitle>
+            <DialogDescription>
+              Odešlete přehled STK pro <strong>{selectedCount} vybraných vozidel</strong> na zadanou e-mailovou adresu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-mail-to">E-mailové adresy</Label>
+              <textarea
+                id="bulk-mail-to"
+                placeholder={'kolega@firma.cz, manager@firma.cz\nnebo každá adresa na nový řádek'}
+                value={mailTo}
+                onChange={(e) => {
+                  setMailTo(e.target.value)
+                  setMailError(null)
+                }}
+                disabled={isMailSending}
+                rows={4}
+                className={cn(
+                  'flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+                  mailError && 'border-red-500'
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Oddělte adresy čárkou, středníkem nebo novým řádkem
+              </p>
+              {mailError && (
+                <p className="text-sm text-red-600">{mailError}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowMailDialog(false)}
+              disabled={isMailSending}
+              className="flex-1"
+            >
+              Zrušit
+            </Button>
+            <Button
+              onClick={handleMailSend}
+              disabled={isMailSending}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+            >
+              {isMailSending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Odesílám...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Odeslat
                 </>
               )}
             </Button>

@@ -5,6 +5,7 @@ import { useDefaultPageSize } from '@/providers/SettingsProvider';
 import type { Transakce } from '@/types/transakce';
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { SendEmailButton } from '@/components/ui/send-email-button';
 import { toast } from 'sonner';
 import TransactionTable from '@/components/dashboard/TransactionTable';
 import { TransactionForm } from '@/components/forms/TransactionForm';
@@ -39,7 +40,7 @@ const TransakcePage: React.FC = () => {
   }, [defaultPageSize]);
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
-  const [selectedTransakce, setSelectedTransakce] = useState<number[]>([]);
+  const [selectedTransakce, setSelectedTransakce] = useState<number[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [itemsToDelete, setItemsToDelete] = useState<number[]>([]);
   const [sortField, setSortField] = useState<'autoId' | 'castka' | 'datum' | 'typ' | 'nazev' | null>(null);
@@ -743,10 +744,13 @@ const TransakcePage: React.FC = () => {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Správa transakcí</h1>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Přidat transakci
-        </Button>
+        <div className="flex gap-2">
+          <SendEmailButton reportType="transactions" variant="outline" size="sm" selectedIds={selectedTransakce} />
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Přidat transakci
+          </Button>
+        </div>
       </div>
       
       {error && (
@@ -760,6 +764,8 @@ const TransakcePage: React.FC = () => {
           transactions={filteredTransakce} 
           onRefreshAction={refreshDataAction}
           isLoading={loading}
+          selectedIds={selectedTransakce}
+          onSelectionChange={setSelectedTransakce}
         />
       </div>
 

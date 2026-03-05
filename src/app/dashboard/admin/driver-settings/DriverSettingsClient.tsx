@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Search, Download, RefreshCw } from 'lucide-react'
+import { SendEmailButton } from '@/components/ui/send-email-button'
 import DriverLogTable from './DriverLogTable'
 import type { DriverLogRow } from './types'
 
@@ -72,6 +73,7 @@ export default function DriverSettingsClient({
 
   const [isExporting, setIsExporting] = useState(false)
   const [isRefreshing, startRefreshTransition] = useTransition()
+  const [selectedShiftIds, setSelectedShiftIds] = useState<number[]>([])
 
   const handleExportCsv = async () => {
     const params = new URLSearchParams()
@@ -161,6 +163,12 @@ export default function DriverSettingsClient({
                 </SelectContent>
               </Select>
             </div>
+            <SendEmailButton
+              reportType="driver-attendance"
+              variant="outline"
+              size="sm"
+              selectedIds={selectedShiftIds}
+            />
             <Button
               variant="outline"
               size="sm"
@@ -189,6 +197,8 @@ export default function DriverSettingsClient({
             pageSize={pageSize}
             sortBy={sortBy}
             sortOrder={sortOrder}
+            selectedIds={selectedShiftIds}
+            onSelectionChange={setSelectedShiftIds}
           />
         </CardContent>
       </Card>

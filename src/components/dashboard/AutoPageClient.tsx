@@ -21,6 +21,7 @@ import { cs } from "date-fns/locale"
 import React from "react"
 import { useRouter } from "next/navigation"
 import { Calendar } from "lucide-react"
+import { SendEmailButton } from "@/components/ui/send-email-button"
 
 // Validation schema for STK date updates
 const stkUpdateSchema = z.object({
@@ -278,8 +279,9 @@ export function AutoPageClient({ initialVehicles, stkWarningDays = 30 }: AutoPag
           </Button>
         </div>
 
-        {/* STK Alert Button */}
-        <div className="flex items-center justify-end">
+        {/* STK Alert Button + Send Email */}
+        <div className="flex items-center gap-2 justify-end flex-wrap">
+          <SendEmailButton reportType="stk" variant="outline" size="sm" />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

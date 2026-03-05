@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Pencil, Trash2, Eye, FileText, Download, Upload } from 'lucide-react'
 import { 
   Dialog, 
@@ -42,13 +43,37 @@ interface TransactionTableProps {
   transactions: any[]
   onRefreshAction: () => Promise<void>
   isLoading?: boolean
+  selectedIds?: number[]
+  onSelectionChange?: (ids: number[]) => void
 }
 
 export default function TransactionTable({ 
   transactions, 
   onRefreshAction,
-  isLoading 
+  isLoading,
+  selectedIds = [],
+  onSelectionChange,
 }: TransactionTableProps) {
+  const selectedSet = new Set(selectedIds)
+  const toggleSelect = (id: number) => {
+    if (!onSelectionChange) return
+    const next = new Set(selectedSet)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    onSelectionChange(Array.from(next))
+  }
+  const toggleSelectAll = () => {
+    if (!onSelectionChange) return
+    if (paginatedTransactions.every((t) => selectedSet.has(t.id))) {
+      const next = new Set(selectedSet)
+      paginatedTransactions.forEach((t) => next.delete(t.id))
+      onSelectionChange(Array.from(next))
+    } else {
+      const next = new Set(selectedSet)
+      paginatedTransactions.forEach((t) => next.add(t.id))
+      onSelectionChange(Array.from(next))
+    }
+  }
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
@@ -401,6 +426,15 @@ export default function TransactionTable({
             <Table>
             <TableHeader>
               <TableRow>
+                {onSelectionChange && (
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={paginatedTransactions.length > 0 && paginatedTransactions.every((t) => selectedSet.has(t.id))}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Vybrat vše"
+                    />
+                  </TableHead>
+                )}
                 <TableHead 
                   className="cursor-pointer"
                   onClick={() => {
@@ -448,7 +482,7 @@ export default function TransactionTable({
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={onSelectionChange ? 7 : 6} className="text-center py-8">
                     <div className="flex justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
                     </div>
@@ -457,13 +491,22 @@ export default function TransactionTable({
                 </TableRow>
               ) : paginatedTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={onSelectionChange ? 7 : 6} className="text-center py-8">
                     <p className="text-gray-500">Žádné transakce nebyly nalezeny</p>
                   </TableCell>
                 </TableRow>
               ) : (
                 paginatedTransactions.map((transaction) => (
                   <TableRow key={transaction.id}>
+                    {onSelectionChange && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedSet.has(transaction.id)}
+                          onCheckedChange={() => toggleSelect(transaction.id)}
+                          aria-label={`Vybrat transakci ${transaction.id}`}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       {new Date(transaction.datum).toLocaleDateString('cs-CZ')}
                     </TableCell>

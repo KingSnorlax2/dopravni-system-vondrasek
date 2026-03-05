@@ -33,6 +33,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Search, Filter, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { useDefaultPageSize } from '@/providers/SettingsProvider'
 
@@ -56,12 +57,17 @@ type Repair = {
 interface RepairsTableProps {
   repairs: Repair[]
   showVehicleColumn?: boolean
+  selectedIds?: number[]
+  onSelectionChange?: (ids: number[]) => void
 }
 
 export function RepairsTable({
   repairs,
   showVehicleColumn = false,
+  selectedIds = [],
+  onSelectionChange,
 }: RepairsTableProps) {
+  const selectedSet = new Set(selectedIds)
   const defaultPageSize = useDefaultPageSize()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterKategorie, setFilterKategorie] = useState<string>('vse')
@@ -116,17 +122,46 @@ export function RepairsTable({
   }, [repairs, searchTerm, filterKategorie, dateFrom, dateTo, showVehicleColumn])
 
   const columns = useMemo<ColumnDef<Repair>[]>(() => {
-    const baseColumns: ColumnDef<Repair>[] = [
-      {
-        accessorKey: 'datum',
-        header: 'Datum',
-        cell: ({ row }) => {
-          const date = row.getValue('datum') as Date | string
-          const dateObj = typeof date === 'string' ? new Date(date) : date
-          return format(dateObj, 'PPP', { locale: cs })
-        },
+    const baseColumns: ColumnDef<Repair>[] = []
+    if (onSelectionChange) {
+      baseColumns.push({
+        id: 'select',
+        header: ({ table }) => (
+          <Checkbox
+            checked={table.getRowModel().rows.length > 0 && table.getRowModel().rows.every((r) => selectedSet.has(r.original.id))}
+            onCheckedChange={(checked) => {
+              const rows = table.getRowModel().rows
+              const next = new Set(selectedSet)
+              if (checked) rows.forEach((r) => next.add(r.original.id))
+              else rows.forEach((r) => next.delete(r.original.id))
+              onSelectionChange(Array.from(next))
+            }}
+            aria-label="Vybrat vše"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={selectedSet.has(row.original.id)}
+            onCheckedChange={() => {
+              const next = new Set(selectedSet)
+              if (next.has(row.original.id)) next.delete(row.original.id)
+              else next.add(row.original.id)
+              onSelectionChange(Array.from(next))
+            }}
+            aria-label={`Vybrat opravu ${row.original.id}`}
+          />
+        ),
+      })
+    }
+    baseColumns.push({
+      accessorKey: 'datum',
+      header: 'Datum',
+      cell: ({ row }) => {
+        const date = row.getValue('datum') as Date | string
+        const dateObj = typeof date === 'string' ? new Date(date) : date
+        return format(dateObj, 'PPP', { locale: cs })
       },
-    ]
+    })
 
     // Add vehicle column only if showVehicleColumn is true
     if (showVehicleColumn) {
@@ -182,7 +217,7 @@ export function RepairsTable({
     }
 
     return baseColumns
-  }, [showVehicleColumn, repairs])
+  }, [showVehicleColumn, repairs, selectedIds, onSelectionChange])
 
   const [sorting, setSorting] = useState<SortingState>([])
 

@@ -18,6 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -174,6 +175,8 @@ type DriverLogTableProps = {
   pageSize: number
   sortBy: string
   sortOrder: string
+  selectedIds?: number[]
+  onSelectionChange?: (ids: number[]) => void
 }
 
 function buildPageUrl(
@@ -202,7 +205,10 @@ export default function DriverLogTable({
   pageSize,
   sortBy,
   sortOrder,
+  selectedIds = [],
+  onSelectionChange,
 }: DriverLogTableProps) {
+  const selectedSet = new Set(selectedIds)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -216,7 +222,37 @@ export default function DriverLogTable({
     router.push(`${pathname}?${params.toString()}`)
   }
 
-  const columns: ColumnDef<DriverLogRow>[] = [
+  const columns: ColumnDef<DriverLogRow>[] = []
+  if (onSelectionChange) {
+    columns.push({
+      id: 'select',
+      header: () => (
+        <Checkbox
+          checked={rows.length > 0 && rows.every((r) => selectedSet.has(r.id))}
+          onCheckedChange={(checked) => {
+            const next = new Set(selectedSet)
+            if (checked) rows.forEach((r) => next.add(r.id))
+            else rows.forEach((r) => next.delete(r.id))
+            onSelectionChange(Array.from(next))
+          }}
+          aria-label="Vybrat vše"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={selectedSet.has(row.original.id)}
+          onCheckedChange={() => {
+            const next = new Set(selectedSet)
+            if (next.has(row.original.id)) next.delete(row.original.id)
+            else next.add(row.original.id)
+            onSelectionChange(Array.from(next))
+          }}
+          aria-label={`Vybrat záznam ${row.original.driverName}`}
+        />
+      ),
+    })
+  }
+  columns.push(
     {
       accessorKey: 'driverName',
       header: () => (
@@ -292,7 +328,7 @@ export default function DriverLogTable({
       header: 'Akce',
       cell: ({ row }) => <DriverRowActions row={row.original} />,
     },
-  ]
+  )
 
   const table = useReactTable({
     data: rows,

@@ -69,3 +69,56 @@ export async function getSTKWarningDays(): Promise<number> {
     { tags: [SETTINGS_CACHE_TAG], revalidate: 60 }
   )()
 }
+
+async function fetchSTKNotificationIntervalDays(): Promise<number> {
+  const setting = await prisma.settings.findUnique({
+    where: { key: 'stkNotificationIntervalDays' },
+    select: { value: true },
+  })
+  const val = parseInt(setting?.value ?? '7', 10)
+  return Number.isNaN(val) || val < 1 ? 7 : Math.min(30, Math.max(1, val))
+}
+
+/**
+ * Returns how many days between automatic STK notification emails (1–30).
+ * Default 7 (weekly).
+ */
+export async function getSTKNotificationIntervalDays(): Promise<number> {
+  return unstable_cache(
+    fetchSTKNotificationIntervalDays,
+    ['stk-notification-interval'],
+    { tags: [SETTINGS_CACHE_TAG], revalidate: 60 }
+  )()
+}
+
+const STK_LAST_SENT_KEY = 'stkNotificationLastSentAt'
+
+/**
+ * Returns when the last automatic STK email was sent, or null if never.
+ */
+export async function getSTKNotificationLastSentAt(): Promise<Date | null> {
+  const setting = await prisma.settings.findUnique({
+    where: { key: STK_LAST_SENT_KEY },
+    select: { value: true },
+  })
+  if (!setting?.value) return null
+  const date = new Date(setting.value)
+  return isNaN(date.getTime()) ? null : date
+}
+
+/**
+ * Updates the timestamp of the last automatic STK email.
+ */
+export async function setSTKNotificationLastSentAt(date: Date): Promise<void> {
+  await prisma.settings.upsert({
+    where: { key: STK_LAST_SENT_KEY },
+    update: { value: date.toISOString(), updatedAt: date },
+    create: {
+      key: STK_LAST_SENT_KEY,
+      value: date.toISOString(),
+      category: 'alerts',
+      label: 'Poslední odeslání STK upozornění',
+      type: 'text',
+    },
+  })
+}

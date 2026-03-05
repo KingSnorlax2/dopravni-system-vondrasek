@@ -6,10 +6,12 @@ import { RoleTable } from './RoleTable'
 import { AuditLogTab } from './AuditLogTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Users, Shield, FileText } from 'lucide-react'
+import { SendEmailButton } from '@/components/ui/send-email-button'
 
 export function UsersAdminClient() {
   const [activeSection, setActiveSection] = useState<'users' | 'roles' | 'audit'>('users')
   const [userTableKey, setUserTableKey] = useState(0)
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
 
   const handleManageUser = (user: any) => {
     // This can be used for future role assignment from user table
@@ -43,11 +45,19 @@ export function UsersAdminClient() {
 
       <TabsContent value="users" className="grid grid-cols-1 gap-6">
         <section className="unified-card p-4">
-          <header className="mb-3">
-            <h2 className="text-lg font-semibold">Uživatelé</h2>
-            <p className="text-sm text-gray-500">Přehled, filtrování a správa</p>
+          <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold">Uživatelé</h2>
+              <p className="text-sm text-gray-500">Přehled, filtrování a správa</p>
+            </div>
+            <SendEmailButton reportType="users" variant="outline" size="sm" selectedIds={selectedUserIds} />
           </header>
-          <UserTable key={userTableKey} onManageUser={handleManageUser} />
+          <UserTable
+            key={userTableKey}
+            onManageUser={handleManageUser}
+            selectedIds={selectedUserIds}
+            onSelectionChange={setSelectedUserIds}
+          />
         </section>
       </TabsContent>
 

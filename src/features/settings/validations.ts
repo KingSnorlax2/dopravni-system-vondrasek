@@ -12,7 +12,11 @@ export const systemSettingsSchema = z.object({
     .min(1, 'Minimálně 1 den')
     .max(90, 'Maximálně 90 dní')
     .default(30),
-  smtpHost: z.string().max(255).default(''),
+  stkNotificationIntervalDays: z.coerce
+    .number()
+    .min(1, 'Minimálně 1 den')
+    .max(30, 'Maximálně 30 dní')
+    .default(7),
   allowDriverLogin: z.boolean().default(true),
 })
 

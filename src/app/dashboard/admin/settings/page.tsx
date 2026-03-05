@@ -9,7 +9,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   maintenanceMode: false,
   defaultPageSize: 10,
   stkWarningDays: 30,
-  smtpHost: '',
+  stkNotificationIntervalDays: 7,
   allowDriverLogin: true,
 }
 
@@ -38,7 +38,7 @@ export default async function SettingsPage() {
     maintenanceMode: (parseSettingValue(settingsMap.get('maintenanceMode')?.value ?? 'false', 'boolean') as boolean) ?? DEFAULT_SETTINGS.maintenanceMode,
     defaultPageSize: (parseSettingValue(settingsMap.get('defaultPageSize')?.value ?? '10', 'number') as number) || DEFAULT_SETTINGS.defaultPageSize,
     stkWarningDays: (parseSettingValue(settingsMap.get('stkWarningDays')?.value ?? '30', 'number') as number) || DEFAULT_SETTINGS.stkWarningDays,
-    smtpHost: (parseSettingValue(settingsMap.get('smtpHost')?.value ?? '', 'text') as string) || DEFAULT_SETTINGS.smtpHost,
+    stkNotificationIntervalDays: (parseSettingValue(settingsMap.get('stkNotificationIntervalDays')?.value ?? '7', 'number') as number) || DEFAULT_SETTINGS.stkNotificationIntervalDays,
     allowDriverLogin: (settingsMap.get('driver_login_locked')?.value ?? 'false') !== 'true',
   }
 

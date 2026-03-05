@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
-import { Building2, Mail, Shield, Loader2, Save } from 'lucide-react'
+import { Building2, Shield, Loader2, Save } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -41,7 +41,7 @@ export default function ServerSettingsClient({
       maintenanceMode: initialData.maintenanceMode ?? false,
       defaultPageSize: initialData.defaultPageSize ?? 10,
       stkWarningDays: initialData.stkWarningDays ?? 30,
-      smtpHost: initialData.smtpHost ?? '',
+      stkNotificationIntervalDays: initialData.stkNotificationIntervalDays ?? 7,
       allowDriverLogin: initialData.allowDriverLogin ?? true,
     },
   })
@@ -70,14 +70,10 @@ export default function ServerSettingsClient({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="general">
                   <Building2 className="mr-2 h-4 w-4" />
                   Obecné
-                </TabsTrigger>
-                <TabsTrigger value="email">
-                  <Mail className="mr-2 h-4 w-4" />
-                  E-mail
                 </TabsTrigger>
                 <TabsTrigger value="security">
                   <Shield className="mr-2 h-4 w-4" />
@@ -172,24 +168,32 @@ export default function ServerSettingsClient({
                     </FormItem>
                   )}
                 />
-              </TabsContent>
-
-              <TabsContent value="email" className="space-y-6 mt-6">
                 <FormField
                   control={form.control}
-                  name="smtpHost"
+                  name="stkNotificationIntervalDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>SMTP host</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="smtp.example.com"
-                          {...field}
-                        />
-                      </FormControl>
+                      <FormLabel>Interval odesílání STK e-mailů</FormLabel>
+                      <Select
+                        onValueChange={(v) => field.onChange(Number(v))}
+                        value={String(field.value ?? 7)}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Vyberte interval" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="1">Denně</SelectItem>
+                          <SelectItem value="7">Týdně</SelectItem>
+                          <SelectItem value="14">Jednou za 2 týdny</SelectItem>
+                          <SelectItem value="30">Jednou měsíčně</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        Adresa SMTP serveru pro odesílání e-mailů
+                        Jak často se má posílat automatický e-mail o blížícím se STK (pouze pokud existují vozidla vyžadující upozornění)
                       </FormDescription>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />

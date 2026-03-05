@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/notifications/check-stk",
-      "schedule": "32 14 * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 } 
