@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendSTKWarningEmail } from '@/lib/email';
+import { devLog } from '@/lib/logger';
 
 export async function GET() {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
-    console.log('Začínám simulaci CRON jobu pro kontrolu STK');
+    devLog('Začínám simulaci CRON jobu pro kontrolu STK');
     
     // Najít auta, kterým končí STK v následujících 30 dnech
     const thirtyDaysFromNow = new Date();
@@ -28,7 +33,7 @@ export async function GET() {
       }
     });
 
-    console.log(`Nalezeno ${expiringVehicles.length} vozidel s končící STK`);
+    devLog(`Nalezeno ${expiringVehicles.length} vozidel s končící STK`);
 
     if (expiringVehicles.length > 0) {
       await sendSTKWarningEmail(

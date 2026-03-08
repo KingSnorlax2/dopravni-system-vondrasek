@@ -176,5 +176,3 @@ export async function getVehicles() {
     }
   }
 }
-
-

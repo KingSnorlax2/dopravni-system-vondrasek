@@ -101,5 +101,3 @@ export async function POST(request: NextRequest) {
     return createErrorResponse(error)
   }
 }
-
-

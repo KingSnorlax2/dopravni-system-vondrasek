@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db, prisma } from '@/lib/prisma';
 import { createVehicleSchema } from '@/lib/schemas/vehicle';
+import { devLog } from '@/lib/logger';
 
 export async function GET(request: Request) {
   try {
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    console.log('Přijatá data:', data);
+    devLog('Přijatá data:', data);
 
     const validationResult = createVehicleSchema.safeParse(data);
     if (!validationResult.success) {

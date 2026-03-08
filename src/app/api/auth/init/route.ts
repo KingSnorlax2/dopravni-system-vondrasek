@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcryptjs from "bcryptjs"
+import { devLog } from "@/lib/logger"
 
 export async function GET() {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     // Check if admin user exists
     const adminExists = await prisma.user.findUnique({
@@ -16,7 +21,7 @@ export async function GET() {
     // Create admin user
     const hashedPassword = await bcryptjs.hash("Admin123", 10)
     
-    console.log("Creating admin user...")
+    devLog('Creating admin user...');
 
     await prisma.user.create({
       data: {
@@ -26,7 +31,7 @@ export async function GET() {
       }
     })
 
-    console.log("Admin user created successfully")
+    devLog("Admin user created successfully")
 
     return NextResponse.json({ 
       message: "Admin user created successfully"

@@ -22,6 +22,7 @@ import React from "react"
 import { useRouter } from "next/navigation"
 import { Calendar } from "lucide-react"
 import { SendEmailButton } from "@/components/ui/send-email-button"
+import { useMaintenanceMode } from '@/hooks/useMaintenanceMode'
 
 // Validation schema for STK date updates
 const stkUpdateSchema = z.object({
@@ -74,6 +75,7 @@ function isSTKExpiring(datumSTK: string | null, warningDays: number) {
 
 export function AutoPageClient({ initialVehicles, stkWarningDays = 30 }: AutoPageClientProps) {
   const router = useRouter()
+  const maintenanceMode = useMaintenanceMode()
   const [showForm, setShowForm] = useState(false)
   const [auta, setAuta] = useState<Vehicle[]>(initialVehicles)
   
@@ -269,14 +271,16 @@ export function AutoPageClient({ initialVehicles, stkWarningDays = 30 }: AutoPag
             <Plus className="mr-2 h-4 w-4" />
             Přidat auto
           </Button>
-          <Button 
-            onClick={addRandomVehicles} 
-            variant="outline" 
-            size="sm" 
-            className="w-full sm:w-auto unified-button-outline"
-          >
-            Přidat náhodná vozidla
-          </Button>
+          {maintenanceMode && (
+            <Button 
+              onClick={addRandomVehicles} 
+              variant="outline" 
+              size="sm" 
+              className="w-full sm:w-auto unified-button-outline"
+            >
+              Přidat náhodná vozidla
+            </Button>
+          )}
         </div>
 
         {/* STK Alert Button + Send Email */}

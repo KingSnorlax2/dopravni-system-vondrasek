@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { devLog } from '@/lib/logger'
 
 export const runtime = 'nodejs';
 
 export async function DELETE(request: NextRequest) {
   try {
     const { ids } = await request.json();
-    console.log('Received delete request for IDs:', ids);
+    devLog('Received delete request for IDs:', ids);
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       console.error('No cars selected for deletion');
@@ -17,7 +18,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const numericIds = ids.map((id: any) => Number(id)).filter((id: number) => !isNaN(id));
-    console.log('Converted to numeric IDs:', numericIds);
+    devLog('Converted to numeric IDs:', numericIds);
 
     if (numericIds.length === 0) {
       console.error('No valid car IDs provided');
@@ -36,7 +37,7 @@ export async function DELETE(request: NextRequest) {
       },
       select: { id: true }
     });
-    console.log('Existing cars:', existingCars.map(car => car.id));
+    devLog('Existing cars:', existingCars.map(car => car.id));
 
     const deletedAuta = await prisma.auto.deleteMany({
       where: {
@@ -46,7 +47,7 @@ export async function DELETE(request: NextRequest) {
       }
     });
 
-    console.log(`Successfully deleted ${deletedAuta.count} cars`);
+    devLog(`Successfully deleted ${deletedAuta.count} cars`);
 
     return NextResponse.json({
       success: true,

@@ -44,6 +44,7 @@ import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { DatePickerWithPresets } from '@/components/ui/calendar';
+import { devLog } from '@/lib/logger';
 
 interface Auto {
   id: string;
@@ -498,12 +499,12 @@ const InlineSTKEditor = ({
 
   const handleDateSelect = async (date: Date | undefined) => {
     if (isSubmitting) {
-      console.log('Already submitting, ignoring date select');
+      devLog('Already submitting, ignoring date select');
       return; // Prevent multiple simultaneous saves
     }
     
     const newDate = date || null;
-    console.log('handleDateSelect called with date:', newDate, 'for auto:', auto.id);
+    devLog('handleDateSelect called with date:', newDate, 'for auto:', auto.id);
     setIsSubmitting(true);
     
     try {
@@ -514,11 +515,11 @@ const InlineSTKEditor = ({
       
       // Convert to ISO string for API
       const dateValue = newDate ? newDate.toISOString() : null;
-      console.log('Saving date value:', dateValue, 'for auto:', auto.id);
+      devLog('Saving date value:', dateValue, 'for auto:', auto.id);
       
       // Save to server
       await onSave(dateValue);
-      console.log('Date saved successfully for auto:', auto.id);
+      devLog('Date saved successfully for auto:', auto.id);
       
       // Success - close popover and reset flags
       setHasChanged(false);
@@ -823,14 +824,14 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
 
   const handleDelete = async (auto: Auto) => {
     try {
-      console.log('Deleting auto:', auto.id, typeof auto.id);
+      devLog('Deleting auto:', auto.id, typeof auto.id);
       
       const response = await fetch(`/api/auta/${auto.id}`, {
         method: 'DELETE'
       });
       
       const data = await response.json();
-      console.log('Delete response:', data);
+      devLog('Delete response:', data);
       
       if (!response.ok) {
         throw new Error(data.error || 'Chyba při vyřazení vozidla');
@@ -904,7 +905,7 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
   const handleBulkDelete = async () => {
     try {
       const deleteIds = Array.from(selectedRows);
-      console.log('Attempting to delete cars:', deleteIds);
+      devLog('Attempting to delete cars:', deleteIds);
 
       const response = await fetch('/api/auta/bulk-update', {
         method: 'DELETE',
@@ -917,7 +918,7 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
       });
 
       const data = await response.json();
-      console.log('Delete response:', data);
+      devLog('Delete response:', data);
       
       if (!response.ok) {
         console.error('Delete error response:', data);
@@ -1239,8 +1240,8 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
     if (!selectedVehicle) return;
     
     try {
-      console.log('Original form data:', data);
-      console.log('Current editing auto:', selectedVehicle);
+      devLog('Original form data:', data);
+      devLog('Current editing auto:', selectedVehicle);
       
       // Format the data for the API with proper type handling
       const formattedData = {
@@ -1253,8 +1254,8 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
         datumSTK: data.datumSTK ? new Date(data.datumSTK).toISOString() : null,
       };
       
-      console.log('Submitting updated vehicle data:', formattedData);
-      console.log('API endpoint:', `/api/auta/${selectedVehicle.id}`);
+      devLog('Submitting updated vehicle data:', formattedData);
+      devLog('API endpoint:', `/api/auta/${selectedVehicle.id}`);
       
       const response = await fetch(`/api/auta/${selectedVehicle.id}`, {
         method: 'PATCH',
@@ -1266,7 +1267,7 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
       });
 
       const responseData = await response.json();
-      console.log('API response:', responseData);
+      devLog('API response:', responseData);
 
       if (!response.ok) {
         // Handle specific error cases
@@ -1478,7 +1479,7 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
 
   // Inline editing handlers
   const handleInlineSave = async (autoId: string, field: 'najezd' | 'datumSTK', value: number | string | null) => {
-    console.log('handleInlineSave called:', { autoId, field, value });
+    devLog('handleInlineSave called:', { autoId, field, value });
     setIsSaving(true);
     try {
       // Find the current auto to preserve all existing data
@@ -1501,7 +1502,7 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
         [field]: value
       };
 
-      console.log('Sending PATCH request to /api/auta/' + autoId, updatePayload);
+      devLog('Sending PATCH request to /api/auta/' + autoId, updatePayload);
 
       const response = await fetch(`/api/auta/${autoId}`, {
         method: 'PATCH',
@@ -1518,16 +1519,16 @@ const AutoTable = ({ auta, onRefresh, stkWarningDays = 30 }: AutoTableProps) => 
       }
 
       const updatedData = await response.json();
-      console.log('Vehicle updated successfully:', updatedData);
+      devLog('Vehicle updated successfully:', updatedData);
 
       // Refresh data from server first to ensure consistency
       if (typeof onRefresh === 'function') {
         try {
-          console.log('Calling onRefresh...');
+          devLog('Calling onRefresh...');
           const refreshResult = onRefresh();
           if (refreshResult instanceof Promise) {
             await refreshResult;
-            console.log('onRefresh completed');
+            devLog('onRefresh completed');
           }
         } catch (error) {
           console.error('Error refreshing data:', error);

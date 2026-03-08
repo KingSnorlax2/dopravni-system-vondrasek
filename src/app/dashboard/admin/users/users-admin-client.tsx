@@ -7,6 +7,7 @@ import { AuditLogTab } from './AuditLogTab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Users, Shield, FileText } from 'lucide-react'
 import { SendEmailButton } from '@/components/ui/send-email-button'
+import { devLog } from '@/lib/logger'
 
 export function UsersAdminClient() {
   const [activeSection, setActiveSection] = useState<'users' | 'roles' | 'audit'>('users')
@@ -15,7 +16,7 @@ export function UsersAdminClient() {
 
   const handleManageUser = (user: any) => {
     // This can be used for future role assignment from user table
-    console.log('Manage user:', user)
+    devLog('Manage user:', user)
   }
 
   const handleRoleChange = () => {

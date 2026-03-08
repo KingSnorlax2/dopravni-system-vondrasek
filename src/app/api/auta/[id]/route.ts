@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { NextRequest } from 'next/server';
 import { partialUpdateVehicleSchema } from '@/lib/schemas/vehicle';
+import { devLog } from '@/lib/logger';
 
 export async function GET(
   request: Request,
@@ -66,7 +67,7 @@ export async function PATCH(
     }
     
     const data = await request.json();
-    console.log('Received update data for vehicle ID:', id, data);
+    devLog('Received update data for vehicle ID:', id, data);
     
     // Validate input data with partial update schema (includes ID)
     const validationResult = partialUpdateVehicleSchema.safeParse({
@@ -103,7 +104,7 @@ export async function PATCH(
       });
       
       if (existingCar) {
-        console.log('Duplicate SPZ found:', validatedData.spz, 'for existing car ID:', existingCar.id);
+        devLog('Duplicate SPZ found:', validatedData.spz, 'for existing car ID:', existingCar.id);
         return NextResponse.json(
           { 
             error: 'SPZ již existuje',
@@ -131,14 +132,14 @@ export async function PATCH(
           : null;
     }
     
-    console.log('Updating vehicle with data:', updateData);
+    devLog('Updating vehicle with data:', updateData);
     
     const updatedAuto = await prisma.auto.update({
       where: { id },
       data: updateData
     })
     
-    console.log('Vehicle updated successfully:', updatedAuto);
+    devLog('Vehicle updated successfully:', updatedAuto);
     
     return NextResponse.json(updatedAuto)
   } catch (error) {
@@ -156,7 +157,7 @@ export async function DELETE(
 ) {
   try {
     const autoId = parseInt(params.id);
-    console.log('Archiving vehicle:', autoId);
+    devLog('Archiving vehicle:', autoId);
 
     // First, archive the vehicle
     const archiveResponse = await fetch(`${request.url.split('/api/auta/')[0]}/api/auta/archiv`, {
@@ -183,7 +184,7 @@ export async function DELETE(
       }
     });
 
-    console.log('Vehicle archived successfully:', updatedAuto);
+    devLog('Vehicle archived successfully:', updatedAuto);
 
     return NextResponse.json({
       success: true,

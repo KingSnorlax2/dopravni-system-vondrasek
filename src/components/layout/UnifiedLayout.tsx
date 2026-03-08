@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Car, LogOut, Menu, ChevronDown, Shield, Users, Settings, Truck, Wrench } from "lucide-react"
+import { Car, LogOut, Menu, ChevronDown, Shield, Users, Settings, Truck, Wrench, Bug } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from 'next/navigation'
 import { useAccessControl } from "@/hooks/useAccessControl"
@@ -96,24 +96,33 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
     )
   }, [allowedPages, allNavigationItems])
 
-  const adminItems = [
-    {
-      name: 'Uživatelé',
-      href: '/dashboard/admin/users',
-      icon: Users
-    },
-    {
-      name: 'Nastavení',
-      href: '/dashboard/admin/settings',
-      icon: Settings
-    },
-    {
-      name: 'Správa přístupů a docházka',
-      href: '/dashboard/admin/driver-settings',
-      icon: Truck
-    },
-    
-  ]
+  const adminItems = React.useMemo(() => {
+    const items = [
+      {
+        name: 'Uživatelé',
+        href: '/dashboard/admin/users',
+        icon: Users
+      },
+      {
+        name: 'Nastavení',
+        href: '/dashboard/admin/settings',
+        icon: Settings
+      },
+      {
+        name: 'Správa přístupů a docházka',
+        href: '/dashboard/admin/driver-settings',
+        icon: Truck
+      },
+    ]
+    if (process.env.NODE_ENV === 'development') {
+      items.push({
+        name: 'Debug',
+        href: '/dashboard/admin/debug',
+        icon: Bug
+      })
+    }
+    return items
+  }, [])
 
   const mobileNavigationItems = hasRole('ADMIN')
     ? [

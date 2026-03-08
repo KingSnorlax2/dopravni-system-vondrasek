@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { sendSTKWarningEmail } from '@/lib/email';
+import { devLog } from '@/lib/logger';
 
 export async function GET() {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
-    console.log('Začínám test emailu');
-    console.log('ENV proměnné:', {
+    devLog('Začínám test emailu');
+    devLog('ENV proměnné:', {
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
       user: process.env.SMTP_USER,

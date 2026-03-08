@@ -14,6 +14,7 @@ import { Auto } from '@prisma/client';
 import { useEffect } from 'react';
 import React from 'react';
 import { DatePickerWithPresets } from '@/components/ui/calendar';
+import { devLog } from '@/lib/logger';
 
 const formSchema = z.object({
   spz: z.string().min(1, "SPZ je povinná").max(8, "SPZ může mít maximálně 8 znaků"),
@@ -56,7 +57,7 @@ export function AutoEditForm({ auto, onSubmit, onCancel }: {
 
   // Reset form when auto prop changes
   useEffect(() => {
-    console.log("Auto data changed, resetting form:", auto);
+    devLog("Auto data changed, resetting form:", auto);
     form.reset({
       spz: auto.spz || '',
       znacka: auto.znacka || '',

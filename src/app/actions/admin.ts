@@ -13,7 +13,7 @@ const UserSchema = z.object({
   name: z.string().min(1, 'Jméno je povinné'),
   email: z.string().email('Neplatný email'),
   password: z.string().min(8, 'Heslo musí mít minimálně 8 znaků').optional(),
-  roles: z.array(z.string()).min(1, 'Musí být vybrána alespoň jedna role'),
+  roles: z.array(z.enum(['ADMIN', 'DISPECER', 'RIDIC', 'DRIVER'])).min(1, 'Musí být vybrána alespoň jedna role'),
   status: z.enum(['ACTIVE', 'DISABLED', 'SUSPENDED']).default('ACTIVE'),
   avatar: z.string().url().optional().or(z.literal('')),
 })
@@ -158,30 +158,8 @@ export async function upsertUser(data: UserSchemaType) {
     // 2. Validation
     const validated = UserSchema.parse(data)
 
-    // 2. Get first role from array (Uzivatel model supports only single role)
-    const role = validated.roles[0] || 'RIDIC'
-    
-    // Validate role exists in Role table and is active
-    // Note: Uzivatel.role is an enum, so it must be one of: ADMIN, DISPECER, RIDIC
-    // But we still check the Role table to ensure it exists and is active
-    const roleRecord = await prisma.role.findUnique({
-      where: { name: role },
-      select: { isActive: true },
-    })
-    
-    if (!roleRecord) {
-      return {
-        success: false,
-        error: `Role "${role}" neexistuje v databázi. Vytvořte ji nejprve v sekci Role.`,
-      }
-    }
-    
-    if (!roleRecord.isActive) {
-      return {
-        success: false,
-        error: `Role "${role}" není aktivní. Aktivujte ji nejprve v sekci Role.`,
-      }
-    }
+    // 2. Get first role (Zod ensures it's a valid UzivatelRole enum value)
+    const role = validated.roles[0] as 'ADMIN' | 'DISPECER' | 'RIDIC' | 'DRIVER'
 
     // 3. Check if email already exists (for new users or when changing email)
     if (!validated.id) {

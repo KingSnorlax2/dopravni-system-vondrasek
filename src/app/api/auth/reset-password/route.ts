@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import bcryptjs from 'bcryptjs'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
+import { devLog } from '@/lib/logger'
 
 // Create a transporter for sending emails via Gmail SMTP
 const createTransporter = () => {
@@ -143,7 +144,7 @@ Dopravní systém
         `
       })
 
-      console.log(`Password reset email sent to ${email}`)
+      devLog(`Password reset email sent to ${email}`)
     } catch (emailError) {
       console.error('Email sending error:', emailError)
       throw new Error('Failed to send password reset email')

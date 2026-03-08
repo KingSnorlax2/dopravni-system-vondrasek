@@ -23,6 +23,8 @@ const TEST_PERMISSIONS = [
 export function RoleCreationDebug() {
   const [formData, setFormData] = useState({
     name: 'Test Role',
+    displayName: 'Test Role',
+    description: 'Debug test role for development',
     permissions: ['view_dashboard'],
     allowedPages: ['/dashboard'],
     defaultLandingPage: '/dashboard'
@@ -35,13 +37,21 @@ export function RoleCreationDebug() {
     try {
       console.log('Sending data:', formData)
       
+      const payload = {
+        name: formData.name,
+        displayName: formData.displayName || formData.name,
+        description: formData.description || '',
+        permissions: formData.permissions,
+        allowedPages: formData.allowedPages,
+        defaultLandingPage: formData.defaultLandingPage,
+      }
       const response = await fetch('/api/admin/roles', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       })
       
       const responseData = await response.json()
@@ -92,6 +102,26 @@ export function RoleCreationDebug() {
               id="name"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="displayName">Display Name</Label>
+            <Input
+              id="displayName"
+              value={formData.displayName}
+              onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Input
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               className="mt-1"
             />
           </div>

@@ -123,9 +123,16 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    if (!name || !displayName || !description) {
+    const missing: string[] = []
+    if (!name?.trim()) missing.push('name')
+    if (!displayName?.trim()) missing.push('displayName')
+    if (!description?.trim()) missing.push('description')
+    if (missing.length > 0) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        {
+          error: 'Missing required fields',
+          details: missing,
+        },
         { status: 400 }
       )
     }

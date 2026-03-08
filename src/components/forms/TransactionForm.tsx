@@ -33,6 +33,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/use-toast'
 import { Checkbox } from '@/components/ui/checkbox'
+import { devLog } from '@/lib/logger'
 
 // Updated schema without manual typ selection
 const transactionSchema = z.object({
@@ -230,7 +231,7 @@ export function TransactionForm({
         typ: values.castka > 0 ? 'příjem' : 'výdaj'
       }
       
-      console.log('Submitting data:', submitData)
+      devLog('Submitting data:', submitData)
       await onSubmitAction(submitData)
       form.reset(defaultValues)
       await onOpenChangeClientAction(false)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { devLog } from '@/lib/logger'
 
 // GET /api/admin/users/[id]/preferences - Get user preferences (admin only)
 export async function GET(
@@ -170,7 +171,7 @@ export async function PUT(
     })
 
     // Log the preference update for audit purposes
-    console.log(`Admin ${session.user.id} updated preferences for user ${userId}:`, {
+    devLog(`Admin ${session.user.id} updated preferences for user ${userId}:`, {
       defaultLandingPage,
       theme,
       language,

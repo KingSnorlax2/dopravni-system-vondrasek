@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CustomDatePicker } from "@/components/ui/calendar"
+import { devLog } from "@/lib/logger"
 import {
   Popover,
   PopoverContent,
@@ -61,7 +62,7 @@ export function CarForm() {
   const [open, setOpen] = React.useState(false);
 
   function onSubmit(data: CarFormValues) {
-    console.log(data)
+    devLog(data)
   }
 
   return (

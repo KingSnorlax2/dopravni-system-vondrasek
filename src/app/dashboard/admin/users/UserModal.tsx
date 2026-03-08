@@ -1,6 +1,13 @@
 "use client"
 
 import { useEffect, useState, useTransition } from 'react'
+
+// Static UzivatelRole options (matches database enum; bypasses dynamic Role table)
+const UZIVATEL_ROLE_OPTIONS: Array<{ name: string; displayName: string }> = [
+  { name: 'ADMIN', displayName: 'ADMIN' },
+  { name: 'RIDIC', displayName: 'Řidič' },
+  { name: 'DISPECER', displayName: 'Účetní' },
+]
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -27,64 +34,22 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
   })
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
-  const [roles, setRoles] = useState<Array<{ name: string; displayName: string }>>([])
-  const [loadingRoles, setLoadingRoles] = useState(true)
   const [isPending, startTransition] = useTransition()
   const [showPassword, setShowPassword] = useState(false)
 
-  // Fetch roles dynamically
   useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        setLoadingRoles(true)
-        const res = await fetch('/api/admin/roles', {
-          credentials: 'include',
-        })
-        if (res.ok) {
-          const data = await res.json()
-          // Filter only active roles and map to simple format
-          const activeRoles = data
-            .filter((r: any) => r.isActive)
-            .map((r: any) => ({
-              name: r.name,
-              displayName: r.displayName || r.name,
-            }))
-          setRoles(activeRoles)
-        } else {
-          console.error('Failed to fetch roles')
-          // Fallback to default roles if API fails
-          setRoles([
-            { name: 'ADMIN', displayName: 'ADMIN - Administrátor' },
-            { name: 'DISPECER', displayName: 'DISPECER - Dispečer' },
-            { name: 'RIDIC', displayName: 'RIDIC - Řidič' },
-          ])
-        }
-      } catch (err) {
-        console.error('Error fetching roles:', err)
-        // Fallback to default roles on error
-        setRoles([
-          { name: 'ADMIN', displayName: 'ADMIN - Administrátor' },
-          { name: 'DISPECER', displayName: 'DISPECER - Dispečer' },
-          { name: 'RIDIC', displayName: 'RIDIC - Řidič' },
-        ])
-      } finally {
-        setLoadingRoles(false)
-      }
-    }
-    
-    if (open) {
-      fetchRoles()
-    }
-  }, [open])
-
-  useEffect(() => {
+    const validRoleNames = UZIVATEL_ROLE_OPTIONS.map(r => r.name)
     if (user) {
+      const userRole = user.roles?.[0]
+      const normalizedRole = userRole && validRoleNames.includes(userRole)
+        ? [userRole]
+        : ['RIDIC'] // Fallback for DRIVER or invalid roles from DB
       setForm({
         id: user.id,
         name: user.name || '',
         email: user.email || '',
         password: '',
-        roles: user.roles || [],
+        roles: normalizedRole,
         status: user.status || 'ACTIVE',
         avatar: user.avatar || '',
       })
@@ -152,8 +117,7 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
       setError('Musí být vybrána role')
       return
     }
-    // Validate that role exists in available roles
-    const validRoleNames = roles.map(r => r.name)
+    const validRoleNames = UZIVATEL_ROLE_OPTIONS.map(r => r.name)
     if (!form.roles[0] || !validRoleNames.includes(form.roles[0])) {
       setError('Neplatná role. Vyberte roli ze seznamu.')
       return
@@ -372,26 +336,22 @@ export function UserModal({ open, onClose, onSave, user, onSuccess }: {
 
           <div>
             <Label htmlFor="role">Role *</Label>
-            {loadingRoles ? (
-              <div className="mt-1 text-sm text-gray-500">Načítání rolí...</div>
-            ) : (
-              <Select
-                value={form.roles[0] || ''}
-                onValueChange={(value) => setRole(value)}
-                disabled={isPending}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Vyberte roli" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.name} value={role.name}>
-                      {role.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <Select
+              value={form.roles[0] || ''}
+              onValueChange={(value) => setRole(value)}
+              disabled={isPending}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Vyberte roli" />
+              </SelectTrigger>
+              <SelectContent>
+                {UZIVATEL_ROLE_OPTIONS.map((role) => (
+                  <SelectItem key={role.name} value={role.name}>
+                    {role.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-xs text-gray-500 mt-1">
               Uživatel může mít pouze jednu roli
             </p>

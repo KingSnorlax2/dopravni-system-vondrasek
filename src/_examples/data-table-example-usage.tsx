@@ -8,9 +8,10 @@
 'use client'
 
 import { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "./index"
+import { DataTable } from "@/components/ui/data-table"
+import { DataTableColumnHeader } from "@/components/ui/data-table/column-header"
 import { Checkbox } from "@/components/ui/checkbox"
-import { DataTableColumnHeader } from "./column-header"
+import { devLog } from "@/lib/logger"
 
 // Example data type
 type ExampleData = {
@@ -69,33 +70,29 @@ export function ExampleDataTable() {
       data={exampleData}
       enableRowSelection={true}
       onDelete={async (selectedRows) => {
-        console.log("Delete:", selectedRows)
+        devLog("Delete:", selectedRows)
         // Implement delete logic
       }}
       onStatusChange={async (selectedRows) => {
-        console.log("Status change:", selectedRows)
+        devLog("Status change:", selectedRows)
         // Implement status change logic
       }}
       onSTKChange={async (selectedRows) => {
-        console.log("STK change:", selectedRows)
+        devLog("STK change:", selectedRows)
         // Implement STK change logic
       }}
       onExport={(selectedRows) => {
-        console.log("Export:", selectedRows)
+        devLog("Export:", selectedRows)
         // Implement export logic
       }}
       onPrint={(selectedRows) => {
-        console.log("Print:", selectedRows)
+        devLog("Print:", selectedRows)
         // Implement print logic
       }}
       onArchive={async (selectedRows) => {
-        console.log("Archive:", selectedRows)
+        devLog("Archive:", selectedRows)
         // Implement archive logic
       }}
     />
   )
 }
-
-
-
-

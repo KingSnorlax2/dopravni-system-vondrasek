@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import TransactionTable from '@/components/dashboard/TransactionTable';
 import { TransactionForm } from '@/components/forms/TransactionForm';
 import { createTransaction } from '@/features/transactions';
+import { devLog } from '@/lib/logger';
 
 const MAX_POPIS_LENGTH = 300; 
 const MAX_NAZEV_LENGTH = 50;
@@ -693,7 +694,7 @@ const TransakcePage: React.FC = () => {
       const result = await response.json();
       if (result.success) {
         // Zde můžete zpracovat extrahovaná data
-        console.log('Extrahovaná data:', result.data);
+        devLog('Extrahovaná data:', result.data);
         // Například nastavit hodnoty do formuláře
         setFormData(prev => ({
           ...prev,

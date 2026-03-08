@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { signIn, getSession } from 'next-auth/react';
+import { useMaintenanceMode } from '@/hooks/useMaintenanceMode';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -42,6 +43,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function HomePage() {
   const router = useRouter();
   const { toast } = useToast();
+  const maintenanceMode = useMaintenanceMode();
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
@@ -222,7 +224,7 @@ export default function HomePage() {
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          {process.env.NODE_ENV === 'development' && (
+          {maintenanceMode && (
             <Button
               type="button"
               onClick={async () => {
