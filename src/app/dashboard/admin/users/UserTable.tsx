@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Edit, Trash2, UserCheck, UserX, Circle } from "lucide-react"
+import { MoreHorizontal, Edit, Trash2, UserCheck, UserX, Circle, Filter, X } from "lucide-react"
 import { upsertUser, toggleUserStatus } from "@/app/actions/admin"
 import { format } from "date-fns"
 import cs from "date-fns/locale/cs"
@@ -316,47 +316,84 @@ export function UserTable({
       )}
       
       {/* Search & Filters */}
-      <div className="flex flex-wrap gap-6 mb-6 items-end">
-        {hasPermission("manage_users") && (
-          <Button
-            onClick={handleAdd}
-            disabled={isPending}
-            className="flex items-center gap-2"
-          >
-            + Přidat uživatele
-          </Button>
-        )}
-        <Input
-          type="text"
-          placeholder="Hledat podle jména nebo emailu..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-64"
-        />
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Všechny role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Všechny role</SelectItem>
-            {allRoles.map(role => {
-              const displayName = roleDisplayMap[role] || role
-              return (
-                <SelectItem key={role} value={role}>{displayName}</SelectItem>
-              )
-            })}
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Všechny statusy" />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map(opt => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mb-6 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <Filter className="h-4 w-4" />
+            <span>Filtry</span>
+            <span className="text-gray-500 font-normal">
+              (zobrazeno {filtered.length} z {users.length} uživatelů)
+            </span>
+          </div>
+          {(search || roleFilter !== 'all' || statusFilter !== 'all') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearch('')
+                setRoleFilter('all')
+                setStatusFilter('all')
+              }}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            >
+              <X className="h-4 w-4" />
+              Vymazat filtry
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-3 items-end">
+          {hasPermission("manage_users") && (
+            <Button
+              onClick={handleAdd}
+              disabled={isPending}
+              className="flex items-center gap-2"
+            >
+              + Přidat uživatele
+            </Button>
+          )}
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500">Hledat</label>
+              <Input
+                type="text"
+                placeholder="Jméno nebo email..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-56"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500">Role</label>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Všechny role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všechny role</SelectItem>
+                  {allRoles.map(role => {
+                    const displayName = roleDisplayMap[role] || role
+                    return (
+                      <SelectItem key={role} value={role}>{displayName}</SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Všechny statusy" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
       </div>
       
       {/* Table */}
