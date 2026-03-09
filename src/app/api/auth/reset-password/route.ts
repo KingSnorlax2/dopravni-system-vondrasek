@@ -31,7 +31,11 @@ const createTransporter = () => {
   })
 }
 
-const transporter = createTransporter()
+let _transporter: ReturnType<typeof createTransporter> | null = null
+function getTransporter() {
+  if (!_transporter) _transporter = createTransporter()
+  return _transporter
+}
 
 // Request password reset
 export async function POST(req: Request) {
@@ -45,12 +49,12 @@ export async function POST(req: Request) {
       )
     }
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
+    // Find user by email (Uzivatel is the authentication model)
+    const uzivatel = await prisma.uzivatel.findUnique({
       where: { email }
     })
 
-    if (!user) {
+    if (!uzivatel) {
       // Return success even if user doesn't exist to prevent email enumeration
       return NextResponse.json({ message: 'If an account exists, a password reset email will be sent' })
     }
@@ -60,7 +64,7 @@ export async function POST(req: Request) {
     const resetTokenExpiry = new Date(Date.now() + 3600000) // 1 hour from now
 
     // Save reset token to database
-    await prisma.user.update({
+    await prisma.uzivatel.update({
       where: { email },
       data: {
         resetToken,
@@ -74,7 +78,7 @@ export async function POST(req: Request) {
 
     // Send email
     try {
-      await transporter.sendMail({
+      await getTransporter().sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: email,
         subject: 'Reset hesla - Dopravní systém',
@@ -172,8 +176,8 @@ export async function PUT(req: Request) {
       )
     }
 
-    // Find user with valid reset token
-    const user = await prisma.user.findFirst({
+    // Find user with valid reset token (Uzivatel is the authentication model)
+    const uzivatel = await prisma.uzivatel.findFirst({
       where: {
         resetToken: token,
         resetTokenExpiry: {
@@ -182,7 +186,7 @@ export async function PUT(req: Request) {
       }
     })
 
-    if (!user) {
+    if (!uzivatel) {
       return NextResponse.json(
         { error: 'Invalid or expired reset token' },
         { status: 400 }
@@ -192,11 +196,11 @@ export async function PUT(req: Request) {
     // Hash new password
     const hashedPassword = await bcryptjs.hash(password, 10)
 
-    // Update user's password and clear reset token
-    await prisma.user.update({
-      where: { id: user.id },
+    // Update user's password and clear reset token (heslo = password column in Uzivatel)
+    await prisma.uzivatel.update({
+      where: { id: uzivatel.id },
       data: {
-        password: hashedPassword,
+        heslo: hashedPassword,
         resetToken: null,
         resetTokenExpiry: null
       }

@@ -224,14 +224,16 @@ enum NotifikaceTyp {
 
 // Uzivatel model with Czech column names for authentication
 model Uzivatel {
-  id          Int          @id @default(autoincrement())
-  email       String       @unique
-  heslo       String       // Hashed password (bcrypt)
-  jmeno       String?
-  role        UzivatelRole @default(RIDIC)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  notifikace  Notifikace[]
+  id                Int          @id @default(autoincrement())
+  email             String       @unique
+  heslo             String       // Hashed password (bcrypt)
+  jmeno             String?
+  role              UzivatelRole @default(RIDIC)
+  resetToken        String?      @unique // For forgot-password flow
+  resetTokenExpiry  DateTime?    // Token expiration
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  notifikace        Notifikace[]
 
   @@index([email])
 }
