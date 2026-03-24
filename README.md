@@ -1,411 +1,308 @@
-# Fleet Management System
+# Dopravni system vondrasek
 
-## Úvod
+Kompletni dokumentace projektu pro vyvojare i uzivatele/adminy.
 
-Fleet Management System je komplexní webová aplikace určená pro správu vozového parku. Systém umožňuje efektivní správu vozidel, jejich údržby, finančních transakcí, GPS sledování a distribuce novin. Aplikace je navržena s důrazem na škálovatelnost, bezpečnost a uživatelskou přívětivost.
+## Obsah
 
-Hlavní funkcionality systému zahrnují:
-- Správa vozového parku (přidávání, editace, archivace vozidel)
-- Sledování údržby a servisních záznamů
-- Finanční management (transakce, faktury, schvalování výdajů)
-- GPS sledování vozidel v reálném čase
-- Správa uživatelů a rolí s pokročilým systémem oprávnění
-- Distribuce novin s plánováním tras
-- Generování reportů a analytických přehledů
+- [O projektu](#o-projektu)
+- [Rychly orientacni rozcestnik](#rychly-orientacni-rozcestnik)
+- [Hlavni funkcionalita](#hlavni-funkcionalita)
+- [Role a opravneni](#role-a-opravneni)
+- [Architektura](#architektura)
+- [Struktura projektu](#struktura-projektu)
+- [Rychly start pro vyvoj](#rychly-start-pro-vyvoj)
+- [NPM skripty](#npm-skripty)
+- [Konfigurace prostredi (.env)](#konfigurace-prostredi-env)
+- [Databaze a Prisma](#databaze-a-prisma)
+- [Backend a API prehled](#backend-a-api-prehled)
+- [Autentizace a reset hesla](#autentizace-a-reset-hesla)
+- [Provoz, cron a emaily](#provoz-cron-a-emaily)
+- [Bezpecnostni a provozni upozorneni](#bezpecnostni-a-provozni-upozorneni)
+- [Troubleshooting](#troubleshooting)
+- [Dalsi dokumentace](#dalsi-dokumentace)
+- [Licence](#licence)
 
-## Technologický Stack
+## O projektu
 
-Aplikace je postavena na moderním technologickém stacku založeném na Next.js frameworku:
+`dopravni-system-vondrasek` je webova aplikace pro spravu vozoveho parku a souvisejicich procesu:
 
-### Frontend
-- **Next.js 14** - React framework s App Router pro server-side rendering a optimalizaci výkonu
-- **React 18** - Knihovna pro stavbu uživatelského rozhraní
-- **TypeScript** - Typovaný nadstavba JavaScriptu pro zvýšení bezpečnosti kódu
-- **Tailwind CSS** - Utility-first CSS framework pro rychlý vývoj UI
-- **Shadcn/ui** - Sada přístupných UI komponent založených na Radix UI
-- **Framer Motion** - Knihovna pro animace a přechody
-- **React Hook Form** - Efektivní správa formulářů s validací
-- **Zod** - TypeScript-first schema validation
-- **Recharts** - Knihovna pro vytváření grafů a vizualizací
-- **Leaflet** - Open-source JavaScript knihovna pro interaktivní mapy
+- sprava vozidel (aktivni/archivovana, detail vozidla, fotografie, historie)
+- finance (transakce, kategorie, faktury, reporty)
+- opravy a udrzba
+- GPS data a prehled poloh
+- uzivatele, role, opravneni a administrace
+- notifikace (napr. upozorneni na STK)
+- ridicske flow pro distribuci novin
 
-### Backend
-- **Next.js API Routes** - Server-side API endpointy integrované do Next.js
-- **Server Actions** - Next.js funkce pro server-side operace
-- **Prisma ORM** - Moderní ORM pro TypeScript s type-safe databázovými dotazy
-- **PostgreSQL** - Relační databázový systém pro ukládání dat
-- **NextAuth.js 4** - Kompletní autentizační řešení pro Next.js
-- **bcryptjs** - Hashování hesel pro bezpečné ukládání
+Technologie:
 
-### Nástroje a Utility
-- **date-fns** - Moderní knihovna pro práci s datumy
-- **js-cookie** - Práce s cookies v prohlížeči
-- **nodemailer** - Odesílání e-mailů
-- **react-pdf** - Generování a zobrazení PDF dokumentů
-- **qrcode.react** - Generování QR kódů
+- Next.js 14 (App Router), React 18, TypeScript
+- Prisma ORM + PostgreSQL
+- NextAuth (Credentials provider)
+- Tailwind CSS + shadcn/ui
 
-## Instalace a Spuštění
+## Rychly orientacni rozcestnik
 
-### Předpoklady
+### Jsem uzivatel/admin
 
-Před instalací projektu je nutné mít nainstalované:
-- **Node.js** (verze 18 nebo vyšší)
-- **npm** nebo **yarn** package manager
-- **PostgreSQL** databázový server (lokální nebo vzdálený)
+- Prihlaseni je na `/` (`src/app/page.tsx`).
+- Hlavni aplikace bezi na routach pod `/dashboard/*` a `/homepage`.
+- Reset hesla je na `/reset-password`.
+- Pri vypnuti systemu se zobrazi `/maintenance`.
 
-### Kroky instalace
+### Jsem vyvojar
 
-1. **Klonování repozitáře**
-   ```bash
-   git clone <repository-url>
-   cd dopravni-system-vondrasek
-   ```
+- Zacni sekci [Rychly start pro vyvoj](#rychly-start-pro-vyvoj).
+- Pak pokracuj na [Konfigurace prostredi (.env)](#konfigurace-prostredi-env).
+- Pro data a migrace viz [Databaze a Prisma](#databaze-a-prisma).
 
-2. **Instalace závislostí**
-   ```bash
-   npm install
-   ```
+## Hlavni funkcionalita
 
-3. **Konfigurace prostředí**
-   
-   Vytvořte soubor `.env` v kořenovém adresáři projektu a nastavte následující proměnné:
-   ```env
-   # Databáze
-   DATABASE_URL="postgresql://user:password@localhost:5432/database_name?schema=public"
-   
-   # NextAuth
-   NEXTAUTH_URL="http://localhost:3000"
-   NEXTAUTH_SECRET="your-secret-key-here"
-   
-   # E-mail (volitelné, pro resetování hesla)
-   SMTP_HOST="smtp.example.com"
-   SMTP_PORT="587"
-   SMTP_USER="your-email@example.com"
-   SMTP_PASSWORD="your-email-password"
-   SMTP_FROM="noreply@example.com"
-   ```
+Klicove moduly (UI):
 
-4. **Nastavení databáze**
-   ```bash
-   # Generování Prisma Client
-   npx prisma generate
-   
-   # Spuštění migrací
-   npx prisma migrate dev
-   
-   # (Volitelné) Naplnění databáze testovacími daty
-   npm run db:seed
-   ```
+- Vozidla: `/dashboard/auta`, detail `/dashboard/auta/[id]`, pridani `/dashboard/auta/pridej`
+- Transakce: `/dashboard/transakce`
+- Opravy: `/dashboard/opravy`
+- Grafy/analytics: `/dashboard/grafy`
+- Soubory: `/dashboard/soubory`
+- Ucet a nastaveni: `/dashboard/account`, `/dashboard/settings`
+- Admin: `/dashboard/admin/users`, `/dashboard/admin/settings`, `/dashboard/admin/driver-settings`
+- Driver distribuce:  
+  - `/dashboard/noviny/distribuce/driver-login`  
+  - `/dashboard/noviny/distribuce/driver-route`  
+  - `/dashboard/noviny/distribuce/driver-restricted`  
+  - `/dashboard/noviny/distribuce/driver-reset-password`
+- Systemove stranky: `/reset-password`, `/maintenance`, `/homepage`
 
-5. **Spuštění vývojového serveru**
-   ```bash
-   npm run dev
-   ```
+## Role a opravneni
 
-   Aplikace bude dostupná na adrese `http://localhost:3000`
+Opravneni jsou rizena pres:
 
-### Další dostupné skripty
+- JWT/session data (`role`, `allowedPages`, `defaultLandingPage`)
+- middleware route guard v `src/middleware.ts`
+- role konfiguraci v DB (tabulka `Role`, vazby `RolePermission`)
 
-- `npm run build` - Vytvoření produkční build
-- `npm run start` - Spuštění produkčního serveru
-- `npm run lint` - Kontrola kódu pomocí ESLint
-- `npm run dev:tunnel` - Spuštění vývojového serveru s lokálním tunelem (pro testování na mobilních zařízeních)
+Dulezite chovani:
 
-## Konfigurace
-
-### Požadované environment proměnné
-
-| Proměnná | Popis | Povinná |
-|---------|-------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | Ano |
-| `NEXTAUTH_URL` | URL aplikace (např. http://localhost:3000) | Ano |
-| `NEXTAUTH_SECRET` | Tajný klíč pro NextAuth (vygenerujte pomocí `openssl rand -base64 32`) | Ano |
-| `SMTP_HOST` | SMTP server pro odesílání e-mailů | Ne |
-| `SMTP_PORT` | Port SMTP serveru | Ne |
-| `SMTP_USER` | Uživatelské jméno pro SMTP | Ne |
-| `SMTP_PASSWORD` | Heslo pro SMTP | Ne |
-| `SMTP_FROM` | E-mailová adresa odesílatele | Ne |
-
-### Next.js konfigurace
-
-Konfigurace Next.js se nachází v souboru `next.config.js`. Aktuální nastavení:
-- Ignorování TypeScript chyb během buildu (pro vývoj)
-- Ignorování ESLint chyb během buildu (pro vývoj)
-
-**Poznámka:** V produkčním prostředí by měly být tyto možnosti vypnuty pro zajištění kvality kódu.
+- `ADMIN` obchazi kontrolu `allowedPages` v middleware.
+- U ostatnich roli middleware povoli jen cesty z `allowedPages` (plus bezpecne prefix pravidlo).
+- U route `/dashboard` je hard redirect na `/dashboard/auta`.
 
 ## Architektura
 
-Aplikace využívá architekturu založenou na Next.js App Router, která umožňuje efektivní server-side rendering a optimalizaci výkonu. Níže je znázorněn tok dat v systému:
-
-```mermaid
-graph TD
-    A[Client Browser] -->|HTTP Request| B[Next.js App Router]
-    B -->|Route Matching| C{Page Type}
-    C -->|Server Component| D[Server Component]
-    C -->|Client Component| E[Client Component]
-    C -->|API Route| F[API Route Handler]
-    
-    D -->|Server Actions| G[Server Actions]
-    E -->|Client-side Logic| H[React Hooks]
-    E -->|API Calls| F
-    F -->|Database Queries| I[Prisma ORM]
-    G -->|Database Queries| I
-    
-    I -->|SQL Queries| J[(PostgreSQL Database)]
-    J -->|Query Results| I
-    I -->|Type-safe Data| G
-    I -->|Type-safe Data| F
-    
-    G -->|Response| D
-    F -->|JSON Response| E
-    D -->|Rendered HTML| B
-    E -->|Interactive UI| A
-    
-    style A fill:#e1f5ff
-    style B fill:#fff4e1
-    style I fill:#ffe1f5
-    style J fill:#e1ffe1
-```
-
-### Vysvětlení architektury
-
-1. **Client Browser** - Uživatelský prohlížeč, který odesílá HTTP požadavky
-2. **Next.js App Router** - Směrování požadavků na základě URL struktury
-3. **Server Components** - Komponenty renderované na serveru pro lepší výkon
-4. **Client Components** - Interaktivní komponenty s React hooks
-5. **API Routes** - RESTful endpointy pro komunikaci s frontendem
-6. **Server Actions** - Server-side funkce volané přímo z komponent
-7. **Prisma ORM** - Type-safe databázová vrstva
-8. **PostgreSQL** - Relační databáze pro trvalé ukládání dat
-
-### Bezpečnostní vrstvy
-
-- **Middleware** - Ověřování autentizace a autorizace před přístupem k routám
-- **NextAuth.js** - Správa session a autentizace uživatelů
-- **Role-based Access Control** - Systém rolí a oprávnění pro kontrolu přístupu
-- **Password Hashing** - Hesla jsou hashována pomocí bcryptjs
-
-### Systémový Přehled
-
-Níže je znázorněn celkový přehled systému a jeho hlavních komponent:
-
-```mermaid
-graph TB
-    subgraph "Frontend Layer"
-        A[React Components] --> B[Next.js App Router]
-        B --> C[Server Components]
-        B --> D[Client Components]
-        D --> E[React Hooks]
-    end
-    
-    subgraph "Backend Layer"
-        F[API Routes] --> G[Server Actions]
-        G --> H[Business Logic]
-        H --> I[Prisma ORM]
-    end
-    
-    subgraph "Data Layer"
-        I --> J[(PostgreSQL)]
-        J --> K[Vehicle Data]
-        J --> L[User Data]
-        J --> M[Transaction Data]
-    end
-    
-    subgraph "Security Layer"
-        N[Middleware] --> O[NextAuth.js]
-        O --> P[Role-Based Access]
-        P --> Q[Permission Check]
-    end
-    
-    subgraph "External Services"
-        R[GPS Devices] --> S[GPS API]
-        T[Email Service] --> U[SMTP Server]
-    end
-    
-    B --> N
-    F --> N
-    G --> N
-    S --> F
-    H --> T
-    
-    style A fill:#e1f5ff
-    style I fill:#ffe1f5
-    style J fill:#e1ffe1
-    style N fill:#fff4e1
-    style O fill:#fff4e1
-```
-
-### Autentizační Flow
-
-Sekvenční diagram znázorňující proces autentizace uživatele:
-
-```mermaid
-sequenceDiagram
-    participant U as Uživatel
-    participant B as Browser
-    participant M as Middleware
-    participant A as NextAuth.js
-    participant DB as Database
-    participant S as Session
-    
-    U->>B: Zadá přihlašovací údaje
-    B->>A: POST /api/auth/signin
-    A->>DB: Ověření uživatele
-    DB-->>A: Uživatelské údaje + role
-    A->>A: Hashování hesla (bcrypt)
-    A->>A: Vytvoření JWT tokenu
-    A->>S: Uložení session
-    A-->>B: Session cookie
-    B->>M: Požadavek na chráněnou stránku
-    M->>A: Ověření JWT tokenu
-    A-->>M: Token validní + role/permissions
-    M->>M: Kontrola allowedPages
-    M-->>B: Povolen přístup / Přesměrování
-    B-->>U: Zobrazení stránky
-```
-
-### Hlavní Use Cases
-
-Flow diagram pro hlavní případy použití systému:
-
 ```mermaid
 flowchart TD
-    Start([Uživatel přistupuje k systému]) --> Auth{Je přihlášen?}
-    Auth -->|Ne| Login[Přihlášení]
-    Auth -->|Ano| CheckRole{Kontrola role}
-    
-    Login --> Verify[Ověření údajů]
-    Verify -->|Neúspěch| Login
-    Verify -->|Úspěch| CheckRole
-    
-    CheckRole --> Admin{ADMIN?}
-    CheckRole --> Driver{DRIVER?}
-    CheckRole --> User{USER?}
-    
-    Admin --> AdminDash[Admin Dashboard]
-    AdminDash --> ManageVehicles[Správa vozidel]
-    AdminDash --> ManageUsers[Správa uživatelů]
-    AdminDash --> ViewReports[Zobrazení reportů]
-    AdminDash --> ApproveExpenses[Schvalování výdajů]
-    
-    Driver --> DriverDash[Driver Dashboard]
-    DriverDash --> ViewAssigned[Zobrazení přiřazených vozidel]
-    DriverDash --> ReportIssues[Hlášení problémů]
-    DriverDash --> UpdateStatus[Aktualizace stavu vozidla]
-    
-    User --> UserDash[User Dashboard]
-    UserDash --> ViewVehicles[Zobrazení vozidel]
-    UserDash --> ViewTransactions[Zobrazení transakcí]
-    UserDash --> ViewMaintenance[Zobrazení údržby]
-    
-    ManageVehicles --> End([Konec])
-    ManageUsers --> End
-    ViewReports --> End
-    ApproveExpenses --> End
-    ViewAssigned --> End
-    ReportIssues --> End
-    UpdateStatus --> End
-    ViewVehicles --> End
-    ViewTransactions --> End
-    ViewMaintenance --> End
-    
-    style Admin fill:#ffcccc
-    style Driver fill:#ccffcc
-    style User fill:#ccccff
-    style AdminDash fill:#ffe1f5
-    style DriverDash fill:#e1ffe1
-    style UserDash fill:#e1f5ff
-```
-
-### Komponentová Architektura
-
-Přehled hlavních komponent a jejich vztahů:
-
-```mermaid
-graph LR
-    subgraph "UI Components"
-        A[Button] --> B[Form]
-        C[Table] --> D[DataTable]
-        E[Dialog] --> F[Modal]
-        G[Card] --> H[Dashboard]
-    end
-    
-    subgraph "Layout Components"
-        I[Sidebar] --> J[MainLayout]
-        K[Navbar] --> J
-        L[PageHeader] --> J
-    end
-    
-    subgraph "Feature Components"
-        M[VehicleList] --> N[VehicleDetail]
-        O[TransactionForm] --> P[TransactionTable]
-        Q[MaintenanceForm] --> R[MaintenanceList]
-        S[MapView] --> T[GPS Tracking]
-    end
-    
-    subgraph "Forms"
-        U[AutoForm] --> V[Validation]
-        W[UserForm] --> V
-        X[ServiceForm] --> V
-    end
-    
-    J --> H
-    B --> U
-    B --> W
-    B --> X
-    H --> M
-    H --> O
-    H --> Q
-    H --> S
-    
-    style A fill:#e1f5ff
-    style M fill:#ffe1f5
-    style J fill:#fff4e1
-    style V fill:#e1ffe1
+    Browser[Browser] --> AppRouter[Next.js App Router]
+    AppRouter --> Pages[Pages and Layouts]
+    AppRouter --> ApiRoutes[API Routes]
+    Pages --> ServerActions[Server Actions]
+    ApiRoutes --> AuthLayer[Auth and Guards]
+    ServerActions --> PrismaLayer[Prisma Client]
+    ApiRoutes --> PrismaLayer
+    PrismaLayer --> Postgres[(PostgreSQL)]
 ```
 
 ## Struktura projektu
 
-```
+```text
 dopravni-system-vondrasek/
-├── prisma/              # Prisma schema a migrace
-├── public/              # Statické soubory
+├── prisma/                  # schema, migrations, seed
+├── public/                  # staticke soubory
+├── scripts/                 # pomocne skripty (napr. tunnel)
 ├── src/
-│   ├── app/            # Next.js App Router (routy, stránky)
-│   ├── components/     # React komponenty
-│   ├── lib/            # Utility funkce a knihovny
-│   ├── hooks/          # Custom React hooks
-│   ├── types/          # TypeScript typy a definice
-│   └── middleware.ts   # Next.js middleware pro autentizaci
-├── scripts/            # Pomocné skripty
-├── next.config.js      # Next.js konfigurace
-└── package.json        # Projektové závislosti
+│   ├── app/                 # App Router: pages + api + actions
+│   ├── components/          # UI a feature komponenty
+│   ├── hooks/               # custom hooky
+│   ├── lib/                 # auth, prisma, email, utility
+│   ├── providers/           # React providery
+│   ├── types/               # type extensions (NextAuth)
+│   ├── utils/               # dalsi utility
+│   └── middleware.ts        # centralni guard
+├── next.config.js
+├── package.json
+└── README.md
 ```
 
-Pro detailnější popis jednotlivých částí projektu viz příslušné README soubory. 
+## Rychly start pro vyvoj
 
-**Navigace v dokumentaci:**
-- [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) - Kompletní index všech dokumentů
-- [DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md) - Souhrn a statistiky dokumentace
+Predpoklady:
 
-**Hlavní sekce:**
-- [App Router dokumentace](./src/app/README.md) - Routing, stránky, API routes
-- [API Routes dokumentace](./src/app/api/README.md) - RESTful API endpointy
-- [Server Actions dokumentace](./src/app/actions/README.md) - Server-side funkce pro mutace dat
-- [Databázová dokumentace](./prisma/README.md) - Prisma schema, modely, ERD
-- [Komponenty dokumentace](./src/components/README.md) - React komponenty, UI systém
-- [Utility knihovny dokumentace](./src/lib/README.md) - Pomocné funkce a knihovny
+- Node.js 18+ (doporuceno 20+)
+- PostgreSQL
+- npm nebo pnpm (`package-lock.json` i `pnpm-lock.yaml` jsou v repu)
 
-**Další dokumentace:**
-- [Middleware dokumentace](./src/MIDDLEWARE.md) - Autentizace a autorizace na úrovni middleware
-- [Custom Hooks dokumentace](./src/hooks/README.md) - React hooks pro znovupoužitelnou logiku
-- [TypeScript Typy dokumentace](./src/types/README.md) - Type definitions a rozhraní
-- [Aplikace-specifické utility](./src/utils/README.md) - Utility funkce specifické pro aplikaci
-- [React Providers dokumentace](./src/providers/README.md) - Context providers pro sdílený stav
-- [Statické soubory dokumentace](./public/README.md) - Statické soubory a uploads
-- [Skripty dokumentace](./scripts/README.md) - Pomocné skripty a utility
+Instalace:
+
+```bash
+npm install
+```
+
+Inicializace DB:
+
+```bash
+npx prisma generate
+npx prisma migrate dev
+npm run db:seed
+```
+
+Spusteni:
+
+```bash
+npm run dev
+```
+
+Aplikace pobězi na `http://localhost:3000`.
+
+## NPM skripty
+
+Skripty z `package.json`:
+
+- `npm run dev` - vyvojovy server (`next dev -H 0.0.0.0`)
+- `npm run dev:tunnel` - dev server + Cloudflare tunnel
+- `npm run tunnel` - pouze tunnel
+- `npm run build` - produkcni build
+- `npm run start` - spusteni produkcniho buildu
+- `npm run lint` - eslint
+- `npm run db:seed` - seed databaze
+- `npm run db:fix-roles` - oprava nekonzistentnich roli
+
+## Konfigurace prostredi (.env)
+
+Projekt nema committed `.env.example`, vytvor si lokalni `.env` podle tabulky:
+
+| Promenna | Povinna | Popis |
+|---|---|---|
+| `DATABASE_URL` | ano | PostgreSQL connection string (Prisma datasource) |
+| `NEXTAUTH_SECRET` | ano | secret pro NextAuth JWT/session |
+| `NEXTAUTH_URL` | doporuceno | URL aplikace pro auth callbacky |
+| `NEXT_PUBLIC_APP_URL` | doporuceno | zaklad URL pro odkazy v emailech (reset hesla, reporty) |
+| `SMTP_HOST` | volitelne* | SMTP host |
+| `SMTP_PORT` | volitelne* | SMTP port (default 587) |
+| `SMTP_USER` | volitelne* | SMTP user |
+| `SMTP_PASS` | volitelne* | SMTP heslo (pozor: pouziva se `SMTP_PASS`, ne `SMTP_PASSWORD`) |
+| `SMTP_FROM` | volitelne | From adresa; fallback na `SMTP_USER` |
+| `SMTP_SECURE` | volitelne | `true/false`, v reset route je podporovana |
+| `NOTIFICATION_EMAIL` | pro STK emaily | cilova adresa pro STK notifikace |
+| `CRON_SECRET` | silne doporuceno v produkci | ochrana cron endpointu |
+| `GPS_API_KEY` | pro GPS endpoint | API klic pro `/api/gps/receive` |
+
+\* Bez SMTP bude cast email funkci preskocena nebo vrati chybu podle endpointu.
+
+## Databaze a Prisma
+
+Schema: `prisma/schema.prisma` (PostgreSQL provider).
+
+Zakladni Prisma prikazy:
+
+```bash
+npx prisma generate
+npx prisma migrate dev
+npx prisma studio
+```
+
+Reset databaze (destruktivni):
+
+```bash
+npx prisma migrate reset
+```
+
+Seed:
+
+- hlavni seed je `prisma/seed.ts`
+- v projektu je i legacy `prisma/seed.cjs`
+
+Poznamka k Prisma klientum:
+
+- `src/lib/prisma.ts` exportuje:
+  - `db` (extended client se soft-delete pravidly pro `Auto`)
+  - `prisma` (base client bez soft-delete extension)
+
+## Backend a API prehled
+
+API routy jsou v `src/app/api/*` (cca 60 route handleru).
+
+Hlavni domeny:
+
+- `api/auth/*` - NextAuth, init, reset hesla
+- `api/admin/*` - uzivatele, role, settings, preference
+- `api/user/*` a `api/users/*` - profil, heslo, preference, listy
+- `api/auta/*` - vozidla, foto, GPS, archivace, bulk operace
+- `api/transakce/*` - finance a faktury
+- `api/driver-login/*` - ridicske prihlaseni, lock status, logs, confirm route
+- `api/notifications/*` - STK notifikace
+- `api/gps/*` - ingest GPS dat
+- `api/dashboard/*` - agregovana data pro dashboard
+- `api/send-report`, `api/maintenance-status`, `api/test-email`, `api/cron-simulation`
+
+## Autentizace a reset hesla
+
+Auth:
+
+- Konfigurace: `src/lib/auth.config.ts`
+- Handler: `src/app/api/auth/[...nextauth]/route.ts`
+- Guard: `src/middleware.ts`
+
+Reset hesla:
+
+- UI: `src/app/reset-password/page.tsx` + `src/app/reset-password/ResetPasswordForm.tsx`
+- API: `src/app/api/auth/reset-password/route.ts`
+- Token je ukladan v `Uzivatel.resetToken` + `resetTokenExpiry`
+- Platnost reset tokenu je 1 hodina
+
+## Provoz, cron a emaily
+
+Cron:
+
+- `vercel.json` spousti denne `/api/notifications/check-stk` (9:00)
+- endpoint umi overit `Authorization: Bearer <CRON_SECRET>`
+
+Emaily:
+
+- centralni mail helper: `src/lib/email.ts`
+- reset hesla ma vlastni route implementaci v `src/app/api/auth/reset-password/route.ts`
+- STK upozorneni a reporty vyuzivaji SMTP konfiguraci
+
+Tunnel:
+
+- `scripts/tunnel.js` spousti Cloudflare tunnel pres `npx cloudflared`
+
+## Bezpecnostni a provozni upozorneni
+
+- **Seed ucty:** `prisma/seed.ts` vytvari default admin ucty:
+  - `admin@test.com / admin123` (model `Uzivatel`, pouzivany NextAuth)
+  - `admin@admin.com / Admin123!` (legacy `User`)
+- **Dev endpointy:** nektere endpointy jsou dostupne jen v developmentu (`auth/init`, `test-email`, `cron-simulation`).
+- **CRON_SECRET:** pokud neni nastaven, cron endpoint muze byt snadno volatelny bez dodatecneho tajemstvi.
+- **SMTP promenna:** v runtime kodu je pouzivana `SMTP_PASS`, ne `SMTP_PASSWORD`.
+- **Reset DB:** `prisma migrate reset` smaze data.
+- **Build quality:** `next.config.js` ma zapnute `ignoreBuildErrors` a `ignoreDuringBuilds`; pred produkcnim release doporuceno zvazit stricter nastaveni.
+
+## Troubleshooting
+
+- **Nefunguje login:** zkontroluj `NEXTAUTH_SECRET`, DB pripojeni a seed ucty.
+- **Nefunguji emaily:** zkontroluj `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`.
+- **Nefunguje reset hesla URL:** zkontroluj `NEXT_PUBLIC_APP_URL` (jinak fallback na localhost).
+- **STK cron neposila emaily:** zkontroluj `NOTIFICATION_EMAIL`, `CRON_SECRET`, a deploy cron ve `vercel.json`.
+- **GPS endpoint vraci chybu:** over `GPS_API_KEY`.
+- **Nejde prisma migrate:** over `DATABASE_URL` a dostupnost PostgreSQL.
+
+## Dalsi dokumentace
+
+Doporucene navazujici dokumenty:
+
+- [Dokumentacni index](./DOCUMENTATION_INDEX.md)
+- [Souhrn dokumentace](./DOCUMENTATION_SUMMARY.md)
+- [App Router](./src/app/README.md)
+- [API Routes](./src/app/api/README.md)
+- [Server Actions](./src/app/actions/README.md)
+- [Prisma databaze](./prisma/README.md)
+- [Komponenty](./src/components/README.md)
+- [Lib utility](./src/lib/README.md)
+- [Hooks](./src/hooks/README.md)
+- [Types](./src/types/README.md)
+- [Providers](./src/providers/README.md)
+- [Scripts](./scripts/README.md)
 
 ## Licence
 
-Tento projekt je vytvořen pro vzdělávací účely v rámci maturitní práce.
+Projekt je veden jako soucast maturitni prace.
